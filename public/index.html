@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>record.ai</title>
+  <meta name="description" content="Notes you type, dictate or photograph — organized automatically.">
+  <meta name="theme-color" content="#4f46e5">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <img src="icons/icon.svg" alt="" width="28" height="28">
+      <span>record.ai</span>
+      <span id="syncDot" class="sync-dot" title="Sync status"></span>
+    </div>
+    <input id="search" type="search" placeholder="Search notes…" autocomplete="off">
+    <div class="view-toggle" role="tablist">
+      <button data-view="priority" class="active" role="tab">Priority</button>
+      <button data-view="groups" role="tab">Groups</button>
+    </div>
+    <button id="reorganizeBtn" class="ghost" title="Ask AI to re-group and re-prioritize everything">✨ Reorganize</button>
+  </header>
+
+  <div id="banner" class="banner" hidden></div>
+
+  <main>
+    <section class="composer card" id="composer">
+      <textarea data-role="text" rows="3" placeholder="Write a note, or tap 🎤 to dictate…"></textarea>
+      <div data-role="interim" class="interim"></div>
+      <div data-role="thumbs" class="thumbs"></div>
+      <div class="composer-actions">
+        <button data-role="mic" class="icon-btn" title="Dictate">🎤</button>
+        <button data-role="camera" class="icon-btn" title="Take a photo">📷</button>
+        <button data-role="photo" class="icon-btn" title="Add images">🖼️</button>
+        <input data-role="file" type="file" accept="image/*" multiple hidden>
+        <span class="spacer"></span>
+        <span class="hint">Ctrl+Enter to save</span>
+        <button data-role="save" class="primary">Save</button>
+      </div>
+    </section>
+
+    <nav id="groupChips" class="chips"></nav>
+    <div id="list"></div>
+  </main>
+
+  <!-- Note editor -->
+  <dialog id="editor" class="sheet">
+    <form method="dialog" class="sheet-inner" id="editorForm">
+      <div class="sheet-head">
+        <h2 id="editorTitle">Note</h2>
+        <button value="cancel" class="icon-btn" title="Close">✕</button>
+      </div>
+      <div class="ai-box" id="editorAi"></div>
+      <div class="composer" id="editorComposer">
+        <textarea data-role="text" rows="8"></textarea>
+        <div data-role="interim" class="interim"></div>
+        <div data-role="thumbs" class="thumbs"></div>
+        <div class="composer-actions">
+          <button type="button" data-role="mic" class="icon-btn" title="Dictate">🎤</button>
+          <button type="button" data-role="camera" class="icon-btn" title="Take a photo">📷</button>
+          <button type="button" data-role="photo" class="icon-btn" title="Add images">🖼️</button>
+          <input data-role="file" type="file" accept="image/*" multiple hidden>
+        </div>
+      </div>
+      <div class="overrides">
+        <label>Group
+          <input id="editorGroup" list="groupList" placeholder="Auto">
+          <datalist id="groupList"></datalist>
+        </label>
+        <label>Priority
+          <select id="editorPriority">
+            <option value="">Auto</option>
+            <option value="urgent">Urgent</option>
+            <option value="high">High</option>
+            <option value="normal">Normal</option>
+            <option value="low">Low</option>
+          </select>
+        </label>
+      </div>
+      <div class="sheet-actions">
+        <button type="button" id="editorDelete" class="danger ghost">Delete</button>
+        <button type="button" id="editorReanalyze" class="ghost">Re-analyze</button>
+        <button type="button" id="editorDone" class="ghost">Mark done</button>
+        <span class="spacer"></span>
+        <button value="save" class="primary" id="editorSave">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Camera -->
+  <dialog id="camera" class="camera">
+    <video id="cameraVideo" autoplay playsinline muted></video>
+    <div class="camera-actions">
+      <button id="cameraClose" class="icon-btn light" title="Close">✕</button>
+      <button id="cameraShoot" class="shutter" title="Take photo"></button>
+      <button id="cameraFlip" class="icon-btn light" title="Switch camera">🔄</button>
+    </div>
+    <div id="cameraCount" class="camera-count"></div>
+  </dialog>
+
+  <!-- Image viewer -->
+  <dialog id="viewer" class="viewer">
+    <img id="viewerImg" alt="">
+  </dialog>
+
+  <!-- Login -->
+  <dialog id="login" class="sheet">
+    <form method="dialog" class="sheet-inner" id="loginForm">
+      <h2>Unlock your notes</h2>
+      <input id="loginPassword" type="password" placeholder="Password" autocomplete="current-password" required>
+      <p id="loginError" class="error"></p>
+      <button class="primary">Unlock</button>
+    </form>
+  </dialog>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
