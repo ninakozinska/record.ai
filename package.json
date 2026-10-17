@@ -9,7 +9,9 @@
     "test": "node --disable-warning=ExperimentalWarning --test test/*.test.js",
     "e2e": "node --disable-warning=ExperimentalWarning test/e2e.mjs",
     "icons": "node scripts/make-icons.mjs",
-    "reset-password": "node --disable-warning=ExperimentalWarning scripts/reset-password.mjs"
+    "reset-password": "node --disable-warning=ExperimentalWarning scripts/reset-password.mjs",
+    "check:swift": "node scripts/check-swift.mjs",
+    "coverage": "node --disable-warning=ExperimentalWarning --test --experimental-test-coverage test/*.test.js"
   },
   "repository": {
     "type": "git",
@@ -25,7 +27,9 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
-    "playwright": "^1.56.1"
+    "playwright": "^1.56.1",
+    "tree-sitter-wasms": "^0.1.11",
+    "web-tree-sitter": "^0.20.8"
   },
   "type": "module",
   "private": true,

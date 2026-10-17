@@ -124,10 +124,17 @@ Open your server's URL, log in, then:
 ## Development
 
 ```bash
-npm run dev     # restart on changes
-npm test        # API tests (Claude is faked)
-npm run e2e     # browser test: two devices, photos, camera, offline sync
+npm run dev            # restart on changes
+npm test               # server, accounts, AI, scripts and iPhone-protocol tests
+npm run e2e            # browser test: two devices, sign-up, sync, photos, camera, offline, logout
+npm run check:swift    # syntax check of the iPhone app
+npm run coverage       # tests with a coverage table
 ```
+
+- [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md): how the parts fit, the sync rules, and what each test covers (and doesn't).
+- [docs/API.md](docs/API.md): the server API used by the web and iPhone apps.
+
+GitHub runs every test on each push.
 
 ## Known limitations
 

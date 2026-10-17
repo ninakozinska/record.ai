@@ -41,6 +41,7 @@ final class NoteStore {
     @ObservationIgnored private var token: String?
     @ObservationIgnored private var liveTask: Task<Void, Never>?
     @ObservationIgnored private var flushing = false
+    @ObservationIgnored private var flushAgain = false
     @ObservationIgnored private var pulling = false
 
     var api: API? { serverURL.map { API(baseURL: $0, token: token) } }
@@ -254,8 +255,9 @@ final class NoteStore {
             let page = try await api.get("notes?since=\(rev)", as: NotesPage.self)
             merge(page.notes)
             if page.rev < rev {
-                // The server's database was replaced; load everything again.
+                // The server's database was replaced: drop the cached copies and load everything again.
                 rev = 0
+                notes = [:]
                 pulling = false
                 await pull()
                 return
@@ -274,6 +276,9 @@ final class NoteStore {
     private func merge(_ incoming: [Note]) {
         let pendingIds = Set(outbox.filter { $0.kind == "note" }.map(\.id))
         for var s in incoming {
+            // Replies and live updates can arrive out of order; never let an older
+            // server state (lower revision) overwrite a newer one.
+            if let lr = notes[s.id]?.rev, let sr = s.rev, sr < lr { continue }
             if let local = notes[s.id], pendingIds.contains(s.id) || local.editedAt > s.editedAt {
                 var next = local
                 next.title = s.title
@@ -283,7 +288,9 @@ final class NoteStore {
                 next.priorityReason = s.priorityReason
                 next.tags = s.tags
                 next.dueDate = s.dueDate
-                next.aiStatus = local.editedAt != s.editedAt ? "pending" : s.aiStatus
+                // Only a change to the text or photos makes the AI work again.
+                let contentDiffers = local.text != s.text || local.images != s.images
+                next.aiStatus = contentDiffers ? "pending" : s.aiStatus
                 next.aiError = s.aiError
                 next.rev = s.rev
                 s = next
@@ -294,9 +301,20 @@ final class NoteStore {
     }
 
     func flush() async {
-        guard let api, isLoggedIn, !flushing else { return }
+        guard let api, isLoggedIn else { return }
+        if flushing {
+            // An edit made while sending: send it as soon as this round finishes.
+            flushAgain = true
+            return
+        }
         flushing = true
-        defer { flushing = false; saveCache() }
+        flushAgain = false
+        var sent = false
+        defer {
+            flushing = false
+            saveCache()
+            if sent && flushAgain { Task { await flush() } }
+        }
         // Photos first, so notes never point at a missing file for long.
         let ordered = outbox.filter { $0.kind == "image" } + outbox.filter { $0.kind == "note" }
         for item in ordered {
@@ -325,6 +343,7 @@ final class NoteStore {
                 return
             }
         }
+        sent = true
     }
 
     // MARK: Editing

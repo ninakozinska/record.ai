@@ -58,11 +58,12 @@ const watch = (page, name) => {
   page.on('console', (m) => m.type() === 'error' && !/Failed to load resource/.test(m.text()) && errors.push(`${name}: ${m.text()}`));
 };
 
+const pages = {};
 try {
   const desktopCtx = await browser.newContext({ viewport: { width: 1200, height: 900 }, permissions: ['camera'] });
   const phoneCtx = await browser.newContext({ ...devices['Pixel 7'], permissions: ['camera'] });
-  const desktop = await desktopCtx.newPage();
-  const phone = await phoneCtx.newPage();
+  const desktop = (pages.desktop = await desktopCtx.newPage());
+  const phone = (pages.phone = await phoneCtx.newPage());
   watch(desktop, 'desktop');
   watch(phone, 'phone');
   await desktop.goto(url);
@@ -177,6 +178,13 @@ try {
 
   assert.deepEqual(errors, []);
   console.log('All e2e checks passed. Screenshots in', out);
+} catch (err) {
+  // Keep evidence of what each device showed when something failed.
+  for (const [name, page] of Object.entries(pages)) {
+    await page.screenshot({ path: path.join(out, `FAILED-${name}.png`), fullPage: true }).catch(() => {});
+  }
+  console.error('Browser errors seen:', errors);
+  throw err;
 } finally {
   await browser.close();
   server.close();

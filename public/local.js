@@ -230,7 +230,11 @@ export class Local extends EventTarget {
       await this.merge(notes);
       // A server whose database was reset would have a lower rev; resync fully.
       if (rev < this.rev) {
+        // The server's database was replaced: drop the cached copies and load everything again.
         this.rev = 0;
+        this.notes.clear();
+        await req(this.tx('notes', 'readwrite').clear());
+        this.pulling = false;
         return this.pull();
       }
       this.rev = rev;
@@ -249,12 +253,17 @@ export class Local extends EventTarget {
     const store = this.tx('notes', 'readwrite');
     for (const s of serverNotes) {
       const local = this.notes.get(s.id);
+      // Replies and live updates can arrive out of order; never let an older
+      // server state (lower revision) overwrite a newer one.
+      if (local?.rev != null && s.rev != null && s.rev < local.rev) continue;
       let next = s;
       if (local && (this.pending.has(s.id) || local.edited_at > s.edited_at)) {
         // Our unsent edit wins for user fields; still take fresh AI output.
         next = { ...local };
         for (const k of AI_FIELDS) next[k] = s[k];
-        if (local.edited_at !== s.edited_at) next.ai_status = 'pending';
+        // Only a change to the text or photos makes the AI work again.
+        const contentDiffers = local.text !== s.text || JSON.stringify(local.images) !== JSON.stringify(s.images);
+        if (contentDiffers) next.ai_status = 'pending';
       }
       this.notes.set(s.id, next);
       store.put(next);
@@ -263,8 +272,15 @@ export class Local extends EventTarget {
   }
 
   async flush() {
-    if (this.flushing || this.needsLogin) return;
+    if (this.needsLogin) return;
+    if (this.flushing) {
+      // An edit made while sending: send it as soon as this round finishes.
+      this.flushAgain = true;
+      return;
+    }
     this.flushing = true;
+    this.flushAgain = false;
+    let sent = false;
     try {
       const items = await this.all('outbox');
       // Images first so notes never reference a missing file for long.
@@ -291,12 +307,14 @@ export class Local extends EventTarget {
           await this.merge([note]);
         }
       }
-      this.setStatus({ online: true, unsent: 0 });
+      sent = true;
+      this.setStatus({ online: true, unsent: (await this.all('outbox')).length });
     } catch (err) {
       const unsent = (await this.all('outbox')).length;
       this.setStatus({ unsent, online: err.status ? this.online : false });
     } finally {
       this.flushing = false;
     }
+    if (sent && this.flushAgain) return this.flush();
   }
 }

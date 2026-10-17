@@ -4,8 +4,11 @@
 # Keep the Terminal window open while you use the app; close it to stop.
 
 cd "$(dirname "$0")" || exit 1
-PORT=3000
 source scripts/mac-common.sh
+# The port: from the environment, else from .env, else 3000.
+PORT=${PORT:-$(setting PORT)}
+PORT=${PORT:-3000}
+export PORT
 
 # 1. Node.js
 if ! command -v node >/dev/null 2>&1; then

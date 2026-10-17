@@ -1,0 +1,31 @@
+# Runs every test on each push and pull request.
+name: Tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Server, accounts, AI and iPhone-protocol tests
+        run: npm test
+      - name: iPhone app Swift syntax
+        run: npm run check:swift
+      - name: Install a browser for the end-to-end test
+        run: npx playwright install --with-deps chromium
+      - name: End-to-end test (two devices in a real browser)
+        run: npm run e2e
+      - name: Screenshots from the end-to-end test
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-screenshots
+          path: data-e2e/
