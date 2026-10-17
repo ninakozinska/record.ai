@@ -68,6 +68,10 @@ Your devices all talk to one small server that stores the notes. Camera, microph
 
 **Create your account right after the server starts.** The first account becomes the owner; after that, nobody else can sign up unless you allow it (see *Accounts* below).
 
+## iPhone app
+
+There's also a **native iPhone app** in [`ios/`](ios/). It uses the same server and account, has dictation, camera and photos, and works offline. To put it on your iPhone with Xcode, see [ios/README.md](ios/README.md).
+
 ## Install it on your devices
 
 Open your server's URL, log in, then:
@@ -112,6 +116,7 @@ Open your server's URL, log in, then:
             └─ (Server-Sent Events)
 ```
 
+- `ios/`: the native iPhone app (SwiftUI). It talks to the same API, using a token instead of a cookie.
 - `public/`: the app (plain HTML/CSS/JS, no build step). `local.js` stores notes in IndexedDB, queues changes in an outbox, and syncs. `sw.js` lets the app open offline.
 - `server/`: Express API. `db.js` is storage (Node's built-in SQLite). `organizer.js` holds the Claude prompts. It uses structured outputs, so replies always match the schema, and server-side refusal fallback.
 - Sync: every change gets an increasing revision number. Devices fetch "everything since revision N" and get live pushes. If two devices edit the same note, the most recent edit wins. The AI writes only its own fields (title, AI group and priority…), so it never overwrites your text or your choices.
