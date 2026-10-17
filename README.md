@@ -1,10 +1,10 @@
 # record.ai
 
-Notes you **type, dictate, or photograph**. They sync across your phone, your computer, and the web, and **Claude organizes them for you**: it gives each note a title, a priority (urgent, high, normal, low), a topic group, tags and a due date.
+Notes you **type, dictate, or photograph**. They sync across your phone, your computer, and the web, and **AI organizes them for you** (Claude online, or a free model running on your own computer): it gives each note a title, a priority (urgent, high, normal, low), a topic group, tags and a due date.
 
 <p>
   <img src="docs/screenshot-desktop.png" width="560" alt="Desktop: notes sorted by priority">
-  <img src="docs/screenshot-phone.png" width="200" alt="Phone: note editor">
+  <img src="docs/screenshot-phone.png" width="200" alt="Phone: notes sorted by priority">
 </p>
 
 ## What it does
@@ -119,3 +119,7 @@ npm run e2e     # browser test: two devices, photos, camera, offline sync
 - **Dictation** uses the browser's speech recognition: Chrome, Edge, Safari (including iPhone) and Android. Firefox doesn't support it, so use your keyboard's 🎤 key instead.
 - It's built for **one person** (one password, one shared notebook). It doesn't have separate user accounts.
 - Photos are shrunk to 1600px before upload to keep sync and AI calls fast.
+
+## License
+
+[MIT](LICENSE): free to use, change and share. Please keep the copyright notice.
