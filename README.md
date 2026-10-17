@@ -19,7 +19,20 @@ Notes you **type, dictate, or photograph**. They sync across your phone, your co
 - **Works offline**: notes and photos are saved on the device first and upload when you're back online.
 - **Installable** on iPhone, Android, Windows, macOS, Linux and ChromeOS. It's one app (a Progressive Web App), so there are no app stores to deal with.
 
-## Run it locally
+## Run it on a Mac (free, easiest)
+
+1. Install **Node.js** (LTS) from [nodejs.org](https://nodejs.org/).
+2. Download this project as a ZIP and unzip it.
+3. Double-click **`Start record.ai.command`**. The first time, macOS may block it: right-click it → **Open** → **Open**.
+   It installs what it needs, asks for a password and your Claude API key, starts the server and opens the app.
+   Keep the Terminal window open while you use the app. Close it to stop.
+4. **Phone:** install [Tailscale](https://tailscale.com/download) on the Mac and the phone, signed in to the same account, then start record.ai again.
+   The Terminal window shows an `https://….ts.net` address to open on your phone.
+
+Your notes live in the `data` folder. Settings are in `.env` (`open -e .env` to edit).
+To save money while testing, remove the `#` in front of `CLAUDE_MODEL=claude-haiku-5-5` in `.env`.
+
+## Run it locally (any OS)
 
 Requires Node.js 22.13 or newer.
 
