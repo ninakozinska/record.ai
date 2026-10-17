@@ -135,19 +135,50 @@ export class Local extends EventTarget {
   async api(path, opts = {}) {
     const res = await fetch('api/' + path, { credentials: 'same-origin', ...opts });
     const data = await res.json().catch(() => ({}));
-    if (res.status === 401 && path !== 'login') this.setStatus({ needsLogin: true });
+    if (res.status === 401 && !path.startsWith('auth/')) this.setStatus({ needsLogin: true });
     if (!res.ok) throw Object.assign(new Error(data.error || res.statusText), { status: res.status });
     return data;
   }
 
-  async login(password) {
-    await this.api('login', {
+  /** Logs in (or signs up) and makes sure local data belongs to that account. */
+  async authenticate(kind, fields) {
+    const { user } = await this.api(`auth/${kind}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password }),
+      body: JSON.stringify(fields),
     });
-    this.setStatus({ needsLogin: false });
+    await this.useAccount(user);
+    this.setStatus({ needsLogin: false, user });
     this.start();
+    return user;
+  }
+
+  /** Notes cached on this device belong to one account; switching accounts clears them. */
+  async useAccount(user) {
+    const previous = await this.metaGet('userId');
+    if (previous && previous !== user.id) await this.wipe();
+    await this.metaSet('userId', user.id);
+    await this.metaSet('user', user);
+  }
+
+  async wipe() {
+    for (const store of ['notes', 'outbox', 'blobs', 'meta']) await req(this.tx(store, 'readwrite').clear());
+    this.notes.clear();
+    this.pending.clear();
+    this.rev = 0;
+    this.changed();
+  }
+
+  async unsentCount() {
+    return (await this.all('outbox')).length;
+  }
+
+  /** Logs out and removes this account's notes from the device. */
+  async logout() {
+    this.es?.close();
+    await this.api('auth/logout', { method: 'POST' }).catch(() => {});
+    await this.wipe();
+    this.setStatus({ user: null, needsLogin: true, online: false });
   }
 
   start() {

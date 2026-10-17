@@ -529,20 +529,135 @@ function renderStatus() {
   }
   $('#reorganizeBtn').hidden = local.ai ? !local.ai.enabled : false;
   if (local.ai?.reorganizing) $('#reorganizeBtn').textContent = '✨ Reorganizing…';
-  if (local.needsLogin && !$('#login').open) $('#login').showModal();
+  $('#accountBtn').hidden = !local.user;
+  if (local.user) $('#accountBtn').textContent = initials(local.user.name);
+  if (local.needsLogin && !$('#login').open && !auth.opening) {
+    auth.opening = true;
+    auth.open().finally(() => (auth.opening = false));
+  }
 }
 
+// ---------------------------------------------------------------------------
+// Accounts: log in / sign up / account menu
+// ---------------------------------------------------------------------------
+const auth = {
+  mode: 'login', // or 'signup'
+  policy: null,
+  async open() {
+    try {
+      const state = await local.api('auth/state');
+      this.policy = state.signup;
+      if (state.user) {
+        // Still logged in (e.g. after a network hiccup).
+        await local.useAccount(state.user);
+        local.setStatus({ needsLogin: false, user: state.user });
+        local.start();
+        return;
+      }
+    } catch {
+      this.policy = this.policy || { open: false };
+    }
+    this.show(this.policy.firstAccount ? 'signup' : 'login');
+  },
+  show(mode) {
+    this.mode = mode;
+    const signup = mode === 'signup';
+    const p = this.policy || {};
+    $('#loginTitle').textContent = signup ? (p.firstAccount ? 'Create your account' : 'Create an account') : 'Log in';
+    $('#loginIntro').textContent = signup && p.firstAccount
+      ? 'This is the first account on this server. It will own all notes already saved here.'
+      : signup ? 'Your notes are private to your account.' : 'Welcome back. Log in to see your notes.';
+    $('#nameField').hidden = !signup;
+    $('#codeField').hidden = !(signup && p.needsCode);
+    $('#loginPassword').autocomplete = signup ? 'new-password' : 'current-password';
+    $('#loginSubmit').textContent = signup ? 'Create account' : 'Log in';
+    $('#loginError').textContent = '';
+    const sw = $('#loginSwitch');
+    if (signup && !p.firstAccount) sw.innerHTML = 'Already have an account? <button type="button" data-mode="login">Log in</button>';
+    else if (!signup && p.open) sw.innerHTML = 'New here? <button type="button" data-mode="signup">Create an account</button>';
+    else sw.textContent = '';
+    if (!$('#login').open) $('#login').showModal();
+    (signup ? $('#loginName') : $('#loginEmail')).focus();
+  },
+};
+$('#loginSwitch').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-mode]');
+  if (b) auth.show(b.dataset.mode);
+});
 $('#loginForm').addEventListener('submit', async (e) => {
   e.preventDefault();
+  const fields = { email: $('#loginEmail').value.trim(), password: $('#loginPassword').value };
+  if (auth.mode === 'signup') Object.assign(fields, { name: $('#loginName').value.trim(), code: $('#loginCode').value.trim() });
+  $('#loginSubmit').disabled = true;
   try {
-    await local.login($('#loginPassword').value);
+    await local.authenticate(auth.mode, fields);
     $('#login').close();
-    $('#loginError').textContent = '';
+    $('#loginPassword').value = '';
   } catch (err) {
-    $('#loginError').textContent = err.message;
+    $('#loginError').textContent = err.status === 0 || !err.status ? 'Cannot reach the server. Is it running?' : err.message;
+  } finally {
+    $('#loginSubmit').disabled = false;
   }
 });
 $('#login').addEventListener('cancel', (e) => e.preventDefault());
+
+function initials(name) {
+  return (name || '?').split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('');
+}
+
+$('#accountBtn').onclick = async () => {
+  const u = local.user;
+  $('#accountName').textContent = u.name;
+  $('#accountEmail').textContent = u.email;
+  $('#pwMessage').textContent = '';
+  $('#pwCurrent').value = $('#pwNext').value = '';
+  $('#account').showModal();
+  try {
+    const { addresses } = await local.api('server-info');
+    const here = location.origin;
+    const list = [...new Set([here.startsWith('http://localhost') ? null : here, ...addresses].filter(Boolean))];
+    $('#appAddress').hidden = !list.length;
+    $('#appAddress').innerHTML = '<p><strong>iPhone app:</strong> to connect it, enter this server address:</p>' +
+      list.map((a) => `<p><code>${esc(a)}</code></p>`).join('');
+  } catch {
+    $('#appAddress').hidden = true;
+  }
+};
+$('#accountClose').onclick = () => $('#account').close();
+$('#passwordForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const msg = $('#pwMessage');
+  try {
+    await local.api('auth/password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ current: $('#pwCurrent').value, next: $('#pwNext').value }),
+    });
+    msg.className = 'ok';
+    msg.textContent = 'Password changed. Your other devices need to log in again.';
+    $('#pwCurrent').value = $('#pwNext').value = '';
+  } catch (err) {
+    msg.className = 'err';
+    msg.textContent = err.message;
+  }
+});
+$('#logoutOthers').onclick = async () => {
+  try {
+    await local.api('auth/logout-others', { method: 'POST' });
+    toast('Other devices are logged out.');
+  } catch (err) {
+    toast(err.message);
+  }
+};
+$('#logoutBtn').onclick = async () => {
+  await local.flush();
+  const unsent = await local.unsentCount();
+  if (unsent && !confirm(`${unsent} change(s) haven't reached the server yet and will be lost. Log out anyway?`)) return;
+  $('#account').close();
+  await local.logout();
+  render();
+  auth.open();
+};
 
 // Refresh relative times / due labels periodically.
 setInterval(render, 60000);
@@ -552,7 +667,25 @@ local.addEventListener('change', render);
 local.addEventListener('status', renderStatus);
 render();
 renderStatus();
-local.start();
+// Restore the account this device last used, then check with the server.
+try {
+  const state = await local.api('auth/state');
+  if (state.user) {
+    await local.useAccount(state.user);
+    local.setStatus({ user: state.user });
+    local.start();
+  } else {
+    auth.policy = state.signup;
+    local.setStatus({ needsLogin: true });
+  }
+} catch {
+  // Offline: show what's saved on this device; sync resumes when the server is back.
+  const saved = await local.metaGet('user');
+  if (saved) {
+    local.setStatus({ user: saved });
+    local.start();
+  }
+}
 
 // Shared from another app (Android share sheet → installed PWA).
 const shared = new URLSearchParams(location.search);

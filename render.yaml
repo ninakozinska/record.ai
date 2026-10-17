@@ -6,8 +6,6 @@ services:
     plan: starter            # persistent disks need a paid plan
     healthCheckPath: /api/health
     envVars:
-      - key: APP_PASSWORD
-        sync: false          # you'll be asked for it
       - key: ANTHROPIC_API_KEY
         sync: false
     disk:

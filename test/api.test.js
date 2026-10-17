@@ -1,14 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
-import { createApp } from '../server/app.js';
-import { Organizer } from '../server/organizer.js';
-
-function tmpDir() {
-  return fs.mkdtempSync(path.join(os.tmpdir(), 'record-ai-test-'));
-}
+import { start } from './helpers.js';
 
 /** Fake Claude client: returns canned structured output and records requests. */
 function fakeClient(analysis) {
@@ -28,32 +20,6 @@ function fakeClient(analysis) {
   };
 }
 
-async function start(opts = {}) {
-  const dataDir = tmpDir();
-  const client = opts.client;
-  const { app, store, organizer } = createApp({
-    dataDir,
-    password: opts.password,
-    organizer: client
-      ? (args) => new Organizer({ ...args, client, log: { error() {} } })
-      : (args) => new Organizer({ ...args, log: { error() {} } }),
-  });
-  const server = app.listen(0);
-  await new Promise((r) => server.once('listening', r));
-  const base = `http://127.0.0.1:${server.address().port}/api/`;
-  let cookie = '';
-  const api = async (p, init = {}) => {
-    const res = await fetch(base + p, {
-      ...init,
-      headers: { 'Content-Type': 'application/json', cookie, ...init.headers },
-    });
-    const sc = res.headers.get('set-cookie');
-    if (sc) cookie = sc.split(';')[0];
-    return { status: res.status, body: await res.json().catch(() => null) };
-  };
-  return { api, store, organizer, dataDir, close: () => server.close() };
-}
-
 const waitFor = async (fn, ms = 2000) => {
   const end = Date.now() + ms;
   while (Date.now() < end) {
@@ -63,18 +29,6 @@ const waitFor = async (fn, ms = 2000) => {
   }
   throw new Error('timeout');
 };
-
-test('password protects the API', async () => {
-  const s = await start({ password: 'secret' });
-  try {
-    assert.equal((await s.api('notes')).status, 401);
-    assert.equal((await s.api('login', { method: 'POST', body: JSON.stringify({ password: 'nope' }) })).status, 401);
-    assert.equal((await s.api('login', { method: 'POST', body: JSON.stringify({ password: 'secret' }) })).status, 200);
-    assert.equal((await s.api('notes')).status, 200);
-  } finally {
-    s.close();
-  }
-});
 
 test('notes sync incrementally by revision and resolve conflicts by edit time', async () => {
   const s = await start();
@@ -184,7 +138,7 @@ test('reorganize re-groups all open notes', async () => {
     await waitFor(() => s.store.pendingIds().length === 0);
     const r = await s.api('reorganize', { method: 'POST' });
     assert.equal(r.body.updated, 2);
-    assert.deepEqual(s.store.groups(), [{ name: 'Everything', count: 2 }]);
+    assert.deepEqual(s.store.groups(s.user.id), [{ name: 'Everything', count: 2 }]);
   } finally {
     s.close();
   }

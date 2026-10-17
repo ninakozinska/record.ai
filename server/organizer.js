@@ -119,7 +119,7 @@ export class Organizer {
       return;
     }
 
-    const groups = this.store.groups().map((g) => `${g.name} (${g.count})`);
+    const groups = this.store.groups(note.user_id).map((g) => `${g.name} (${g.count})`);
     const images = note.images.map((name) => this.readImage(name)).filter(Boolean);
     const text =
       `Today is ${today()}.\n` +
@@ -135,28 +135,30 @@ export class Organizer {
       const current = this.store.get(id);
       if (!current || current.ai_status !== 'pending' || !sameContent(current, note)) return;
       this.onChange(this.store.applyAi(id, { ...result, status: 'done' }));
-      this.maybeAutoReorganize();
+      this.maybeAutoReorganize(note.user_id);
     } catch (err) {
       this.log.error(`[organizer] note ${id}:`, err.message);
       this.onChange(this.store.applyAi(id, { ...fallbackAnalysis(note), status: 'error', error: friendlyError(err, this.provider) }));
     }
   }
 
-  maybeAutoReorganize() {
-    const count = Number(this.store.getMeta('organized_since_reorg') || 0) + 1;
-    this.store.setMeta('organized_since_reorg', count);
+  maybeAutoReorganize(userId) {
+    const key = `organized_since_reorg:${userId}`;
+    const count = Number(this.store.getMeta(key) || 0) + 1;
+    this.store.setMeta(key, count);
     if (count >= reorganizeEvery()) {
-      this.reorganizeAll().catch((err) => this.log.error('[organizer] reorganize:', err.message));
+      this.reorganizeAll(userId).catch((err) => this.log.error('[organizer] reorganize:', err.message));
     }
   }
 
-  async reorganizeAll() {
+  /** Re-groups and re-ranks all open notes of one user. */
+  async reorganizeAll(userId) {
     if (!this.enabled) throw new Error('AI is not configured');
     if (this.reorganizing) return { skipped: true };
     this.reorganizing = true;
-    this.store.setMeta('organized_since_reorg', 0);
+    this.store.setMeta(`organized_since_reorg:${userId}`, 0);
     try {
-      const notes = this.store.active().filter((n) => !n.done);
+      const notes = this.store.active(userId).filter((n) => !n.done);
       if (!notes.length) return { updated: 0 };
       const lines = notes.map((n) =>
         JSON.stringify({

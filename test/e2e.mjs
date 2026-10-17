@@ -66,9 +66,28 @@ try {
   watch(desktop, 'desktop');
   watch(phone, 'phone');
   await desktop.goto(url);
-  await phone.goto(url);
+  // First visit: create the owner account.
+  await desktop.waitForSelector('#login[open] #loginTitle:text("Create your account")');
+  await desktop.fill('#loginName', 'Nina');
+  await desktop.fill('#loginEmail', 'nina@example.com');
+  await desktop.fill('#loginPassword', 'short');
+  await desktop.click('#loginSubmit');
+  await desktop.waitForSelector('#loginError:text("at least 8")');
+  await desktop.fill('#loginPassword', 'correct horse');
+  await desktop.click('#loginSubmit');
   await desktop.waitForSelector('.sync-dot.ok');
+  await desktop.waitForSelector('#accountBtn:text("N")');
+  // Phone: log in to the same account (wrong password first).
+  await phone.goto(url);
+  await phone.waitForSelector('#login[open] #loginTitle:text("Log in")');
+  await phone.fill('#loginEmail', 'nina@example.com');
+  await phone.fill('#loginPassword', 'wrong password');
+  await phone.click('#loginSubmit');
+  await phone.waitForSelector('#loginError:text("Wrong email or password")');
+  await phone.fill('#loginPassword', 'correct horse');
+  await phone.click('#loginSubmit');
   await phone.waitForSelector('.sync-dot.ok');
+  console.log('✓ sign up on desktop, log in on phone');
 
   // 1. Type a note on desktop -> organized by AI -> appears on phone.
   await desktop.fill('#composer textarea', 'Send the quarterly report tomorrow morning');
@@ -144,6 +163,17 @@ try {
   // Reload works from local cache.
   await phone.reload();
   await phone.waitForSelector('.note h3:text("Send the quarterly report tomorrow")');
+
+  // Account menu shows the address for the iPhone app; log out clears the phone.
+  await phone.click('#accountBtn');
+  await phone.waitForSelector('#account[open] #accountEmail:text("nina@example.com")');
+  await phone.waitForSelector('#appAddress code');
+  await phone.screenshot({ path: path.join(out, 'phone-account.png') });
+  await phone.click('#logoutBtn');
+  await phone.waitForSelector('#login[open]');
+  assert.equal(await phone.locator('.note').count(), 0, 'notes removed from the device after log out');
+  await desktop.waitForSelector('.note h3:text("Send the quarterly report tomorrow")');
+  console.log('✓ account menu and log out');
 
   assert.deepEqual(errors, []);
   console.log('All e2e checks passed. Screenshots in', out);

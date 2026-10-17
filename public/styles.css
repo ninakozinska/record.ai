@@ -182,3 +182,23 @@ dialog::backdrop { background: rgba(10, 10, 20, .5); }
   position: fixed; left: 50%; bottom: calc(1.5rem + env(safe-area-inset-bottom)); transform: translateX(-50%);
   background: var(--text); color: var(--bg); padding: .6rem 1rem; border-radius: 10px; z-index: 100; max-width: 90vw;
 }
+
+.field { display: flex; flex-direction: column; gap: .25rem; font-size: .85rem; color: var(--muted); }
+.field input {
+  padding: .6em .75em; border-radius: 10px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: 1rem;
+}
+#loginForm h2, #account h2 { margin: 0; }
+#loginForm .muted { margin: 0; }
+.switch { margin: 0; text-align: center; font-size: .9rem; color: var(--muted); }
+.switch button { color: var(--accent); font-weight: 600; padding: .2em .3em; }
+.avatar-btn {
+  width: 34px; height: 34px; padding: 0; border-radius: 50%; background: var(--accent); color: var(--accent-text);
+  font-weight: 700; font-size: .85rem; flex: none;
+}
+.stack { display: flex; flex-direction: column; gap: .6rem; border-top: 1px solid var(--border); padding-top: .8rem; }
+.stack h3 { margin: 0; font-size: 1rem; }
+#pwMessage:empty { display: none; }
+#pwMessage { margin: 0; font-size: .9rem; }
+#pwMessage.ok { color: #16a34a; }
+#pwMessage.err { color: var(--urgent); }
+#appAddress code { font-size: .95rem; word-break: break-all; }

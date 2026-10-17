@@ -1,6 +1,6 @@
 #!/bin/bash
 # Double-click this file on a Mac to start record.ai.
-# First run: installs what it needs and asks for a password and which AI to use.
+# First run: installs what it needs and asks which AI to use.
 # Keep the Terminal window open while you use the app; close it to stop.
 
 cd "$(dirname "$0")" || exit 1
@@ -26,14 +26,8 @@ if [ ! -d node_modules ] || [ package.json -nt node_modules ]; then
   touch node_modules
 fi
 
-# 3. Settings (stored in the .env file next to this one)
-if [ -z "$(setting APP_PASSWORD)" ]; then
-  PASSWORD=$(ask "Choose a password for your notes (you'll type it once on each device):" hidden) || exit 1
-  while [ -z "$PASSWORD" ]; do
-    PASSWORD=$(ask "The password can't be empty. Choose a password:" hidden) || exit 1
-  done
-  set_setting APP_PASSWORD "$PASSWORD"
-fi
+# 3. Settings (stored in the .env file next to this one).
+# Accounts are created in the app itself: the first visit asks you to create yours.
 if [ -z "$(setting AI_PROVIDER)" ]; then
   choose_ai || exit 1
 fi

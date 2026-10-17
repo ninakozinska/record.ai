@@ -27,6 +27,7 @@
       <button data-view="groups" role="tab">Groups</button>
     </div>
     <button id="reorganizeBtn" class="ghost" title="Ask AI to re-group and re-prioritize everything">✨ Reorganize</button>
+    <button id="accountBtn" class="avatar-btn" title="Your account" hidden></button>
   </header>
 
   <div id="banner" class="banner" hidden></div>
@@ -111,14 +112,55 @@
     <img id="viewerImg" alt="">
   </dialog>
 
-  <!-- Login -->
+  <!-- Log in / sign up -->
   <dialog id="login" class="sheet">
-    <form method="dialog" class="sheet-inner" id="loginForm">
-      <h2>Unlock your notes</h2>
-      <input id="loginPassword" type="password" placeholder="Password" autocomplete="current-password" required>
-      <p id="loginError" class="error"></p>
-      <button class="primary">Unlock</button>
+    <form class="sheet-inner" id="loginForm" novalidate>
+      <h2 id="loginTitle">Log in</h2>
+      <p id="loginIntro" class="muted"></p>
+      <label class="field" id="nameField" hidden>Your name
+        <input id="loginName" autocomplete="name">
+      </label>
+      <label class="field">Email
+        <input id="loginEmail" type="email" autocomplete="email" inputmode="email" autocapitalize="off">
+      </label>
+      <label class="field">Password
+        <input id="loginPassword" type="password" autocomplete="current-password">
+      </label>
+      <label class="field" id="codeField" hidden>Invite code
+        <input id="loginCode" autocomplete="off" autocapitalize="off">
+      </label>
+      <p id="loginError" class="error" role="alert"></p>
+      <button class="primary" id="loginSubmit">Log in</button>
+      <p class="switch" id="loginSwitch"></p>
     </form>
+  </dialog>
+
+  <!-- Account -->
+  <dialog id="account" class="sheet">
+    <div class="sheet-inner">
+      <div class="sheet-head">
+        <h2 id="accountName">Account</h2>
+        <button class="icon-btn" id="accountClose" title="Close">✕</button>
+      </div>
+      <p class="muted" id="accountEmail"></p>
+      <div class="ai-box" id="appAddress" hidden></div>
+      <form id="passwordForm" class="stack" novalidate>
+        <h3>Change password</h3>
+        <label class="field">Current password
+          <input id="pwCurrent" type="password" autocomplete="current-password">
+        </label>
+        <label class="field">New password (at least 8 characters)
+          <input id="pwNext" type="password" autocomplete="new-password">
+        </label>
+        <p id="pwMessage" role="status"></p>
+        <button class="ghost">Change password</button>
+      </form>
+      <div class="sheet-actions">
+        <button class="ghost" id="logoutOthers">Log out other devices</button>
+        <span class="spacer"></span>
+        <button class="danger ghost" id="logoutBtn">Log out</button>
+      </div>
+    </div>
   </dialog>
 
   <script type="module" src="app.js"></script>
