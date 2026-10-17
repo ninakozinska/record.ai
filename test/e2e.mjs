@@ -107,7 +107,8 @@ try {
   await phone.waitForSelector('#composer .thumb img');
   await phone.click('#composer [data-role=save]');
   await desktop.waitForSelector('.note h3:text("Buy milk and eggs")');
-  await desktop.waitForSelector('.note:has(h3:text("Buy milk and eggs")) .note-images img[src*="images/"]');
+  // Lists load the small preview, not the full photo.
+  await desktop.waitForSelector('.note:has(h3:text("Buy milk and eggs")) .note-images img[src*="images/"][src*="variant=thumb"]');
   console.log('✓ phone note with image synced to desktop');
 
   // 3. Camera capture (fake device) on desktop, photo-only note.

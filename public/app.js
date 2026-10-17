@@ -24,9 +24,9 @@ async function compressImage(file, maxSide = 1600) {
     canvas.width = Math.round(bitmap.width * scale);
     canvas.height = Math.round(bitmap.height * scale);
     canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-    return await new Promise((r) => canvas.toBlob(r, 'image/jpeg', 0.85));
+    return await new Promise((r) => canvas.toBlob(r, 'image/jpeg', maxSide <= 400 ? 0.7 : 0.85));
   } catch {
-    return file; // unsupported format for decoding; keep original
+    return maxSide <= 400 ? null : file; // unsupported format for decoding; keep original
   }
 }
 
@@ -204,13 +204,14 @@ class Composer {
     this.autosize();
   }
   async addImage(file) {
-    const blob = await compressImage(file);
-    const name = await local.addImage(blob);
+    // Full photo (1600 px) plus a small preview (320 px) for lists.
+    const [blob, thumb] = await Promise.all([compressImage(file), compressImage(file, 320)]);
+    const name = await local.addImage(blob, thumb);
     this.images.push(name);
     this.renderThumbs();
   }
   async renderThumbs() {
-    const urls = await Promise.all(this.images.map((n) => local.imageUrl(n)));
+    const urls = await Promise.all(this.images.map((n) => local.imageUrl(n, { thumb: true })));
     this.thumbs.innerHTML = this.images
       .map((n, i) => `<div class="thumb"><img src="${esc(urls[i])}" alt=""><button type="button" data-remove="${esc(n)}" title="Remove">✕</button></div>`)
       .join('');
@@ -442,7 +443,7 @@ function renderNow() {
   $('#list').innerHTML = html;
 
   $('#list').querySelectorAll('img[data-img]').forEach(async (img) => {
-    img.src = await local.imageUrl(img.dataset.img);
+    img.src = await local.imageUrl(img.dataset.img, { thumb: true });
   });
 }
 
@@ -454,6 +455,7 @@ $('#list').addEventListener('click', async (e) => {
   const img = e.target.closest('img[data-img]');
   if (img) {
     $('#viewerImg').src = img.src;
+    local.imageUrl(img.dataset.img).then((full) => ($('#viewerImg').src = full));
     $('#viewer').showModal();
     return;
   }

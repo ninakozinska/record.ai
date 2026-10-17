@@ -112,21 +112,25 @@ export class Local extends EventTarget {
     return note;
   }
 
-  async addImage(blob) {
+  /** Stores a photo (and its small preview) on the device and queues the upload. */
+  async addImage(blob, thumb) {
     const ext = blob.type === 'image/png' ? 'png' : 'jpg';
     const name = `${uuid()}.${ext}`;
     await req(this.tx('blobs', 'readwrite').put(blob, name));
+    if (thumb) await req(this.tx('blobs', 'readwrite').put(thumb, name + '#thumb'));
     await req(this.tx('outbox', 'readwrite').put({ key: 'img:' + name, kind: 'image', name }));
     this.flush();
     return name;
   }
 
-  async imageUrl(name) {
-    if (this.blobUrls.has(name)) return this.blobUrls.get(name);
-    const blob = await req(this.tx('blobs').get(name));
-    if (!blob) return `api/images/${name}`;
+  /** URL of a photo; `thumb` gives the small preview used in lists. */
+  async imageUrl(name, { thumb = false } = {}) {
+    const key = thumb ? name + '#thumb' : name;
+    if (this.blobUrls.has(key)) return this.blobUrls.get(key);
+    const blob = (await req(this.tx('blobs').get(key))) || (thumb ? await req(this.tx('blobs').get(name)) : null);
+    if (!blob) return `api/images/${name}${thumb ? '?variant=thumb' : ''}`;
     const url = URL.createObjectURL(blob);
-    this.blobUrls.set(name, url);
+    this.blobUrls.set(key, url);
     return url;
   }
 
@@ -271,6 +275,11 @@ export class Local extends EventTarget {
     this.changed();
   }
 
+  /**
+   * Sends everything waiting in the outbox: photos first (each with its
+   * preview), then all note changes in ONE request, which also brings back
+   * whatever changed on the server.
+   */
   async flush() {
     if (this.needsLogin) return;
     if (this.flushing) {
@@ -283,29 +292,37 @@ export class Local extends EventTarget {
     let sent = false;
     try {
       const items = await this.all('outbox');
-      // Images first so notes never reference a missing file for long.
-      items.sort((a, b) => (a.kind === b.kind ? 0 : a.kind === 'image' ? -1 : 1));
-      for (const item of items) {
-        if (item.kind === 'image') {
-          const blob = await req(this.tx('blobs').get(item.name));
-          if (blob) {
-            await this.api(`images/${item.name}`, { method: 'PUT', headers: { 'Content-Type': blob.type }, body: blob });
+      for (const item of items.filter((i) => i.kind === 'image')) {
+        const blob = await req(this.tx('blobs').get(item.name));
+        if (blob) {
+          const thumb = await req(this.tx('blobs').get(item.name + '#thumb'));
+          if (thumb) {
+            await this.api(`images/${item.name}?variant=thumb`, { method: 'PUT', headers: { 'Content-Type': thumb.type }, body: thumb });
           }
-          await req(this.tx('outbox', 'readwrite').delete(item.key));
-        } else {
-          const { note } = await this.api(`notes/${item.id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(item.body),
-          });
-          // Only clear the outbox entry if no newer edit was queued meanwhile.
-          const current = await req(this.tx('outbox').get(item.key));
-          if (current && current.body.edited_at === item.body.edited_at) {
-            await req(this.tx('outbox', 'readwrite').delete(item.key));
-            this.pending.delete(item.id);
-          }
-          await this.merge([note]);
+          await this.api(`images/${item.name}`, { method: 'PUT', headers: { 'Content-Type': blob.type }, body: blob });
         }
+        await req(this.tx('outbox', 'readwrite').delete(item.key));
+      }
+      const notes = items.filter((i) => i.kind === 'note');
+      const since = this.rev;
+      const { rev, results, notes: changed } = await this.api('sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ since, changes: notes.map((i) => ({ id: i.id, ...i.body })) }),
+      });
+      for (const [k, item] of notes.entries()) {
+        // Sent (or refused for good): clear it, unless a newer edit was queued meanwhile.
+        if (!results[k]) continue;
+        const current = await req(this.tx('outbox').get(item.key));
+        if (current && current.body.edited_at === item.body.edited_at) {
+          await req(this.tx('outbox', 'readwrite').delete(item.key));
+          this.pending.delete(item.id);
+        }
+      }
+      await this.merge(changed);
+      if (rev >= this.rev && since === this.rev) {
+        this.rev = rev;
+        await this.metaSet('rev', rev);
       }
       sent = true;
       this.setStatus({ online: true, unsent: (await this.all('outbox')).length });

@@ -305,7 +305,9 @@ class Store {
         this.db.prepare('UPDATE notes SET user_id = ?, rev = ? WHERE id = ?').run(id, this.nextRev(), noteId);
       }
       if (imagesDir && fs.existsSync(imagesDir)) {
-        for (const file of fs.readdirSync(imagesDir)) this.addImage(file, id);
+        for (const entry of fs.readdirSync(imagesDir, { withFileTypes: true })) {
+          if (entry.isFile()) this.addImage(entry.name, id);
+        }
       }
     }
     return this.getUser(id);
