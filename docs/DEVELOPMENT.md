@@ -4,7 +4,8 @@
 
 ```
  web app (public/)  ─┐                        ┌─ SQLite: data/notes.db (users, sessions, notes)
- iPhone app (ios/)  ─┼─ HTTP + live updates ─ server/ ─┼─ data/images/ (photos)
+ iPhone app (ios/)  ─┤
+ Android (android/) ─┼─ HTTP + live updates ─ server/ ─┼─ data/images/ (photos)
  other browsers     ─┘     (cookie or token)          └─ AI: Claude API or Ollama
 ```
 
@@ -20,6 +21,8 @@
 | `public/app.js` | Web UI: composer, dictation, camera, lists, editor, login, account |
 | `public/sw.js` | Service worker: the app opens offline; photos are cached |
 | `ios/RecordAI.swiftpm` | Native iPhone app (SwiftUI); see `ios/README.md` |
+| `android/core` | Android sync engine in plain Kotlin (API client, outbox, merge rules, live updates). No Android code, so it is tested on any computer |
+| `android/app` | Native Android app (Jetpack Compose) on top of `core`; see `android/README.md` |
 | `Start record.ai.command`, `Change AI.command`, `scripts/mac-common.sh` | Double-click launchers for the Mac |
 | `scripts/reset-password.mjs` | Sets a new password (`npm run reset-password -- email "password"`) |
 
@@ -27,7 +30,7 @@ The API is described in [API.md](API.md).
 
 ## Sync rules
 
-The web and iPhone clients follow the same rules:
+The web, iPhone and Android clients follow the same rules:
 
 1. **Local first.** An edit is saved on the device and added to an **outbox**. The outbox is sent when online; nothing is lost offline.
 2. **One outbox entry per note.** Edits made before sending are merged into one request.
@@ -36,7 +39,10 @@ The web and iPhone clients follow the same rules:
 5. **Unsent edits stay** when server updates arrive. Only the AI's fields (title, summary, AI group and priority, tags, due date, status) are taken from the server.
 6. **Never go backwards.** A server note with a lower `rev` than the device's copy is ignored. This prevents a slow reply from overwriting a newer live update.
 7. If the server's revision counter is lower than the device's, the server's database was replaced: the device drops its cached notes and loads everything again.
-8. **Logging out removes** the account's notes, photos and outbox from the device.
+8. **One request per sync.** Photos are uploaded first (preview, then full size), then every outbox entry goes in one `POST /api/sync`, which also returns what changed on the server.
+9. **Small first.** Lists show 320px previews; the full photo loads only when opened. Images are cached in memory and on the device.
+10. **Live, not polling.** While the app is open, changes arrive over `/api/events`. A phone app closes this connection when it goes to the background (saving battery) and catches up with one sync when it comes back. Unsent edits are sent before the app is suspended (iPhone: background task; Android: WorkManager when the network returns).
+11. **Logging out removes** the account's notes, photos and outbox from the device.
 
 ## Tests
 
@@ -44,6 +50,7 @@ The web and iPhone clients follow the same rules:
 npm test               # server, accounts, AI, scripts, iPhone protocol (Claude and Ollama are faked)
 npm run e2e            # real Chromium: desktop + phone, sign-up, sync, photos, camera, offline, logout
 npm run check:swift    # syntax check of the iPhone app (no Mac needed)
+cd android && ./gradlew :core:test   # Android sync engine against the real server (needs Java 17)
 npm run coverage       # npm test with a line/branch coverage table
 ```
 
@@ -56,12 +63,14 @@ npm run coverage       # npm test with a line/branch coverage table
 | `test/local-ai.test.js` | Ollama: requests, photos, bad answers, model download, not running |
 | `test/ios-contract.test.js` | The exact requests the iPhone app makes |
 | `test/scripts.test.js` | Password reset; the Mac launchers, run with stand-ins for macOS commands |
+| `android/core/src/test/…/SyncRulesTest.kt` | Android merge rules: never go backwards, unsent edits kept while AI results are taken, sorting, groups, server addresses |
+| `android/core/src/test/…/ServerIntegrationTest.kt` | Android sync engine against a real server: sign-up, notes and photos synced both ways, offline edits sent later, logout |
 | `test/e2e.mjs` | The whole web app in a real browser, on two devices. On failure it saves `data-e2e/FAILED-*.png` |
 
-GitHub runs all of these on every push (`.github/workflows/test.yml`).
+GitHub runs all of these on every push (`.github/workflows/test.yml`). It also **compiles the Android app** (and keeps the APK as a download on the run's page) and **compiles the iPhone app** for the simulator on a Mac.
 
 **Not covered automatically:**
-- The iPhone app is only syntax-checked. It must be compiled and tried in Xcode.
+- The iPhone and Android apps are compiled on GitHub, but their screens are not tested automatically. Try them on a real phone.
 - No test calls the real Claude API or a real Ollama install; both are replaced by stand-ins that follow their documented formats.
 - The Mac launchers are tested on Linux with stand-ins for `osascript`, `open`, `caffeinate` and `lsof`, not on a real Mac.
 

@@ -68,9 +68,12 @@ Your devices all talk to one small server that stores the notes. Camera, microph
 
 **Create your account right after the server starts.** The first account becomes the owner; after that, nobody else can sign up unless you allow it (see *Accounts* below).
 
-## iPhone app
+## iPhone and Android apps
 
-There's also a **native iPhone app** in [`ios/`](ios/). It uses the same server and account, has dictation, camera and photos, and works offline. To put it on your iPhone with Xcode, see [ios/README.md](ios/README.md).
+There are **native phone apps** for iPhone ([`ios/`](ios/)) and Android ([`android/`](android/)). They use the same server and account as the web app, have dictation, camera and photos, work offline, and stay in sync live: an edit on one device shows on the others within a moment.
+
+- iPhone: see [ios/README.md](ios/README.md) (needs a Mac with Xcode).
+- Android: see [android/README.md](android/README.md) (download the app from GitHub, or build it with Android Studio).
 
 ## Install it on your devices
 
@@ -116,10 +119,10 @@ Open your server's URL, log in, then:
             └─ (Server-Sent Events)
 ```
 
-- `ios/`: the native iPhone app (SwiftUI). It talks to the same API, using a token instead of a cookie.
+- `ios/`: the native iPhone app (SwiftUI). `android/`: the native Android app (Kotlin, Jetpack Compose). Both talk to the same API, using a token instead of a cookie.
 - `public/`: the app (plain HTML/CSS/JS, no build step). `local.js` stores notes in IndexedDB, queues changes in an outbox, and syncs. `sw.js` lets the app open offline.
 - `server/`: Express API. `db.js` is storage (Node's built-in SQLite). `organizer.js` holds the Claude prompts. It uses structured outputs, so replies always match the schema, and server-side refusal fallback.
-- Sync: every change gets an increasing revision number. Devices fetch "everything since revision N" and get live pushes. If two devices edit the same note, the most recent edit wins. The AI writes only its own fields (title, AI group and priority…), so it never overwrites your text or your choices.
+- Sync: each device sends all its waiting edits and fetches what changed in **one** request, JSON is gzip-compressed, and lists use small photo previews. Every change gets an increasing revision number. Devices fetch "everything since revision N" and get live pushes. If two devices edit the same note, the most recent edit wins. The AI writes only its own fields (title, AI group and priority…), so it never overwrites your text or your choices.
 
 ## Development
 
@@ -128,11 +131,12 @@ npm run dev            # restart on changes
 npm test               # server, accounts, AI, scripts and iPhone-protocol tests
 npm run e2e            # browser test: two devices, sign-up, sync, photos, camera, offline, logout
 npm run check:swift    # syntax check of the iPhone app
+cd android && ./gradlew :core:test   # Android sync tests (Java 17)
 npm run coverage       # tests with a coverage table
 ```
 
 - [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md): how the parts fit, the sync rules, and what each test covers (and doesn't).
-- [docs/API.md](docs/API.md): the server API used by the web and iPhone apps.
+- [docs/API.md](docs/API.md): the server API used by the web, iPhone and Android apps.
 
 GitHub runs every test on each push.
 

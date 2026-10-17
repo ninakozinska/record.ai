@@ -48,12 +48,14 @@ A note as the server sends it:
 | Method | Path | Body | Answer |
 |---|---|---|---|
 | GET | `/api/notes?since=<rev>` | | `{rev, notes}`: your notes changed after `rev` (deleted ones too) |
+| POST | `/api/sync` | `{since, changes: [{id, …same fields as PUT}]}` (at most 500) | `{rev, results: [{id, status}], notes}`: sends every waiting edit **and** catches up in one request. `status` is `ok`, `stale`, `forbidden` or `invalid`; `notes` = everything changed after `since`, including the results of your own edits |
 | PUT | `/api/notes/:id` | any of `text, images, done, deleted, user_group, user_priority, created_at` + **`edited_at` (required)** | `{note, stale}`. `stale: true` = a newer edit already exists and yours was ignored; 403 = the id belongs to someone else |
 | POST | `/api/notes/:id/reanalyze` | | `{"ok":true}`: queues the AI again |
 | POST | `/api/reorganize` | | `{updated}` or `{skipped:true}`: the AI re-groups and re-ranks all your open notes |
 | GET | `/api/status` | | `{ai: {enabled, provider, model, pending, reorganizing}, rev, groups: [{name,count}]}` |
 | GET | `/api/server-info` | | `{port, addresses: ["http://192.168.1.20:3000", …]}`: where other devices on the network can reach this server |
 
+- **Use `/api/sync`** for normal syncing. The web, iPhone and Android apps send all waiting edits in one `POST /api/sync`, so a phone that was offline catches up with one round trip instead of one per note. `PUT /api/notes/:id` stays for single edits.
 - **Note ids** are chosen by the client (a UUID), so notes can be created offline. Allowed: 8 to 64 letters, digits or `-`.
 - **Conflicts:** the last edit wins, by `edited_at`. An old offline edit cannot overwrite a newer one.
 - **AI:** changing `text` or `images` sets `ai_status` to `pending` and queues the note. Changing only the other fields does not.
@@ -64,8 +66,13 @@ A note as the server sends it:
 |---|---|---|---|
 | PUT | `/api/images/:name` | the raw image bytes (any `Content-Type` except JSON) | `{"ok":true}`; 403 if the name belongs to someone else |
 | GET | `/api/images/:name` | | the image; 404 if it isn't yours |
+| PUT / GET | `/api/images/:name?variant=thumb` | the small preview | the preview; GET falls back to the full photo when no preview exists |
+
+**Previews:** apps upload a small preview (320px on the long side) next to each photo and show it in lists. The full photo is downloaded only when it is opened. Photos and previews are cached forever (`Cache-Control: immutable`), because a name never changes its content.
 
 `name` = 8 to 64 letters, digits or `-`, then `.jpg`, `.jpeg`, `.png`, `.webp` or `.gif`. The maximum size is 15 MB. Upload a photo before (or soon after) saving the note that lists it in `images`. If the note was analysed before its photo arrived, the upload queues it again.
+
+**Compression:** JSON answers are gzip-compressed when the client sends `Accept-Encoding: gzip` (all apps do). Photos and live updates are not compressed.
 
 ## Live updates
 
