@@ -1,0 +1,35 @@
+{
+  "name": "record-ai",
+  "version": "1.0.0",
+  "description": "Notes you type, dictate or photograph — shared across phone, desktop and web, organized automatically by Claude.",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node --disable-warning=ExperimentalWarning server/index.js",
+    "dev": "node --disable-warning=ExperimentalWarning --watch server/index.js",
+    "test": "node --disable-warning=ExperimentalWarning --test test/*.test.js",
+    "e2e": "node --disable-warning=ExperimentalWarning test/e2e.mjs",
+    "icons": "node scripts/make-icons.mjs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ninakozinska/record.ai.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ninakozinska/record.ai/issues"
+  },
+  "homepage": "https://github.com/ninakozinska/record.ai#readme",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.132.1",
+    "express": "^5.2.1",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "playwright": "^1.56.1"
+  },
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=22.13"
+  },
+  "license": "MIT"
+}
