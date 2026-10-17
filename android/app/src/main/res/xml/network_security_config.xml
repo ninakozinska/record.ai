@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A record.ai server on your own computer is reached over plain http on the
+     local network (for example http://192.168.1.20:3000). Over the internet,
+     use an https address (for example Tailscale). -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 @main
 struct RecordAIApp: App {
@@ -14,7 +15,14 @@ struct RecordAIApp: App {
         .onChange(of: scenePhase) { _, phase in
             switch phase {
             case .active: store.start()
-            case .background: store.stopLive()
+            case .background:
+                store.stopLive()
+                // Ask iOS for a few seconds to send unsent changes.
+                let task = UIApplication.shared.beginBackgroundTask(withName: "sync")
+                Task {
+                    await store.flush()
+                    UIApplication.shared.endBackgroundTask(task)
+                }
             default: break
             }
         }

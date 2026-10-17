@@ -3,7 +3,7 @@ import UIKit
 
 enum ImageTools {
     /// Shrinks a photo to at most 1600 px on its longest side and encodes it as JPEG.
-    static func jpeg(_ image: UIImage, maxSide: CGFloat = 1600) -> Data? {
+    static func jpeg(_ image: UIImage, maxSide: CGFloat = 1600, quality: CGFloat = 0.85) -> Data? {
         let size = image.size
         let scale = min(1, maxSide / max(size.width, size.height))
         let target = CGSize(width: (size.width * scale).rounded(), height: (size.height * scale).rounded())
@@ -12,7 +12,7 @@ enum ImageTools {
         let resized = UIGraphicsImageRenderer(size: target, format: format).image { _ in
             image.draw(in: CGRect(origin: .zero, size: target))
         }
-        return resized.jpegData(compressionQuality: 0.85)
+        return resized.jpegData(compressionQuality: quality)
     }
 }
 
@@ -54,6 +54,8 @@ struct CameraPicker: UIViewControllerRepresentable {
 struct NoteImage: View {
     @Environment(NoteStore.self) private var store
     var name: String
+    /// Lists and thumbnails use the small preview; full screen uses the photo.
+    var thumb = true
     @State private var image: UIImage?
 
     var body: some View {
@@ -66,6 +68,6 @@ struct NoteImage: View {
             }
         }
         .clipped()
-        .task(id: name) { image = await store.image(named: name) }
+        .task(id: name) { image = await store.image(named: name, thumb: thumb) }
     }
 }

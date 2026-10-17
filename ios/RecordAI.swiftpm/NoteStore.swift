@@ -9,6 +9,16 @@ struct OutboxItem: Codable {
     var body: Data?           // JSON object with the changed note fields
 }
 
+private struct SyncResult: Codable {
+    struct Item: Codable {
+        var id: String?
+        var status: String
+    }
+    var rev: Int
+    var results: [Item]
+    var notes: [Note]
+}
+
 private struct HelloEvent: Codable {
     var ai: AIStatus
 }
@@ -315,33 +325,42 @@ final class NoteStore {
             saveCache()
             if sent && flushAgain { Task { await flush() } }
         }
-        // Photos first, so notes never point at a missing file for long.
-        let ordered = outbox.filter { $0.kind == "image" } + outbox.filter { $0.kind == "note" }
-        for item in ordered {
-            do {
-                if item.kind == "image" {
-                    let file = Self.imagesFolder.appendingPathComponent(item.id)
-                    if let data = try? Data(contentsOf: file) {
-                        _ = try await api.request("images/\(item.id)", method: "PUT", body: data, contentType: "image/jpeg")
-                    }
-                    outbox.removeAll { $0.kind == "image" && $0.id == item.id }
-                } else {
-                    let json = (item.body.flatMap { try? JSONSerialization.jsonObject(with: $0) } as? [String: Any]) ?? [:]
-                    let data = try await api.request("notes/\(item.id)", method: "PUT", json: json)
-                    let result = try JSONDecoder.server.decode(SaveResult.self, from: data)
-                    // Only clear it if no newer edit was queued meanwhile.
-                    if let current = outbox.firstIndex(where: { $0.kind == "note" && $0.id == item.id }),
-                       outbox[current].body == item.body {
-                        outbox.remove(at: current)
-                    }
-                    merge([result.note])
+        do {
+            // Photos first (each with its small preview), so notes never point at a missing file for long.
+            for item in outbox where item.kind == "image" {
+                let thumb = Self.imagesFolder.appendingPathComponent(item.id + ".thumb")
+                if let data = try? Data(contentsOf: thumb) {
+                    _ = try await api.request("images/\(item.id)?variant=thumb", method: "PUT", body: data, contentType: "image/jpeg")
                 }
-                online = true
-            } catch {
-                handleUnauthorized(error)
-                if (error as? APIError)?.status == 0 { online = false }
-                return
+                if let data = try? Data(contentsOf: Self.imagesFolder.appendingPathComponent(item.id)) {
+                    _ = try await api.request("images/\(item.id)", method: "PUT", body: data, contentType: "image/jpeg")
+                }
+                outbox.removeAll { $0.kind == "image" && $0.id == item.id }
             }
+            // Then every note change in ONE request, which also brings back what changed on the server.
+            let notesToSend = outbox.filter { $0.kind == "note" }
+            let changes: [[String: Any]] = notesToSend.map { item in
+                var body = (item.body.flatMap { try? JSONSerialization.jsonObject(with: $0) } as? [String: Any]) ?? [:]
+                body["id"] = item.id
+                return body
+            }
+            let since = rev
+            let data = try await api.request("sync", method: "POST", json: ["since": since, "changes": changes])
+            let result = try JSONDecoder.server.decode(SyncResult.self, from: data)
+            for (k, item) in notesToSend.enumerated() where k < result.results.count {
+                // Sent (or refused for good): clear it, unless a newer edit was queued meanwhile.
+                if let current = outbox.firstIndex(where: { $0.kind == "note" && $0.id == item.id }),
+                   outbox[current].body == item.body {
+                    outbox.remove(at: current)
+                }
+            }
+            merge(result.notes)
+            if since == rev && result.rev >= rev { rev = result.rev }
+            online = true
+        } catch {
+            handleUnauthorized(error)
+            if (error as? APIError)?.status == 0 { online = false }
+            return
         }
         sent = true
     }
@@ -390,6 +409,9 @@ final class NoteStore {
         guard let data = ImageTools.jpeg(image) else { return nil }
         let name = "\(UUID().uuidString.lowercased()).jpg"
         try? data.write(to: Self.imagesFolder.appendingPathComponent(name))
+        if let thumb = ImageTools.jpeg(image, maxSide: 320, quality: 0.7) {
+            try? thumb.write(to: Self.imagesFolder.appendingPathComponent(name + ".thumb"))
+        }
         outbox.append(OutboxItem(kind: "image", id: name, body: nil))
         saveCache()
         Task { await flush() }
@@ -408,13 +430,30 @@ final class NoteStore {
                                              from: try await api.request("reorganize", method: "POST", json: [:]))
     }
 
-    /// Loads a photo: from the phone if it's there, otherwise from the server (then kept on the phone).
-    func image(named name: String) async -> UIImage? {
-        let file = Self.imagesFolder.appendingPathComponent(name)
-        if let img = UIImage(contentsOfFile: file.path) { return img }
-        guard let api, let data = try? await api.request("images/\(name)") else { return nil }
-        try? data.write(to: file)
-        return UIImage(data: data)
+    /// Decoded photos kept in memory, so scrolling doesn't decode them again.
+    @ObservationIgnored private let imageCache = NSCache<NSString, UIImage>()
+
+    /// Loads a photo, or its small preview (`thumb`): from memory, from the
+    /// phone, or from the server (then kept on the phone).
+    func image(named name: String, thumb: Bool = false) async -> UIImage? {
+        let key = (thumb ? name + ".thumb" : name) as NSString
+        if let cached = imageCache.object(forKey: key) { return cached }
+        let file = Self.imagesFolder.appendingPathComponent(key as String)
+        var loaded = UIImage(contentsOfFile: file.path)
+        let path = thumb ? "images/\(name)?variant=thumb" : "images/\(name)"
+        if loaded == nil, let api {
+            let data = try? await api.request(path)
+            if let data {
+                try? data.write(to: file)
+                loaded = UIImage(data: data)
+            }
+        }
+        if loaded == nil && thumb {
+            let full = await image(named: name, thumb: false)
+            return full
+        }
+        if let loaded { imageCache.setObject(loaded, forKey: key) }
+        return loaded
     }
 
     // MARK: Lists

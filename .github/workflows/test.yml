@@ -29,3 +29,43 @@ jobs:
         with:
           name: e2e-screenshots
           path: data-e2e/
+
+  android:
+    # Builds the Android app and runs its sync tests against the real server.
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: android
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+        working-directory: .
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Sync tests and Android app build
+        run: ./gradlew --no-daemon :core:test :app:assembleDebug :app:assembleRelease
+      - name: Android app (APK)
+        uses: actions/upload-artifact@v4
+        with:
+          name: record-ai-android
+          path: android/app/build/outputs/apk/release/*.apk
+
+  ios:
+    # Compiles the iPhone app for the simulator (no signing needed).
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the iPhone app
+        working-directory: ios/RecordAI.swiftpm
+        run: |
+          xcodebuild -version
+          xcodebuild -list
+          xcodebuild -scheme record.ai -destination 'generic/platform=iOS Simulator' build CODE_SIGNING_ALLOWED=NO | tail -n 80
+          exit ${PIPESTATUS[0]}
