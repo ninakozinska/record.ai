@@ -523,7 +523,7 @@ function renderStatus() {
   const banner = $('#banner');
   if (local.ai && !local.ai.enabled) {
     banner.hidden = false;
-    banner.textContent = 'AI organization is off: the server has no ANTHROPIC_API_KEY. Notes are saved and synced but not auto-organized.';
+    banner.textContent = 'AI organization is off. Notes are saved and synced but not auto-organized. Double-click "Change AI.command" to turn it on.';
   } else {
     banner.hidden = true;
   }

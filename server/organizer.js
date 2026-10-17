@@ -1,4 +1,5 @@
-// Uses Claude to title, prioritize and group notes.
+// Uses an AI model to title, prioritize and group notes: Claude (online,
+// AI_PROVIDER=anthropic) or a free local model via Ollama (AI_PROVIDER=ollama).
 //
 // Two jobs:
 //  - organizeNote: runs on every new/edited note (title, summary, group,
@@ -13,7 +14,10 @@ import { z } from 'zod';
 import { PRIORITIES } from './db.js';
 
 // Read lazily so values from a .env file (loaded at startup) apply.
-const model = () => process.env.CLAUDE_MODEL || 'claude-opus-5-5';
+const provider = () => (process.env.AI_PROVIDER || 'anthropic').toLowerCase();
+const claudeModel = () => process.env.CLAUDE_MODEL || 'claude-opus-5-5';
+export const ollamaModel = () => process.env.OLLAMA_MODEL || 'gemma3:4b';
+export const ollamaUrl = () => (process.env.OLLAMA_URL || 'http://127.0.0.1:11434').replace(/\/$/, '');
 // Re-run the whole-collection tidy-up after this many newly organized notes.
 const reorganizeEvery = () => Number(process.env.REORGANIZE_EVERY || 20);
 
@@ -55,8 +59,12 @@ export class Organizer {
     this.imagesDir = imagesDir;
     this.onChange = onChange;
     this.log = log;
-    this.enabled = !!(client || process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN);
-    this.client = client || (this.enabled ? new Anthropic() : null);
+    this.provider = client ? 'anthropic' : provider();
+    this.enabled =
+      this.provider === 'ollama' ||
+      (this.provider === 'anthropic' &&
+        !!(client || process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN));
+    this.client = client || (this.enabled && this.provider === 'anthropic' ? new Anthropic() : null);
     this.queue = new Set();
     this.running = false;
     this.reorganizing = false;
@@ -65,7 +73,8 @@ export class Organizer {
   get status() {
     return {
       enabled: this.enabled,
-      model: this.enabled ? model() : null,
+      provider: this.enabled ? this.provider : null,
+      model: !this.enabled ? null : this.provider === 'ollama' ? ollamaModel() : claudeModel(),
       pending: this.queue.size,
       reorganizing: this.reorganizing,
     };
@@ -76,7 +85,13 @@ export class Organizer {
     queueMicrotask(() => this.drain());
   }
 
+  /** On startup: finish queued work and retry notes the AI never got to. */
   resumePending() {
+    if (this.enabled) {
+      for (const n of this.store.active()) {
+        if (n.ai_status === 'error' || n.ai_status === 'off') this.store.applyAi(n.id, { status: 'pending' });
+      }
+    }
     for (const id of this.store.pendingIds()) this.queue.add(id);
     this.drain();
   }
@@ -105,27 +120,15 @@ export class Organizer {
     }
 
     const groups = this.store.groups().map((g) => `${g.name} (${g.count})`);
-    const content = [];
-    for (const name of note.images) {
-      const img = this.readImage(name);
-      if (img) content.push(img);
-    }
-    content.push({
-      type: 'text',
-      text:
-        `Today is ${today()}.\n` +
-        `Existing groups: ${groups.length ? groups.join(', ') : '(none yet)'}\n\n` +
-        `<note created="${new Date(note.created_at).toISOString()}" images="${note.images.length}">\n` +
-        `${note.text || '(no text — photo only)'}\n</note>\n\nAnalyze this note.`,
-    });
+    const images = note.images.map((name) => this.readImage(name)).filter(Boolean);
+    const text =
+      `Today is ${today()}.\n` +
+      `Existing groups: ${groups.length ? groups.join(', ') : '(none yet)'}\n\n` +
+      `<note created="${new Date(note.created_at).toISOString()}" images="${note.images.length}">\n` +
+      `${note.text || '(no text — photo only)'}\n</note>\n\nAnalyze this note.`;
 
     try {
-      const result = await this.parse({
-        max_tokens: 4000,
-        system: SYSTEM,
-        messages: [{ role: 'user', content }],
-        output_config: { effort: 'low', format: betaZodOutputFormat(NoteAnalysis) },
-      });
+      const result = await this.ask({ text, images, schema: NoteAnalysis, effort: 'low', maxTokens: 4000 });
       // If the text/photos were edited while we were waiting, a newer run is
       // queued and this result is stale. (Changing only done/group/priority
       // doesn't invalidate it.)
@@ -135,7 +138,7 @@ export class Organizer {
       this.maybeAutoReorganize();
     } catch (err) {
       this.log.error(`[organizer] note ${id}:`, err.message);
-      this.onChange(this.store.applyAi(id, { ...fallbackAnalysis(note), status: 'error', error: err.message }));
+      this.onChange(this.store.applyAi(id, { ...fallbackAnalysis(note), status: 'error', error: friendlyError(err, this.provider) }));
     }
   }
 
@@ -148,7 +151,7 @@ export class Organizer {
   }
 
   async reorganizeAll() {
-    if (!this.enabled) throw new Error('AI is not configured (set ANTHROPIC_API_KEY)');
+    if (!this.enabled) throw new Error('AI is not configured');
     if (this.reorganizing) return { skipped: true };
     this.reorganizing = true;
     this.store.setMeta('organized_since_reorg', 0);
@@ -166,22 +169,18 @@ export class Organizer {
           created: new Date(n.created_at).toISOString().slice(0, 10),
         }),
       );
-      const result = await this.parse({
-        max_tokens: 64000,
-        system: SYSTEM,
-        messages: [
-          {
-            role: 'user',
-            content:
-              `Today is ${today()}. Here are all open notes, one JSON object per line:\n\n` +
-              lines.join('\n') +
-              `\n\nReorganize the whole collection: produce a clean, consistent set of groups ` +
-              `(merge near-duplicates, split groups that mix unrelated topics) and re-rank ` +
-              `priorities relative to each other and to today's date. Return every note id.`,
-          },
-        ],
-        output_config: { effort: 'medium', format: betaZodOutputFormat(Reorganization) },
-      }, { stream: true });
+      const result = await this.ask({
+        text:
+          `Today is ${today()}. Here are all open notes, one JSON object per line:\n\n` +
+          lines.join('\n') +
+          `\n\nReorganize the whole collection: produce a clean, consistent set of groups ` +
+          `(merge near-duplicates, split groups that mix unrelated topics) and re-rank ` +
+          `priorities relative to each other and to today's date. Return every note id.`,
+        schema: Reorganization,
+        effort: 'medium',
+        maxTokens: 64000,
+        stream: true,
+      });
 
       let updated = 0;
       const ids = new Set(notes.map((n) => n.id));
@@ -205,26 +204,43 @@ export class Organizer {
     }
   }
 
+  /** One structured request to whichever AI is configured. */
+  async ask({ text, images = [], schema, effort, maxTokens, stream = false }) {
+    if (this.provider === 'ollama') return this.askOllama({ text, images, schema });
+    const content = [
+      ...images.map((img) => ({ type: 'image', source: { type: 'base64', media_type: img.mediaType, data: img.data } })),
+      { type: 'text', text },
+    ];
+    return this.parse(
+      {
+        max_tokens: maxTokens,
+        system: SYSTEM,
+        messages: [{ role: 'user', content }],
+        output_config: { effort, format: betaZodOutputFormat(schema) },
+      },
+      { stream },
+    );
+  }
+
   /**
-   * Structured-output call with server-side refusal fallback. If the API
-   * rejects the fallback parameter (e.g. on a proxy), retry without it.
+   * Claude structured-output call with server-side refusal fallback. If the
+   * API rejects the fallback parameter (e.g. on a proxy), retry without it.
    */
   async parse(params, { stream = false } = {}) {
-    const base = { model: model(), ...params };
-    const withFallback = {
-      ...base,
-      betas: ['server-side-fallback-2026-07-01'],
-      fallbacks: 'default',
-    };
+    const base = { model: claudeModel(), ...params };
+    // Haiku has no server-side fallback; don't send the parameter there.
+    const withFallback = /haiku/.test(base.model)
+      ? null
+      : { ...base, betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' };
     const call = (p) =>
       stream
         ? this.client.beta.messages.stream(p).finalMessage()
         : this.client.beta.messages.parse(p);
     let msg;
     try {
-      msg = await call(withFallback);
+      msg = await call(withFallback || base);
     } catch (err) {
-      if (!(err instanceof Anthropic.BadRequestError)) throw err;
+      if (!withFallback || !(err instanceof Anthropic.BadRequestError) || isBillingError(err)) throw err;
       msg = await call(base);
     }
     if (msg.stop_reason === 'refusal') throw new Error('Claude declined to process this note');
@@ -233,15 +249,78 @@ export class Organizer {
     throw new Error('Could not parse model output');
   }
 
+  /** Local model via Ollama's chat API with a JSON-schema constrained reply. */
+  async askOllama({ text, images, schema }) {
+    let res;
+    try {
+      res = await fetch(`${ollamaUrl()}/api/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: ollamaModel(),
+          stream: false,
+          format: z.toJSONSchema(schema),
+          options: { temperature: 0 },
+          messages: [
+            { role: 'system', content: SYSTEM + '\nReply with JSON only.' },
+            { role: 'user', content: text, ...(images.length ? { images: images.map((i) => i.data) } : {}) },
+          ],
+        }),
+      });
+    } catch {
+      throw new LocalAiError('not-running');
+    }
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      if (res.status === 404 || /not found/i.test(body.error || '')) throw new LocalAiError('no-model');
+      throw new Error(`Local AI error: ${body.error || res.status}`);
+    }
+    let parsed;
+    try {
+      parsed = JSON.parse(body.message?.content ?? '');
+    } catch {
+      throw new Error('Local AI returned an unreadable answer');
+    }
+    const checked = schema.safeParse(parsed);
+    if (!checked.success) throw new Error('Local AI returned an incomplete answer');
+    return checked.data;
+  }
+
   readImage(name) {
     try {
       const file = path.join(this.imagesDir, name);
-      const data = fs.readFileSync(file).toString('base64');
-      return { type: 'image', source: { type: 'base64', media_type: mediaType(name), data } };
+      return { mediaType: mediaType(name), data: fs.readFileSync(file).toString('base64') };
     } catch {
       return null; // not uploaded yet; a later edit will re-trigger analysis
     }
   }
+}
+
+class LocalAiError extends Error {
+  constructor(kind) {
+    super(kind);
+    this.kind = kind;
+  }
+}
+
+function isBillingError(err) {
+  return /credit balance|billing/i.test(err?.message || '');
+}
+
+/** Turn API errors into something a non-developer can act on. */
+export function friendlyError(err, provider) {
+  if (err instanceof LocalAiError) {
+    return err.kind === 'not-running'
+      ? 'The free local AI (Ollama) is not running. Open the Ollama app, then restart record.ai.'
+      : `The local AI model "${ollamaModel()}" is not downloaded yet. Restart record.ai to download it.`;
+  }
+  if (provider === 'anthropic') {
+    if (isBillingError(err)) return 'Your Anthropic account has no credit. Add credit at console.anthropic.com → Plans & Billing, then click Re-analyze.';
+    if (err instanceof Anthropic.AuthenticationError) return 'The Claude API key is not valid. Check it in your settings.';
+    if (err instanceof Anthropic.RateLimitError) return 'Too many requests to Claude right now. Click Re-analyze in a minute.';
+    if (err instanceof Anthropic.APIConnectionError) return 'Could not reach Claude — check your internet connection, then click Re-analyze.';
+  }
+  return err?.message || String(err);
 }
 
 function sameContent(a, b) {

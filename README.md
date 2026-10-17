@@ -22,15 +22,23 @@ Notes you **type, dictate, or photograph**. They sync across your phone, your co
 ## Run it on a Mac (free, easiest)
 
 1. Install **Node.js** (LTS) from [nodejs.org](https://nodejs.org/).
-2. Download this project as a ZIP and unzip it.
-3. Double-click **`Start record.ai.command`**. The first time, macOS may block it: right-click it → **Open** → **Open**.
-   It installs what it needs, asks for a password and your Claude API key, starts the server and opens the app.
+2. Download this project as a ZIP and unzip it into your **Home** folder. Don't use iCloud Drive: iCloud syncing can damage the notes database.
+3. Double-click **`Start record.ai.command`**. The first time, macOS blocks it. Click **Done**, then go to System Settings → Privacy & Security → **Open Anyway**.
+   It installs what it needs, asks for a password and which AI to use, starts the server and opens the app.
    Keep the Terminal window open while you use the app. Close it to stop.
 4. **Phone:** install [Tailscale](https://tailscale.com/download) on the Mac and the phone, signed in to the same account, then start record.ai again.
    The Terminal window shows an `https://….ts.net` address to open on your phone.
 
-Your notes live in the `data` folder. Settings are in `.env` (`open -e .env` to edit).
-To save money while testing, remove the `#` in front of `CLAUDE_MODEL=claude-haiku-5-5` in `.env`.
+**Which AI?** The first start asks you. Double-click **`Change AI.command`** at any time to switch:
+
+| Choice | Cost | Notes |
+|---|---|---|
+| **Free on this Mac** | Free | Runs privately with [Ollama](https://ollama.com/download), which you install once. The first start downloads the model (`gemma3:4b`, about 3 GB). Less clever than Claude. |
+| **Claude online (cheap)** | A few cents per 100 notes | Uses Claude Haiku 5.5. Needs an Anthropic API key with credit (console.anthropic.com → Plans & Billing). |
+| **No AI** | Free | Notes are saved but not sorted. |
+
+When you switch, notes the AI couldn't sort earlier are sorted automatically.
+Your notes live in the `data` folder. Settings are in `.env`.
 
 ## Run it locally (any OS)
 
@@ -76,8 +84,11 @@ Open your server's URL, enter the password, then:
 | Variable | Default | Meaning |
 |---|---|---|
 | `APP_PASSWORD` | *(none)* | Password to unlock the app. Required for any server others can reach. |
-| `ANTHROPIC_API_KEY` | *(none)* | Turns on AI organization. |
-| `CLAUDE_MODEL` | `claude-opus-5-5` | Claude model to use. |
+| `AI_PROVIDER` | `anthropic` | `anthropic` (Claude), `ollama` (free local AI), or `none`. |
+| `ANTHROPIC_API_KEY` | *(none)* | Needed for Claude. |
+| `CLAUDE_MODEL` | `claude-opus-5-5` | Claude model to use (`claude-haiku-5-5` is the cheap one). |
+| `OLLAMA_MODEL` | `gemma3:4b` | Local model. It must handle images; `qwen2.5vl:7b` is smarter but needs 16 GB RAM. |
+| `OLLAMA_URL` | `http://127.0.0.1:11434` | Where Ollama runs. |
 | `REORGANIZE_EVERY` | `20` | Run a full reorganize after this many newly organized notes. |
 | `PORT` | `3000` | HTTP port. |
 | `DATA_DIR` | `./data` | Where the SQLite database and photos are stored. **Back this up.** |

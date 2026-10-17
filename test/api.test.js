@@ -170,7 +170,7 @@ test('reorganize re-groups all open notes', async () => {
   let n = 0;
   const client = fakeClient((params) => {
     if (params.max_tokens > 10000) {
-      const ids = [...params.messages[0].content.matchAll(/"id":"([^"]+)"/g)].map((m) => m[1]);
+      const ids = [...params.messages[0].content.at(-1).text.matchAll(/"id":"([^"]+)"/g)].map((m) => m[1]);
       return { notes: ids.map((id) => ({ id, group: 'Everything', priority: 'high', priority_reason: 'test' })) };
     }
     n++;

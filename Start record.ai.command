@@ -1,20 +1,11 @@
 #!/bin/bash
 # Double-click this file on a Mac to start record.ai.
-# First run: installs what it needs and asks for your password and Claude key.
+# First run: installs what it needs and asks for a password and which AI to use.
 # Keep the Terminal window open while you use the app; close it to stop.
 
 cd "$(dirname "$0")" || exit 1
 PORT=3000
-
-alert() {
-  osascript -e "display alert \"record.ai\" message \"$1\"" >/dev/null 2>&1
-}
-
-ask() { # ask "<question>" [hidden] -> prints the answer, fails on Cancel
-  local hidden=""
-  [ "$2" = "hidden" ] && hidden="with hidden answer"
-  osascript -e "text returned of (display dialog \"$1\" default answer \"\" $hidden with title \"record.ai\")" 2>/dev/null
-}
+source scripts/mac-common.sh
 
 # 1. Node.js
 if ! command -v node >/dev/null 2>&1; then
@@ -35,21 +26,16 @@ if [ ! -d node_modules ] || [ package.json -nt node_modules ]; then
   touch node_modules
 fi
 
-# 3. Settings (first run only; stored in the .env file next to this one)
-if [ ! -f .env ]; then
+# 3. Settings (stored in the .env file next to this one)
+if [ -z "$(setting APP_PASSWORD)" ]; then
   PASSWORD=$(ask "Choose a password for your notes (you'll type it once on each device):" hidden) || exit 1
   while [ -z "$PASSWORD" ]; do
     PASSWORD=$(ask "The password can't be empty. Choose a password:" hidden) || exit 1
   done
-  KEY=$(ask "Paste your Claude API key (from console.anthropic.com). Leave empty to try the app without AI:" hidden) || exit 1
-  umask 077
-  cat > .env <<EOF
-APP_PASSWORD=$PASSWORD
-ANTHROPIC_API_KEY=$KEY
-# Cheaper model for testing (remove the # to use it):
-# CLAUDE_MODEL=claude-haiku-5-5
-EOF
-  echo "Settings saved to .env (edit it with: open -e .env)"
+  set_setting APP_PASSWORD "$PASSWORD"
+fi
+if [ -z "$(setting AI_PROVIDER)" ]; then
+  choose_ai || exit 1
 fi
 
 # 4. Already running?
@@ -59,7 +45,12 @@ if lsof -iTCP:$PORT -sTCP:LISTEN >/dev/null 2>&1; then
   exit 0
 fi
 
-# 5. Phone access over HTTPS via Tailscale, if installed
+# 5. Free local AI
+if [ "$(setting AI_PROVIDER)" = "ollama" ]; then
+  start_ollama
+fi
+
+# 6. Phone access over HTTPS via Tailscale, if installed
 TS=/Applications/Tailscale.app/Contents/MacOS/Tailscale
 if [ -x "$TS" ]; then
   ( sleep 3
@@ -76,7 +67,11 @@ echo "💻 On this Mac:  http://localhost:$PORT"
 echo "   Close this window to stop record.ai."
 echo
 
-( sleep 2; open "http://localhost:$PORT" ) &
+# Open the browser once the server answers (the first local-AI download can take a while).
+( for _ in $(seq 1 900); do
+    curl -s "http://localhost:$PORT/api/health" >/dev/null 2>&1 && { open "http://localhost:$PORT"; break; }
+    sleep 2
+  done ) &
 # caffeinate keeps the Mac from idle-sleeping while the server runs,
 # so your phone can keep syncing.
 exec caffeinate -i npm start
