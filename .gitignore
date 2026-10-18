@@ -2,3 +2,8 @@ node_modules/
 data/
 .env
 data-e2e/
+
+# Xcode
+ios/**/.swiftpm/
+ios/**/.build/
+ios/**/xcuserdata/

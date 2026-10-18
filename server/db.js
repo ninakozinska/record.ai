@@ -1,4 +1,5 @@
 // SQLite storage using Node's built-in driver (no native deps to compile).
+import crypto from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -35,17 +36,57 @@ export function openDb(dataDir) {
       rev             INTEGER NOT NULL
     );
     CREATE INDEX IF NOT EXISTS notes_rev ON notes(rev);
-    CREATE TABLE IF NOT EXISTS sessions (
-      token      TEXT PRIMARY KEY,
-      created_at INTEGER NOT NULL
-    );
     CREATE TABLE IF NOT EXISTS meta (
       key   TEXT PRIMARY KEY,
       value TEXT NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS users (
+      id         TEXT PRIMARY KEY,
+      email      TEXT NOT NULL UNIQUE COLLATE NOCASE,
+      name       TEXT NOT NULL,
+      pw_hash    TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    );
+    -- uploaded photos and who owns them
+    CREATE TABLE IF NOT EXISTS images (
+      name       TEXT PRIMARY KEY,
+      user_id    TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    );
   `);
+  migrate(db);
   return new Store(db);
 }
+
+function columns(db, table) {
+  return db.prepare(`PRAGMA table_info(${table})`).all().map((c) => c.name);
+}
+
+/** Upgrades databases created before accounts existed. */
+function migrate(db) {
+  if (!columns(db, 'notes').includes('user_id')) {
+    db.exec('ALTER TABLE notes ADD COLUMN user_id TEXT');
+  }
+  db.exec('CREATE INDEX IF NOT EXISTS notes_user_rev ON notes(user_id, rev)');
+  // Sessions used to be anonymous (one shared password). Start over with
+  // per-user sessions that store only a hash of the token.
+  if (!columns(db, 'sessions').includes('user_id')) {
+    db.exec('DROP TABLE IF EXISTS sessions');
+  }
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS sessions (
+      token_hash   TEXT PRIMARY KEY,
+      user_id      TEXT NOT NULL,
+      created_at   INTEGER NOT NULL,
+      last_used_at INTEGER NOT NULL,
+      device       TEXT
+    );
+    CREATE INDEX IF NOT EXISTS sessions_user ON sessions(user_id);
+  `);
+}
+
+const hashToken = (token) => crypto.createHash('sha256').update(token).digest('hex');
+const SESSION_MAX_IDLE = 400 * 24 * 3600e3;
 
 function rowToNote(r) {
   if (!r) return null;
@@ -71,7 +112,12 @@ function rowToNote(r) {
     group: r.user_group || r.ai_group || 'Inbox',
     priority: r.user_priority || r.ai_priority || 'normal',
     rev: r.rev,
+    user_id: r.user_id,
   };
+}
+
+function rowToUser(r) {
+  return r ? { id: r.id, email: r.email, name: r.name, created_at: r.created_at } : null;
 }
 
 class Store {
@@ -90,27 +136,31 @@ class Store {
     return rowToNote(this.db.prepare('SELECT * FROM notes WHERE id = ?').get(id));
   }
 
-  changesSince(rev) {
+  changesSince(userId, rev) {
     return this.db
-      .prepare('SELECT * FROM notes WHERE rev > ? ORDER BY rev')
-      .all(rev)
+      .prepare('SELECT * FROM notes WHERE user_id = ? AND rev > ? ORDER BY rev')
+      .all(userId, rev)
       .map(rowToNote);
   }
 
-  active() {
+  /** Open notes of one user, or of everyone when userId is omitted. */
+  active(userId) {
+    const sql = 'SELECT * FROM notes WHERE deleted = 0' + (userId ? ' AND user_id = ?' : '') + ' ORDER BY created_at';
     return this.db
-      .prepare('SELECT * FROM notes WHERE deleted = 0 ORDER BY created_at')
-      .all()
+      .prepare(sql)
+      .all(...(userId ? [userId] : []))
       .map(rowToNote);
   }
 
   /**
    * Apply a client edit. Last write wins on `edited_at`, so an offline device
    * replaying an old edit cannot clobber a newer one from another device.
-   * Returns { note, contentChanged } or { note, stale: true }.
+   * Returns { note, contentChanged }, { note, stale: true } or { forbidden: true }
+   * when the id belongs to someone else's note.
    */
-  upsertFromClient(input) {
+  upsertFromClient(userId, input) {
     const existing = this.get(input.id);
+    if (existing && existing.user_id !== userId) return { forbidden: true };
     if (existing && existing.edited_at > input.edited_at) {
       return { note: existing, stale: true };
     }
@@ -122,12 +172,13 @@ class Store {
     if (!existing) {
       this.db
         .prepare(
-          `INSERT INTO notes (id, text, images, done, deleted, created_at, edited_at,
+          `INSERT INTO notes (id, user_id, text, images, done, deleted, created_at, edited_at,
              user_group, user_priority, ai_status, rev)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
         )
         .run(
           input.id,
+          userId,
           text,
           images,
           input.done ? 1 : 0,
@@ -200,31 +251,117 @@ class Store {
       .map((r) => r.id);
   }
 
-  groups() {
+  groups(userId) {
     return this.db
       .prepare(
         `SELECT COALESCE(user_group, ai_group) AS name, COUNT(*) AS count
-         FROM notes WHERE deleted = 0 AND COALESCE(user_group, ai_group) IS NOT NULL
+         FROM notes WHERE user_id = ? AND deleted = 0 AND COALESCE(user_group, ai_group) IS NOT NULL
          GROUP BY name ORDER BY count DESC`,
       )
-      .all()
+      .all(userId)
       .map((r) => ({ name: r.name, count: r.count }));
   }
 
-  referencedImages() {
-    const set = new Set();
-    for (const r of this.db.prepare('SELECT images FROM notes').all()) {
-      for (const name of JSON.parse(r.images)) set.add(name);
+  // --- images ---------------------------------------------------------------
+
+  imageOwner(name) {
+    return this.db.prepare('SELECT user_id FROM images WHERE name = ?').get(name)?.user_id ?? null;
+  }
+
+  addImage(name, userId) {
+    this.db
+      .prepare('INSERT OR IGNORE INTO images (name, user_id, created_at) VALUES (?, ?, ?)')
+      .run(name, userId, Date.now());
+  }
+
+  // --- users ----------------------------------------------------------------
+
+  userCount() {
+    return this.db.prepare('SELECT COUNT(*) AS n FROM users').get().n;
+  }
+
+  getUser(id) {
+    return rowToUser(this.db.prepare('SELECT * FROM users WHERE id = ?').get(id));
+  }
+
+  findUserByEmail(email) {
+    const r = this.db.prepare('SELECT * FROM users WHERE email = ?').get(String(email).trim());
+    return r ? { ...rowToUser(r), pw_hash: r.pw_hash } : null;
+  }
+
+  /**
+   * Creates an account. The very first account also takes over everything
+   * created before accounts existed (notes and photos), so nothing is lost.
+   */
+  createUser({ email, name, pwHash, imagesDir }) {
+    const id = crypto.randomUUID();
+    const first = this.userCount() === 0;
+    this.db
+      .prepare('INSERT INTO users (id, email, name, pw_hash, created_at) VALUES (?, ?, ?, ?, ?)')
+      .run(id, email.trim(), name.trim(), pwHash, Date.now());
+    if (first) {
+      const legacy = this.db.prepare('SELECT id FROM notes WHERE user_id IS NULL').all();
+      for (const { id: noteId } of legacy) {
+        this.db.prepare('UPDATE notes SET user_id = ?, rev = ? WHERE id = ?').run(id, this.nextRev(), noteId);
+      }
+      if (imagesDir && fs.existsSync(imagesDir)) {
+        for (const entry of fs.readdirSync(imagesDir, { withFileTypes: true })) {
+          if (entry.isFile()) this.addImage(entry.name, id);
+        }
+      }
     }
-    return set;
+    return this.getUser(id);
   }
 
-  addSession(token) {
-    this.db.prepare('INSERT INTO sessions (token, created_at) VALUES (?, ?)').run(token, Date.now());
+  setPassword(userId, pwHash) {
+    this.db.prepare('UPDATE users SET pw_hash = ? WHERE id = ?').run(pwHash, userId);
   }
 
-  hasSession(token) {
-    return !!this.db.prepare('SELECT 1 FROM sessions WHERE token = ?').get(token);
+  passwordHash(userId) {
+    return this.db.prepare('SELECT pw_hash FROM users WHERE id = ?').get(userId)?.pw_hash ?? null;
+  }
+
+  // --- sessions ---------------------------------------------------------------
+
+  /** Creates a session and returns its secret token (only the hash is stored). */
+  createSession(userId, device) {
+    const token = crypto.randomBytes(32).toString('base64url');
+    const now = Date.now();
+    this.db
+      .prepare('INSERT INTO sessions (token_hash, user_id, created_at, last_used_at, device) VALUES (?, ?, ?, ?, ?)')
+      .run(hashToken(token), userId, now, now, device ? String(device).slice(0, 200) : null);
+    return token;
+  }
+
+  /** Returns the session's user, or null when the token is unknown or expired. */
+  sessionUser(token) {
+    if (!token) return null;
+    const h = hashToken(token);
+    const s = this.db.prepare('SELECT * FROM sessions WHERE token_hash = ?').get(h);
+    if (!s) return null;
+    const now = Date.now();
+    if (now - s.last_used_at > SESSION_MAX_IDLE) {
+      this.db.prepare('DELETE FROM sessions WHERE token_hash = ?').run(h);
+      return null;
+    }
+    if (now - s.last_used_at > 3600e3) {
+      this.db.prepare('UPDATE sessions SET last_used_at = ? WHERE token_hash = ?').run(now, h);
+    }
+    const user = this.getUser(s.user_id);
+    return user ? { ...user, sessionHash: h } : null;
+  }
+
+  deleteSession(token) {
+    this.db.prepare('DELETE FROM sessions WHERE token_hash = ?').run(hashToken(token));
+  }
+
+  /** Logs a user out everywhere, optionally keeping one session. */
+  deleteUserSessions(userId, keepHash = null) {
+    this.db.prepare('DELETE FROM sessions WHERE user_id = ? AND token_hash IS NOT ?').run(userId, keepHash);
+  }
+
+  sessionCount(userId) {
+    return this.db.prepare('SELECT COUNT(*) AS n FROM sessions WHERE user_id = ?').get(userId).n;
   }
 
   getMeta(key) {

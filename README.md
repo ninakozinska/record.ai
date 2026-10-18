@@ -24,7 +24,7 @@ Notes you **type, dictate, or photograph**. They sync across your phone, your co
 1. Install **Node.js** (LTS) from [nodejs.org](https://nodejs.org/).
 2. Download this project as a ZIP and unzip it into your **Home** folder. Don't use iCloud Drive: iCloud syncing can damage the notes database.
 3. Double-click **`Start record.ai.command`**. The first time, macOS blocks it. Click **Done**, then go to System Settings → Privacy & Security → **Open Anyway**.
-   It installs what it needs, asks for a password and which AI to use, starts the server and opens the app.
+   It installs what it needs, asks which AI to use, starts the server and opens the app. On the first visit, create your account.
    Keep the Terminal window open while you use the app. Close it to stop.
 4. **Phone:** install [Tailscale](https://tailscale.com/download) on the Mac and the phone, signed in to the same account, then start record.ai again.
    The Terminal window shows an `https://….ts.net` address to open on your phone.
@@ -46,7 +46,7 @@ Requires Node.js 22.13 or newer.
 
 ```bash
 npm install
-cp .env.example .env      # then edit: APP_PASSWORD and ANTHROPIC_API_KEY
+cp .env.example .env      # then edit: ANTHROPIC_API_KEY
 npm start                 # → http://localhost:3000
 ```
 
@@ -56,21 +56,28 @@ Get an API key at <https://console.anthropic.com/>. Without a key the app still 
 
 Your devices all talk to one small server that stores the notes. Camera, microphone and "install app" only work over **HTTPS**, so host it somewhere that gives you HTTPS:
 
-- **Render (easiest)**: push this repo to GitHub, then on render.com choose **New → Blueprint** and pick the repo. `render.yaml` sets up the server and a persistent disk. Enter `APP_PASSWORD` and `ANTHROPIC_API_KEY` when it asks.
+- **Render (easiest)**: push this repo to GitHub, then on render.com choose **New → Blueprint** and pick the repo. `render.yaml` sets up the server and a persistent disk. Enter `ANTHROPIC_API_KEY` when it asks, then open the site and create your account right away.
 - **Any Docker host** (Fly.io, Railway, a VPS…):
   ```bash
   docker build -t record-ai .
   docker run -p 3000:3000 -v record-ai-data:/data \
-    -e APP_PASSWORD=... -e ANTHROPIC_API_KEY=... record-ai
+    -e ANTHROPIC_API_KEY=... record-ai
   ```
   Put HTTPS in front of it (most hosts do this for you, or use Caddy or a Cloudflare Tunnel).
 - **Home computer only**: `npm start`, then reach it over HTTPS with [Tailscale](https://tailscale.com/kb/1312/serve) (`tailscale serve 3000`) or a Cloudflare Tunnel.
 
-**Always set `APP_PASSWORD`** on a public server. Otherwise anyone with the URL can read your notes.
+**Create your account right after the server starts.** The first account becomes the owner; after that, nobody else can sign up unless you allow it (see *Accounts* below).
+
+## iPhone and Android apps
+
+There are **native phone apps** for iPhone ([`ios/`](ios/)) and Android ([`android/`](android/)). They use the same server and account as the web app, have dictation, camera and photos, work offline, and stay in sync live: an edit on one device shows on the others within a moment.
+
+- iPhone: see [ios/README.md](ios/README.md) (needs a Mac with Xcode).
+- Android: see [android/README.md](android/README.md) (download the app from GitHub, or build it with Android Studio).
 
 ## Install it on your devices
 
-Open your server's URL, enter the password, then:
+Open your server's URL, log in, then:
 
 | Device | How |
 |---|---|
@@ -79,11 +86,21 @@ Open your server's URL, enter the password, then:
 | Windows / macOS / Linux | Chrome or Edge → install icon in the address bar (or ⋮ → **Install record.ai**) |
 | Any browser | Just use the website |
 
+## Accounts
+
+- **The first account** created on a server is its owner. It also receives any notes saved before accounts existed.
+- **Everyone has their own private notes and photos.** Nobody can see anyone else's.
+- **More accounts:** set `ALLOW_SIGNUP=true` (anyone can sign up) or `SIGNUP_CODE=…` (sign up with an invite code), then restart.
+- **In the app** (tap your initials, top right): change your password, log out, or log out all other devices. Changing the password also logs out the other devices.
+- **Security:** passwords are stored hashed with scrypt, session tokens are stored hashed, and repeated wrong passwords are slowed down (10 tries per 15 minutes). Logging out removes your notes from that device.
+- **Forgot your password?** On the server, run `npm run reset-password -- you@example.com "new password"`.
+
 ## Configuration
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `APP_PASSWORD` | *(none)* | Password to unlock the app. Required for any server others can reach. |
+| `ALLOW_SIGNUP` | `false` | `true` lets anyone who can reach the server create an account. |
+| `SIGNUP_CODE` | *(none)* | Lets people create an account only with this invite code. |
 | `AI_PROVIDER` | `anthropic` | `anthropic` (Claude), `ollama` (free local AI), or `none`. |
 | `ANTHROPIC_API_KEY` | *(none)* | Needed for Claude. |
 | `CLAUDE_MODEL` | `claude-opus-5-5` | Claude model to use (`claude-haiku-5-5` is the cheap one). |
@@ -102,22 +119,31 @@ Open your server's URL, enter the password, then:
             └─ (Server-Sent Events)
 ```
 
+- `ios/`: the native iPhone app (SwiftUI). `android/`: the native Android app (Kotlin, Jetpack Compose). Both talk to the same API, using a token instead of a cookie.
 - `public/`: the app (plain HTML/CSS/JS, no build step). `local.js` stores notes in IndexedDB, queues changes in an outbox, and syncs. `sw.js` lets the app open offline.
 - `server/`: Express API. `db.js` is storage (Node's built-in SQLite). `organizer.js` holds the Claude prompts. It uses structured outputs, so replies always match the schema, and server-side refusal fallback.
-- Sync: every change gets an increasing revision number. Devices fetch "everything since revision N" and get live pushes. If two devices edit the same note, the most recent edit wins. The AI writes only its own fields (title, AI group and priority…), so it never overwrites your text or your choices.
+- Sync: each device sends all its waiting edits and fetches what changed in **one** request, JSON is gzip-compressed, and lists use small photo previews. Every change gets an increasing revision number. Devices fetch "everything since revision N" and get live pushes. If two devices edit the same note, the most recent edit wins. The AI writes only its own fields (title, AI group and priority…), so it never overwrites your text or your choices.
 
 ## Development
 
 ```bash
-npm run dev     # restart on changes
-npm test        # API tests (Claude is faked)
-npm run e2e     # browser test: two devices, photos, camera, offline sync
+npm run dev            # restart on changes
+npm test               # server, accounts, AI, scripts and iPhone-protocol tests
+npm run e2e            # browser test: two devices, sign-up, sync, photos, camera, offline, logout
+npm run check:swift    # syntax check of the iPhone app
+cd android && ./gradlew :core:test   # Android sync tests (Java 17)
+npm run coverage       # tests with a coverage table
 ```
+
+- [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md): how the parts fit, the sync rules, and what each test covers (and doesn't).
+- [docs/API.md](docs/API.md): the server API used by the web, iPhone and Android apps.
+
+GitHub runs every test on each push.
 
 ## Known limitations
 
 - **Dictation** uses the browser's speech recognition: Chrome, Edge, Safari (including iPhone) and Android. Firefox doesn't support it, so use your keyboard's 🎤 key instead.
-- It's built for **one person** (one password, one shared notebook). It doesn't have separate user accounts.
+- There is no email, so a forgotten password is reset on the server: `npm run reset-password -- you@example.com "new password"`.
 - Photos are shrunk to 1600px before upload to keep sync and AI calls fast.
 
 ## License

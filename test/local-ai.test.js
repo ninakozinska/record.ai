@@ -52,13 +52,14 @@ function setup(env) {
   const store = openDb(dir);
   const changes = [];
   const organizer = new Organizer({ store, imagesDir: path.join(dir, 'images'), onChange: (n) => changes.push(n), log: quiet });
+  const user = store.createUser({ email: 'nina@example.com', name: 'Nina', pwHash: 'x' });
   const restore = () => {
     for (const [k, v] of Object.entries(saved)) {
       if (v === undefined) delete process.env[k];
       else process.env[k] = v;
     }
   };
-  return { dir, store, organizer, restore };
+  return { dir, store, organizer, restore, uid: user.id };
 }
 
 const analysis = { title: 'Pay bill', summary: 's', group: 'Home', priority: 'high', priority_reason: 'r', tags: ['bills'], due_date: null };
@@ -68,7 +69,7 @@ test('local AI (Ollama) organizes a note with text and photo', async () => {
   const t = setup({ AI_PROVIDER: 'ollama', OLLAMA_URL: ollama.url, OLLAMA_MODEL: undefined });
   try {
     fs.writeFileSync(path.join(t.dir, 'images', 'aaaaaaaa-1111.jpg'), Buffer.from([1, 2, 3]));
-    t.store.upsertFromClient({ id: 'note-local-1', text: 'pay the bill', images: ['aaaaaaaa-1111.jpg'], edited_at: 1 });
+    t.store.upsertFromClient(t.uid, { id: 'note-local-1', text: 'pay the bill', images: ['aaaaaaaa-1111.jpg'], edited_at: 1 });
     assert.equal(t.organizer.status.enabled, true);
     assert.equal(t.organizer.status.model, 'gemma3:4b');
     await t.organizer.organizeNote('note-local-1');
@@ -95,7 +96,7 @@ test('local AI: bad answers and missing Ollama give clear errors', async () => {
   const ollama = await fakeOllama({ reply: () => ({ title: 'only a title' }) });
   const t = setup({ AI_PROVIDER: 'ollama', OLLAMA_URL: ollama.url, OLLAMA_MODEL: undefined });
   try {
-    t.store.upsertFromClient({ id: 'note-local-2', text: 'x', edited_at: 1 });
+    t.store.upsertFromClient(t.uid, { id: 'note-local-2', text: 'x', edited_at: 1 });
     await t.organizer.organizeNote('note-local-2');
     assert.equal(t.store.get('note-local-2').ai_status, 'error');
     assert.match(t.store.get('note-local-2').ai_error, /incomplete answer/);
@@ -152,7 +153,7 @@ test('notes that failed earlier are retried when the app starts with AI on', asy
   const ollama = await fakeOllama({ reply: () => analysis });
   const t = setup({ AI_PROVIDER: 'ollama', OLLAMA_URL: ollama.url, OLLAMA_MODEL: undefined });
   try {
-    t.store.upsertFromClient({ id: 'note-local-3', text: 'x', edited_at: 1 });
+    t.store.upsertFromClient(t.uid, { id: 'note-local-3', text: 'x', edited_at: 1 });
     t.store.applyAi('note-local-3', { status: 'error', error: 'no credit' });
     t.organizer.resumePending();
     for (let i = 0; i < 100 && t.store.get('note-local-3').ai_status !== 'done'; i++) await new Promise((r) => setTimeout(r, 10));

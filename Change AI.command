@@ -3,8 +3,11 @@
 # Claude online, or none). Restarts record.ai with the new choice.
 
 cd "$(dirname "$0")" || exit 1
-PORT=3000
 source scripts/mac-common.sh
+# The port: from the environment, else from .env, else 3000.
+PORT=${PORT:-$(setting PORT)}
+PORT=${PORT:-3000}
+export PORT
 
 choose_ai || exit 0
 echo "Saved. Restarting record.ai…"

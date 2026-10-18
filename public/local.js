@@ -112,21 +112,25 @@ export class Local extends EventTarget {
     return note;
   }
 
-  async addImage(blob) {
+  /** Stores a photo (and its small preview) on the device and queues the upload. */
+  async addImage(blob, thumb) {
     const ext = blob.type === 'image/png' ? 'png' : 'jpg';
     const name = `${uuid()}.${ext}`;
     await req(this.tx('blobs', 'readwrite').put(blob, name));
+    if (thumb) await req(this.tx('blobs', 'readwrite').put(thumb, name + '#thumb'));
     await req(this.tx('outbox', 'readwrite').put({ key: 'img:' + name, kind: 'image', name }));
     this.flush();
     return name;
   }
 
-  async imageUrl(name) {
-    if (this.blobUrls.has(name)) return this.blobUrls.get(name);
-    const blob = await req(this.tx('blobs').get(name));
-    if (!blob) return `api/images/${name}`;
+  /** URL of a photo; `thumb` gives the small preview used in lists. */
+  async imageUrl(name, { thumb = false } = {}) {
+    const key = thumb ? name + '#thumb' : name;
+    if (this.blobUrls.has(key)) return this.blobUrls.get(key);
+    const blob = (await req(this.tx('blobs').get(key))) || (thumb ? await req(this.tx('blobs').get(name)) : null);
+    if (!blob) return `api/images/${name}${thumb ? '?variant=thumb' : ''}`;
     const url = URL.createObjectURL(blob);
-    this.blobUrls.set(name, url);
+    this.blobUrls.set(key, url);
     return url;
   }
 
@@ -135,19 +139,50 @@ export class Local extends EventTarget {
   async api(path, opts = {}) {
     const res = await fetch('api/' + path, { credentials: 'same-origin', ...opts });
     const data = await res.json().catch(() => ({}));
-    if (res.status === 401 && path !== 'login') this.setStatus({ needsLogin: true });
+    if (res.status === 401 && !path.startsWith('auth/')) this.setStatus({ needsLogin: true });
     if (!res.ok) throw Object.assign(new Error(data.error || res.statusText), { status: res.status });
     return data;
   }
 
-  async login(password) {
-    await this.api('login', {
+  /** Logs in (or signs up) and makes sure local data belongs to that account. */
+  async authenticate(kind, fields) {
+    const { user } = await this.api(`auth/${kind}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password }),
+      body: JSON.stringify(fields),
     });
-    this.setStatus({ needsLogin: false });
+    await this.useAccount(user);
+    this.setStatus({ needsLogin: false, user });
     this.start();
+    return user;
+  }
+
+  /** Notes cached on this device belong to one account; switching accounts clears them. */
+  async useAccount(user) {
+    const previous = await this.metaGet('userId');
+    if (previous && previous !== user.id) await this.wipe();
+    await this.metaSet('userId', user.id);
+    await this.metaSet('user', user);
+  }
+
+  async wipe() {
+    for (const store of ['notes', 'outbox', 'blobs', 'meta']) await req(this.tx(store, 'readwrite').clear());
+    this.notes.clear();
+    this.pending.clear();
+    this.rev = 0;
+    this.changed();
+  }
+
+  async unsentCount() {
+    return (await this.all('outbox')).length;
+  }
+
+  /** Logs out and removes this account's notes from the device. */
+  async logout() {
+    this.es?.close();
+    await this.api('auth/logout', { method: 'POST' }).catch(() => {});
+    await this.wipe();
+    this.setStatus({ user: null, needsLogin: true, online: false });
   }
 
   start() {
@@ -199,7 +234,11 @@ export class Local extends EventTarget {
       await this.merge(notes);
       // A server whose database was reset would have a lower rev; resync fully.
       if (rev < this.rev) {
+        // The server's database was replaced: drop the cached copies and load everything again.
         this.rev = 0;
+        this.notes.clear();
+        await req(this.tx('notes', 'readwrite').clear());
+        this.pulling = false;
         return this.pull();
       }
       this.rev = rev;
@@ -218,12 +257,17 @@ export class Local extends EventTarget {
     const store = this.tx('notes', 'readwrite');
     for (const s of serverNotes) {
       const local = this.notes.get(s.id);
+      // Replies and live updates can arrive out of order; never let an older
+      // server state (lower revision) overwrite a newer one.
+      if (local?.rev != null && s.rev != null && s.rev < local.rev) continue;
       let next = s;
       if (local && (this.pending.has(s.id) || local.edited_at > s.edited_at)) {
         // Our unsent edit wins for user fields; still take fresh AI output.
         next = { ...local };
         for (const k of AI_FIELDS) next[k] = s[k];
-        if (local.edited_at !== s.edited_at) next.ai_status = 'pending';
+        // Only a change to the text or photos makes the AI work again.
+        const contentDiffers = local.text !== s.text || JSON.stringify(local.images) !== JSON.stringify(s.images);
+        if (contentDiffers) next.ai_status = 'pending';
       }
       this.notes.set(s.id, next);
       store.put(next);
@@ -231,41 +275,63 @@ export class Local extends EventTarget {
     this.changed();
   }
 
+  /**
+   * Sends everything waiting in the outbox: photos first (each with its
+   * preview), then all note changes in ONE request, which also brings back
+   * whatever changed on the server.
+   */
   async flush() {
-    if (this.flushing || this.needsLogin) return;
+    if (this.needsLogin) return;
+    if (this.flushing) {
+      // An edit made while sending: send it as soon as this round finishes.
+      this.flushAgain = true;
+      return;
+    }
     this.flushing = true;
+    this.flushAgain = false;
+    let sent = false;
     try {
       const items = await this.all('outbox');
-      // Images first so notes never reference a missing file for long.
-      items.sort((a, b) => (a.kind === b.kind ? 0 : a.kind === 'image' ? -1 : 1));
-      for (const item of items) {
-        if (item.kind === 'image') {
-          const blob = await req(this.tx('blobs').get(item.name));
-          if (blob) {
-            await this.api(`images/${item.name}`, { method: 'PUT', headers: { 'Content-Type': blob.type }, body: blob });
+      for (const item of items.filter((i) => i.kind === 'image')) {
+        const blob = await req(this.tx('blobs').get(item.name));
+        if (blob) {
+          const thumb = await req(this.tx('blobs').get(item.name + '#thumb'));
+          if (thumb) {
+            await this.api(`images/${item.name}?variant=thumb`, { method: 'PUT', headers: { 'Content-Type': thumb.type }, body: thumb });
           }
+          await this.api(`images/${item.name}`, { method: 'PUT', headers: { 'Content-Type': blob.type }, body: blob });
+        }
+        await req(this.tx('outbox', 'readwrite').delete(item.key));
+      }
+      const notes = items.filter((i) => i.kind === 'note');
+      const since = this.rev;
+      const { rev, results, notes: changed } = await this.api('sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ since, changes: notes.map((i) => ({ id: i.id, ...i.body })) }),
+      });
+      for (const [k, item] of notes.entries()) {
+        // Sent (or refused for good): clear it, unless a newer edit was queued meanwhile.
+        if (!results[k]) continue;
+        const current = await req(this.tx('outbox').get(item.key));
+        if (current && current.body.edited_at === item.body.edited_at) {
           await req(this.tx('outbox', 'readwrite').delete(item.key));
-        } else {
-          const { note } = await this.api(`notes/${item.id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(item.body),
-          });
-          // Only clear the outbox entry if no newer edit was queued meanwhile.
-          const current = await req(this.tx('outbox').get(item.key));
-          if (current && current.body.edited_at === item.body.edited_at) {
-            await req(this.tx('outbox', 'readwrite').delete(item.key));
-            this.pending.delete(item.id);
-          }
-          await this.merge([note]);
+          this.pending.delete(item.id);
         }
       }
-      this.setStatus({ online: true, unsent: 0 });
+      await this.merge(changed);
+      if (rev >= this.rev && since === this.rev) {
+        this.rev = rev;
+        await this.metaSet('rev', rev);
+      }
+      sent = true;
+      this.setStatus({ online: true, unsent: (await this.all('outbox')).length });
     } catch (err) {
       const unsent = (await this.all('outbox')).length;
       this.setStatus({ unsent, online: err.status ? this.online : false });
     } finally {
       this.flushing = false;
     }
+    if (sent && this.flushAgain) return this.flush();
   }
 }
