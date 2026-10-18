@@ -1,8 +1,10 @@
+import AuthenticationServices
 import SwiftUI
 
 /// Log in, or create an account.
 struct LoginView: View {
     @Environment(NoteStore.self) private var store
+    @Environment(\.webAuthenticationSession) private var webAuthenticationSession
     @State private var signingUp = false
     @State private var name = ""
     @State private var email = ""
@@ -18,6 +20,20 @@ struct LoginView: View {
             Form {
                 Section {
                     Text(intro).foregroundStyle(.secondary)
+                }
+                if !store.providers.isEmpty {
+                    Section {
+                        ForEach(store.providers) { provider in
+                            Button {
+                                continueWith(provider)
+                            } label: {
+                                Label("Continue with \(provider.name)", systemImage: "person.crop.circle.badge.checkmark")
+                            }
+                            .disabled(busy)
+                        }
+                    } footer: {
+                        Text("Or use your email and password:")
+                    }
                 }
                 Section {
                     if signingUp {
@@ -79,6 +95,27 @@ struct LoginView: View {
             return "This is the first account on your server. It will own all notes already saved there."
         }
         return signingUp ? "Your notes are private to your account." : "Log in with the same email and password as on your Mac."
+    }
+
+    /// Opens the provider's sign-in page in Apple's secure sheet; it comes back
+    /// to recordai://auth with a one-time code.
+    private func continueWith(_ provider: AuthProvider) {
+        let invite = signingUp ? code.trimmingCharacters(in: .whitespaces) : ""
+        guard let start = store.socialLoginStart(provider: provider.id, invite: invite) else { return }
+        busy = true
+        error = nil
+        Task {
+            do {
+                let callback = try await webAuthenticationSession.authenticate(
+                    using: start.url, callbackURLScheme: "recordai", preferredBrowserSession: .shared)
+                try await store.socialLoginFinish(callback: callback, verifier: start.verifier)
+            } catch let cancel as ASWebAuthenticationSessionError where cancel.code == .canceledLogin {
+                // The person closed the sheet: nothing to say.
+            } catch {
+                self.error = error.localizedDescription
+            }
+            busy = false
+        }
     }
 
     private func submit() {

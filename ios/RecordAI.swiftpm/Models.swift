@@ -100,6 +100,25 @@ struct SignupPolicy: Codable {
 struct AuthState: Codable {
     var user: User?
     var signup: SignupPolicy
+    /// "Continue with Google / Apple / …" options set up on the server.
+    var providers: [AuthProvider]?
+}
+
+struct AuthProvider: Codable, Identifiable, Equatable {
+    var id: String
+    var name: String
+}
+
+/// What the account screen shows: how this account can log in.
+struct AccountInfo: Codable {
+    struct Identity: Codable, Identifiable {
+        var provider: String
+        var name: String
+        var email: String?
+        var id: String { provider }
+    }
+    var hasPassword: Bool
+    var identities: [Identity]
 }
 
 struct AuthResult: Codable {

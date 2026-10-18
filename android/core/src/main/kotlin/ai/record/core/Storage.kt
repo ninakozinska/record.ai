@@ -15,6 +15,8 @@ interface Storage {
 /** Keeps the login token secret (on Android: encrypted with a key in the Android Keystore). */
 interface SecretStore {
     var token: String?
+    /** The secret of a "Continue with …" sign-in in progress (survives the app being closed meanwhile). */
+    var oauthVerifier: String?
 }
 
 /** Plain files in an app-private folder. */
@@ -58,4 +60,4 @@ class FileStorage(private val dir: File) : Storage {
         set(value) { settings = settings.copy(user = value) }
 }
 
-class MemorySecretStore(override var token: String? = null) : SecretStore
+class MemorySecretStore(override var token: String? = null, override var oauthVerifier: String? = null) : SecretStore

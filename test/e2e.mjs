@@ -203,7 +203,8 @@ try {
     const q = new URL(res.headers().location).searchParams;
     assert.equal(q.get('client_id'), 'e2e');
     const back = `${q.get('redirect_uri')}?state=${q.get('state')}&code=e2e-code`;
-    await route.fulfill({ status: 302, headers: { location: back } });
+    // Keep the cookie that ties this sign-in to this browser.
+    await route.fulfill({ status: 302, headers: { location: back, 'set-cookie': res.headers()['set-cookie'] } });
   });
   await phone.click('#providerButtons a:text("Continue with Google")');
   await phone.waitForSelector('.note h3:text("Send the quarterly report tomorrow")');

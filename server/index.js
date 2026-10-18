@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createApp } from './app.js';
 import { ensureOllamaModel } from './ollama.js';
+import { configuredProviders } from './oauth.js';
 
 if (fs.existsSync('.env')) process.loadEnvFile('.env');
 
@@ -19,6 +20,9 @@ app.listen(port, () => {
   console.log(`data directory: ${dataDir}`);
   const ai = organizer.status;
   console.log(ai.enabled ? `AI: ${ai.provider === 'ollama' ? 'free local AI' : 'Claude'} (${ai.model})` : 'AI: off');
+  const signin = configuredProviders().map((p) => p.name);
+  console.log(`Sign-in with: email${signin.length ? ', ' + signin.join(', ') : ' (see docs/SOCIAL_LOGIN.md to add Google, Apple, …)'}`);
+  if (signin.length && !process.env.PUBLIC_URL) console.log('Tip: set PUBLIC_URL to the address people use, so Google & co. send them back to the right place.');
   if (store.userCount() === 0) console.log('No account yet: open the app and create yours (the first account owns this server).');
   if (!organizer.enabled) console.warn('WARNING: no AI configured — notes will be saved but not organized.');
 });

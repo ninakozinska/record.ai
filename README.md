@@ -88,6 +88,7 @@ Open your server's URL, log in, then:
 
 ## Accounts
 
+- **Log in with email and password, or "Continue with" Google, Apple, Microsoft, Facebook, LinkedIn, X or GitHub** once you've set them up ([docs/SOCIAL_LOGIN.md](docs/SOCIAL_LOGIN.md)). One account can have several of these; connect more under your initials → **Sign-in options**.
 - **The first account** created on a server is its owner. It also receives any notes saved before accounts existed.
 - **Everyone has their own private notes and photos.** Nobody can see anyone else's.
 - **More accounts:** set `ALLOW_SIGNUP=true` (anyone can sign up) or `SIGNUP_CODE=…` (sign up with an invite code), then restart.
@@ -99,6 +100,8 @@ Open your server's URL, log in, then:
 
 | Variable | Default | Meaning |
 |---|---|---|
+| `PUBLIC_URL` | *(the address in the browser)* | The HTTPS address people use, e.g. `https://notes.example.com`. Needed for "Continue with Google" etc. |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, … | *(none)* | Turn on "Continue with Google / Apple / Microsoft / Facebook / LinkedIn / X / GitHub". Step by step: [docs/SOCIAL_LOGIN.md](docs/SOCIAL_LOGIN.md). |
 | `ALLOW_SIGNUP` | `false` | `true` lets anyone who can reach the server create an account. |
 | `SIGNUP_CODE` | *(none)* | Lets people create an account only with this invite code. |
 | `AI_PROVIDER` | `anthropic` | `anthropic` (Claude), `ollama` (free local AI), or `none`. |

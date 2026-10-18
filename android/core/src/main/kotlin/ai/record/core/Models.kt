@@ -59,7 +59,19 @@ data class Note(
 
 @Serializable data class SignupPolicy(val open: Boolean, val needsCode: Boolean, val firstAccount: Boolean)
 
-@Serializable data class AuthState(val user: User? = null, val signup: SignupPolicy)
+@Serializable data class AuthState(
+    val user: User? = null,
+    val signup: SignupPolicy,
+    /** "Continue with Google / Apple / …" options set up on the server. */
+    val providers: List<AuthProvider> = emptyList(),
+)
+
+@Serializable data class AuthProvider(val id: String, val name: String)
+
+/** How this account can log in (the account screen). */
+@Serializable data class AccountInfo(val hasPassword: Boolean, val identities: List<Identity> = emptyList()) {
+    @Serializable data class Identity(val provider: String, val name: String, val email: String? = null)
+}
 
 @Serializable data class AuthResult(val token: String, val user: User)
 

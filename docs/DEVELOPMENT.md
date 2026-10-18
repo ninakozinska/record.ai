@@ -14,6 +14,7 @@
 | `server/index.js` | Starts the server, loads `.env`, gets the local AI model ready |
 | `server/app.js` | HTTP routes for notes, photos, live updates; serves the web app |
 | `server/auth.js` | Accounts: sign-up rules, login throttling, sessions, password hashing |
+| `server/oauth.js` | "Continue with Google / Apple / Microsoft / Facebook / LinkedIn / X / GitHub" ([SOCIAL_LOGIN.md](SOCIAL_LOGIN.md)) |
 | `server/db.js` | All storage, plus upgrades of older databases |
 | `server/organizer.js` | Prompts, Claude/Ollama calls, the per-user queue, reorganizing, plain-language errors |
 | `server/ollama.js` | Checks Ollama is running and downloads the model on first start |
@@ -48,7 +49,7 @@ The web, iPhone and Android clients follow the same rules:
 
 ```bash
 npm test               # server, accounts, AI, scripts, iPhone protocol (Claude and Ollama are faked)
-npm run e2e            # real Chromium: desktop + phone, sign-up, sync, photos, camera, offline, logout
+npm run e2e            # real Chromium: desktop + phone, sign-up, sync, photos, camera, offline, logout, Continue with Google
 npm run check:swift    # syntax check of the iPhone app (no Mac needed)
 cd android && ./gradlew :core:test   # Android sync engine against the real server (needs Java 17)
 npm run coverage       # npm test with a line/branch coverage table
@@ -61,6 +62,8 @@ npm run coverage       # npm test with a line/branch coverage table
 | `test/validation.test.js` | Malformed input refused, status and server info, session expiry |
 | `test/organizer.test.js` | Claude request options, refusal fallback, no-credit errors, Haiku, refusals and cut-offs, per-user groups and reorganizing, Ollama errors |
 | `test/local-ai.test.js` | Ollama: requests, photos, bad answers, model download, not running |
+| `test/oauth.test.js` | Sign in with each kind of provider (faked): new accounts, matching verified emails only, sign-up rules, the phone apps' one-time code, connect and disconnect, Apple's signed secret |
+| `android/core/…/SocialLoginTest.kt` | The Android app's "Continue with Google" against the real server with a fake Google (`test/fixtures/fake-google-server.mjs`) |
 | `test/ios-contract.test.js` | The exact requests the iPhone app makes |
 | `test/scripts.test.js` | Password reset; the Mac launchers, run with stand-ins for macOS commands |
 | `android/core/src/test/…/SyncRulesTest.kt` | Android merge rules: never go backwards, unsent edits kept while AI results are taken, sorting, groups, server addresses |
@@ -72,6 +75,7 @@ GitHub runs all of these on every push (`.github/workflows/test.yml`). It also *
 **Not covered automatically:**
 - The iPhone and Android apps are compiled on GitHub, but their screens are not tested automatically. Try them on a real phone.
 - No test calls the real Claude API or a real Ollama install; both are replaced by stand-ins that follow their documented formats.
+- No test signs in with a real Google, Apple, Microsoft, Facebook, LinkedIn, X or GitHub account. Their answers are faked from their documentation; try each one once after setting it up.
 - The Mac launchers are tested on Linux with stand-ins for `osascript`, `open`, `caffeinate` and `lsof`, not on a real Mac.
 
 ## Conventions

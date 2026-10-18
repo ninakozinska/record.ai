@@ -3,7 +3,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
-import { start } from './helpers.js';
+import fs from 'node:fs';
+import path from 'node:path';
+import { start, tmpDir } from './helpers.js';
 import { appleClientSecret, configuredProviders } from '../server/oauth.js';
 
 const b64url = (b) => Buffer.from(b).toString('base64url');
@@ -60,17 +62,23 @@ function fakeProviders() {
   return { fetch, who, issue, calls };
 }
 
-/** A browser: keeps its cookie and does not follow redirects. */
+/** A browser: keeps its cookies and does not follow redirects. */
 function browser(origin) {
-  let cookie = '';
-  return async (url, init = {}) => {
+  const jar = new Map();
+  const b = async (url, init = {}) => {
+    const cookie = [...jar].map(([k, v]) => `${k}=${v}`).join('; ');
     const res = await fetch(url.startsWith('http') ? url : origin + url, {
       ...init, redirect: 'manual', headers: { cookie, ...init.headers },
     });
-    const sc = res.headers.get('set-cookie');
-    if (sc) cookie = sc.split(';')[0];
+    for (const sc of res.headers.getSetCookie()) {
+      const [pair] = sc.split(';');
+      const [k, v] = pair.split('=');
+      if (/Max-Age=0/.test(sc)) jar.delete(k); else jar.set(k, v);
+    }
     return res;
   };
+  b.jar = jar;
+  return b;
 }
 
 async function setup(opts = {}) {
@@ -100,6 +108,15 @@ const stateOf = async (b) => (await b('/api/auth/state')).json();
 test('only providers with keys are offered', () => {
   assert.deepEqual(configuredProviders(ENV).map((p) => p.id), ['google', 'apple', 'facebook', 'x', 'github']);
   assert.deepEqual(configuredProviders({ GOOGLE_CLIENT_ID: 'only-half' }), []);
+});
+
+test('Apple key can be given as the downloaded .p8 file', () => {
+  const file = path.join(tmpDir(), 'AuthKey_KEY123.p8');
+  fs.writeFileSync(file, appleKey.privateKey.export({ type: 'pkcs8', format: 'pem' }));
+  const env = { ...ENV, APPLE_PRIVATE_KEY: undefined, APPLE_PRIVATE_KEY_FILE: file };
+  assert.ok(configuredProviders(env).some((p) => p.id === 'apple'));
+  const [h, p, sig] = appleClientSecret(env).split('.');
+  assert.ok(crypto.verify('sha256', Buffer.from(`${h}.${p}`), { key: appleKey.publicKey, dsaEncoding: 'ieee-p1363' }, Buffer.from(sig, 'base64url')));
 });
 
 test('the login screen lists the providers; the start sends people to the provider with PKCE', async () => {
@@ -140,6 +157,16 @@ test('Google: the first sign-in creates the account, the next one logs into it',
     // A second try with an old or made-up state is refused.
     const bad = await b(`/api/auth/oauth/google/callback?state=nope&code=x`);
     assert.match(loginError(bad), /took too long/);
+
+    // Login CSRF: someone starts a sign-in with THEIR Google account and sends
+    // the callback link to Nina. Her browser didn't start it, so it is refused.
+    const attacker = browser(origin);
+    const to = new URL((await attacker('/api/auth/oauth/google/start')).headers.get('location'));
+    const code = fake.issue('google', to.searchParams.get('code_challenge'));
+    const victim = browser(origin);
+    const trap = await victim(`/api/auth/oauth/google/callback?state=${to.searchParams.get('state')}&code=${code}`);
+    assert.match(loginError(trap), /another browser/);
+    assert.equal((await stateOf(victim)).user, null);
   } finally {
     s.close();
   }

@@ -10,6 +10,7 @@
 //        plus the secret behind <challenge>, for a login token at /oauth/exchange.
 //        So a stolen code is useless to anyone but the app that started.
 import crypto from 'node:crypto';
+import fs from 'node:fs';
 import express from 'express';
 
 const b64url = (buf) => Buffer.from(buf).toString('base64url');
@@ -17,6 +18,10 @@ const sha256 = (s) => crypto.createHash('sha256').update(s).digest();
 const decodeJwt = (jwt) => JSON.parse(Buffer.from(String(jwt).split('.')[1] || '', 'base64url').toString() || 'null');
 
 const STATE_TTL = 10 * 60e3;
+// Ties a web sign-in to the browser that started it, so nobody can slip
+// their own sign-in into someone else's browser (login CSRF).
+const FLOW_COOKIE = 'oauth_flow';
+const flowCookie = (req) => (req.get('cookie') || '').match(new RegExp(`(?:^|;\\s*)${FLOW_COOKIE}=([^;]+)`))?.[1];
 const APP_CODE_TTL = 2 * 60e3;
 export const APP_SCHEME = 'recordai';
 
@@ -99,7 +104,8 @@ const envPrefix = (id) => PROVIDERS[id].env || id.toUpperCase();
 /** The providers whose keys are set, in display order. */
 export function configuredProviders(env = process.env) {
   return Object.entries(PROVIDERS)
-    .filter(([id, p]) => (p.keys || ['CLIENT_ID', 'CLIENT_SECRET']).every((k) => env[`${envPrefix(id)}_${k}`]))
+    .filter(([id, p]) => (p.keys || ['CLIENT_ID', 'CLIENT_SECRET'])
+      .every((k) => env[`${envPrefix(id)}_${k}`] || (k === 'PRIVATE_KEY' && env[`${envPrefix(id)}_PRIVATE_KEY_FILE`])))
     .map(([id, p]) => ({ id, name: p.name }));
 }
 
@@ -110,7 +116,10 @@ export function appleClientSecret(env, now = Date.now()) {
   const payload = b64url(JSON.stringify({
     iss: env.APPLE_TEAM_ID, iat, exp: iat + 300, aud: 'https://appleid.apple.com', sub: env.APPLE_CLIENT_ID,
   }));
-  const key = String(env.APPLE_PRIVATE_KEY).replace(/\\n/g, '\n');
+  // The key itself, or (easier) the path of the .p8 file downloaded from Apple.
+  const key = env.APPLE_PRIVATE_KEY
+    ? String(env.APPLE_PRIVATE_KEY).replace(/\\n/g, '\n')
+    : fs.readFileSync(env.APPLE_PRIVATE_KEY_FILE, 'utf8');
   const sig = crypto.sign('sha256', Buffer.from(`${header}.${payload}`), { key, dsaEncoding: 'ieee-p1363' });
   return `${header}.${payload}.${b64url(sig)}`;
 }
@@ -171,6 +180,11 @@ export function oauthRoutes({ store, env = process.env, fetch: fetchImpl = fetch
       invite: typeof req.query.invite === 'string' ? req.query.invite.slice(0, 200) : '',
       expires: Date.now() + STATE_TTL,
     });
+    if (!app) {
+      // Apple answers with a cross-site POST, which only carries SameSite=None cookies (HTTPS only).
+      const secure = req.secure || req.get('x-forwarded-proto') === 'https';
+      res.setHeader('Set-Cookie', `${FLOW_COOKIE}=${state}; Path=/api/auth/oauth; HttpOnly; Max-Age=${STATE_TTL / 1000}; ${secure ? 'SameSite=None; Secure' : 'SameSite=Lax'}`);
+    }
     const params = new URLSearchParams({
       client_id: key(id, 'CLIENT_ID'),
       redirect_uri: redirectUri,
@@ -191,6 +205,9 @@ export function oauthRoutes({ store, env = process.env, fetch: fetchImpl = fetch
     const id = req.params.provider;
     if (!flow || flow.provider !== id || flow.expires < Date.now()) {
       return finish(res, null, { error: 'The sign-in took too long or was already used. Please try again.' });
+    }
+    if (!flow.app && flowCookie(req) !== q.state) {
+      return finish(res, null, { error: 'This sign-in was started in another browser. Please try again here.' });
     }
     try {
       if (q.error) throw new OAuthError(q.error === 'access_denied' || q.error === 'user_cancelled_authorize'

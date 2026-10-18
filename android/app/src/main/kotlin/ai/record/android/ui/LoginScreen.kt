@@ -1,5 +1,8 @@
 package ai.record.android.ui
 
+import android.content.ActivityNotFoundException
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -11,6 +14,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -23,10 +28,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import ai.record.android.SocialLogin
 import ai.record.core.NoteRepository
 import ai.record.core.UiState
 import kotlinx.coroutines.launch
@@ -43,6 +50,9 @@ fun LoginScreen(repo: NoteRepository, state: UiState) {
     var error by remember { mutableStateOf<String?>(null) }
     var busy by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    val socialBusy by SocialLogin.busy
+    val socialError by SocialLogin.error
 
     LaunchedEffect(Unit) {
         runCatching { repo.refreshAuthState() }
@@ -67,6 +77,28 @@ fun LoginScreen(repo: NoteRepository, state: UiState) {
             },
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        if (state.providers.isNotEmpty()) {
+            state.providers.forEach { provider ->
+                OutlinedButton(
+                    onClick = {
+                        SocialLogin.error.value = null
+                        error = null
+                        // Opens the provider's page in the browser; it comes back to recordai://auth.
+                        val url = repo.socialLoginUrl(provider.id, if (signingUp) code else "") ?: return@OutlinedButton
+                        try {
+                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                        } catch (e: ActivityNotFoundException) {
+                            error = "No web browser found on this phone."
+                        }
+                    },
+                    enabled = !busy && !socialBusy,
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text("Continue with ${provider.name}") }
+            }
+            socialError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+            HorizontalDivider()
+            Text("Or with your email:", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
         if (signingUp) {
             OutlinedTextField(name, { name = it }, label = { Text("Your name") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words))
