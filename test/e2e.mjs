@@ -39,10 +39,22 @@ const fake = {
   },
 };
 
+// "Continue with Google": Google's servers are faked here and its sign-in
+// page is faked in the browser (see step 7).
+const fakeGoogle = async (url) => {
+  const ok = (body) => new Response(JSON.stringify(body), { headers: { 'Content-Type': 'application/json' } });
+  if (String(url) === 'https://oauth2.googleapis.com/token') return ok({ access_token: 'google-token' });
+  return ok({ sub: 'google-nina', email: 'nina@example.com', email_verified: true, name: 'Nina' });
+};
+
 const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'record-ai-e2e-'));
 const { app, store } = createApp({
   dataDir,
   organizer: (args) => new Organizer({ ...args, client: fake }),
+  oauth: {
+    env: { GOOGLE_CLIENT_ID: 'e2e', GOOGLE_CLIENT_SECRET: 'e2e', GITHUB_CLIENT_ID: 'e2e', GITHUB_CLIENT_SECRET: 'e2e' },
+    fetch: fakeGoogle,
+  },
 });
 const server = app.listen(0);
 await new Promise((r) => server.once('listening', r));
@@ -81,6 +93,8 @@ try {
   // Phone: log in to the same account (wrong password first).
   await phone.goto(url);
   await phone.waitForSelector('#login[open] #loginTitle:text("Log in")');
+  assert.equal(await phone.isVisible('#loginName'), false, 'no name field when logging in');
+  assert.equal(await phone.isVisible('#loginCode'), false, 'no invite code field when logging in');
   await phone.fill('#loginEmail', 'nina@example.com');
   await phone.fill('#loginPassword', 'wrong password');
   await phone.click('#loginSubmit');
@@ -176,6 +190,31 @@ try {
   assert.equal(await phone.locator('.note').count(), 0, 'notes removed from the device after log out');
   await desktop.waitForSelector('.note h3:text("Send the quarterly report tomorrow")');
   console.log('✓ account menu and log out');
+
+  // 7. Log back in on the phone with "Continue with Google". Google's page is
+  //    faked: it sends the browser straight back with a sign-in code.
+  await phone.waitForSelector('#providerButtons a:text("Continue with Google")');
+  await phone.waitForSelector('#providerButtons a:text("Continue with GitHub")');
+  await phone.screenshot({ path: path.join(out, 'phone-login.png') });
+  // (Playwright cannot catch the redirect to Google itself, so it catches the
+  // app's start link, reads where it would go, and plays Google's part.)
+  await phone.route('**/api/auth/oauth/google/start*', async (route) => {
+    const res = await route.fetch({ maxRedirects: 0 });
+    const q = new URL(res.headers().location).searchParams;
+    assert.equal(q.get('client_id'), 'e2e');
+    const back = `${q.get('redirect_uri')}?state=${q.get('state')}&code=e2e-code`;
+    await route.fulfill({ status: 302, headers: { location: back } });
+  });
+  await phone.click('#providerButtons a:text("Continue with Google")');
+  await phone.waitForSelector('.note h3:text("Send the quarterly report tomorrow")');
+  await phone.waitForSelector('.sync-dot.ok');
+  assert.equal(new URL(phone.url()).search, '', 'address bar tidied');
+  await phone.click('#accountBtn');
+  await phone.waitForSelector('#identityList li:has-text("Google") [data-disconnect]');
+  await phone.waitForSelector('#identityList li:has-text("GitHub") a:text("Connect")');
+  await phone.screenshot({ path: path.join(out, 'phone-signin-options.png') });
+  await phone.click('#accountClose');
+  console.log('✓ continue with Google logs into the same account');
 
   assert.deepEqual(errors, []);
   console.log('All e2e checks passed. Screenshots in', out);

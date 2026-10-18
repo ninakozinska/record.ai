@@ -82,6 +82,16 @@ function migrate(db) {
       device       TEXT
     );
     CREATE INDEX IF NOT EXISTS sessions_user ON sessions(user_id);
+    -- "Continue with Google" etc.: which provider account belongs to which user
+    CREATE TABLE IF NOT EXISTS identities (
+      provider   TEXT NOT NULL,
+      subject    TEXT NOT NULL,
+      user_id    TEXT NOT NULL,
+      email      TEXT,
+      created_at INTEGER NOT NULL,
+      PRIMARY KEY (provider, subject)
+    );
+    CREATE INDEX IF NOT EXISTS identities_user ON identities(user_id);
   `);
 }
 
@@ -319,6 +329,27 @@ class Store {
 
   passwordHash(userId) {
     return this.db.prepare('SELECT pw_hash FROM users WHERE id = ?').get(userId)?.pw_hash ?? null;
+  }
+
+  // --- sign-in with Google, Apple, … ------------------------------------------
+
+  identityUser(provider, subject) {
+    const r = this.db.prepare('SELECT user_id FROM identities WHERE provider = ? AND subject = ?').get(provider, String(subject));
+    return r ? this.getUser(r.user_id) : null;
+  }
+
+  addIdentity(userId, provider, subject, email) {
+    this.db
+      .prepare('INSERT OR REPLACE INTO identities (provider, subject, user_id, email, created_at) VALUES (?, ?, ?, ?, ?)')
+      .run(provider, String(subject), userId, email || null, Date.now());
+  }
+
+  identities(userId) {
+    return this.db.prepare('SELECT provider, email FROM identities WHERE user_id = ? ORDER BY created_at').all(userId);
+  }
+
+  removeIdentity(userId, provider) {
+    return this.db.prepare('DELETE FROM identities WHERE user_id = ? AND provider = ?').run(userId, provider).changes;
   }
 
   // --- sessions ---------------------------------------------------------------

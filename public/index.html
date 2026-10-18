@@ -117,6 +117,8 @@
     <form class="sheet-inner" id="loginForm" novalidate>
       <h2 id="loginTitle">Log in</h2>
       <p id="loginIntro" class="muted"></p>
+      <div id="providerButtons" class="providers" hidden></div>
+      <p class="or" id="loginOr" hidden><span>or with your email</span></p>
       <label class="field" id="nameField" hidden>Your name
         <input id="loginName" autocomplete="name">
       </label>
@@ -144,9 +146,14 @@
       </div>
       <p class="muted" id="accountEmail"></p>
       <div class="ai-box" id="appAddress" hidden></div>
+      <div id="signinOptions" class="stack" hidden>
+        <h3>Sign-in options</h3>
+        <p class="muted">Log in to this account with any of these.</p>
+        <ul id="identityList" class="identity-list"></ul>
+      </div>
       <form id="passwordForm" class="stack" novalidate>
-        <h3>Change password</h3>
-        <label class="field">Current password
+        <h3 id="pwTitle">Change password</h3>
+        <label class="field" id="pwCurrentField">Current password
           <input id="pwCurrent" type="password" autocomplete="current-password">
         </label>
         <label class="field">New password (at least 8 characters)

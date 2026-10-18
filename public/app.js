@@ -542,13 +542,26 @@ function renderStatus() {
 // ---------------------------------------------------------------------------
 // Accounts: log in / sign up / account menu
 // ---------------------------------------------------------------------------
+// Small brand-coloured marks for the "Continue with …" buttons.
+const PROVIDER_MARK = {
+  google: ['G', '#4285f4'], apple: ['A', '#000'], microsoft: ['M', '#2f6fde'], facebook: ['f', '#1877f2'],
+  linkedin: ['in', '#0a66c2'], x: ['𝕏', '#000'], github: ['GH', '#24292f'],
+};
+const providerMark = (id) => {
+  const [text, color] = PROVIDER_MARK[id] || [id[0].toUpperCase(), '#555'];
+  return `<span class="provider-mark" style="background:${color}">${esc(text)}</span>`;
+};
+
 const auth = {
   mode: 'login', // or 'signup'
   policy: null,
+  providers: [],
+  error: '',
   async open() {
     try {
       const state = await local.api('auth/state');
       this.policy = state.signup;
+      this.providers = state.providers || [];
       if (state.user) {
         // Still logged in (e.g. after a network hiccup).
         await local.useAccount(state.user);
@@ -573,7 +586,9 @@ const auth = {
     $('#codeField').hidden = !(signup && p.needsCode);
     $('#loginPassword').autocomplete = signup ? 'new-password' : 'current-password';
     $('#loginSubmit').textContent = signup ? 'Create account' : 'Log in';
-    $('#loginError').textContent = '';
+    $('#loginError').textContent = this.error;
+    this.error = '';
+    this.renderProviders();
     const sw = $('#loginSwitch');
     if (signup && !p.firstAccount) sw.innerHTML = 'Already have an account? <button type="button" data-mode="login">Log in</button>';
     else if (!signup && p.open) sw.innerHTML = 'New here? <button type="button" data-mode="signup">Create an account</button>';
@@ -582,6 +597,17 @@ const auth = {
     (signup ? $('#loginName') : $('#loginEmail')).focus();
   },
 };
+auth.renderProviders = function () {
+  const box = $('#providerButtons');
+  box.hidden = $('#loginOr').hidden = !this.providers.length;
+  // When signing up with an invite code, the code goes along with the button.
+  const invite = this.mode === 'signup' ? $('#loginCode').value.trim() : '';
+  box.innerHTML = this.providers.map((p) => {
+    const q = invite ? `?invite=${encodeURIComponent(invite)}` : '';
+    return `<a class="provider-btn" href="api/auth/oauth/${encodeURIComponent(p.id)}/start${q}">${providerMark(p.id)}Continue with ${esc(p.name)}</a>`;
+  }).join('');
+};
+$('#loginCode').addEventListener('input', () => auth.renderProviders());
 $('#loginSwitch').addEventListener('click', (e) => {
   const b = e.target.closest('[data-mode]');
   if (b) auth.show(b.dataset.mode);
@@ -614,6 +640,7 @@ $('#accountBtn').onclick = async () => {
   $('#pwMessage').textContent = '';
   $('#pwCurrent').value = $('#pwNext').value = '';
   $('#account').showModal();
+  loadSigninOptions();
   try {
     const { addresses } = await local.api('server-info');
     const here = location.origin;
@@ -625,6 +652,35 @@ $('#accountBtn').onclick = async () => {
     $('#appAddress').hidden = true;
   }
 };
+async function loadSigninOptions() {
+  try {
+    const me = await local.api('auth/me');
+    $('#pwTitle').textContent = me.hasPassword ? 'Change password' : 'Set a password';
+    $('#pwCurrentField').hidden = !me.hasPassword;
+    const connected = new Map(me.identities.map((i) => [i.provider, i]));
+    const all = [...me.providers];
+    for (const i of me.identities) if (!all.some((p) => p.id === i.provider)) all.push({ id: i.provider, name: i.name });
+    $('#signinOptions').hidden = !all.length;
+    $('#identityList').innerHTML = all.map((p) => {
+      const c = connected.get(p.id);
+      return `<li>${providerMark(p.id)}<span class="who">${esc(p.name)}${c?.email ? ` <span class="muted">· ${esc(c.email)}</span>` : ''}</span>` +
+        (c ? `<button class="ghost" data-disconnect="${esc(p.id)}">Disconnect</button>`
+           : `<a class="ghost button" href="api/auth/oauth/${encodeURIComponent(p.id)}/start?link=1">Connect</a>`) + '</li>';
+    }).join('');
+  } catch {
+    $('#signinOptions').hidden = true;
+  }
+}
+$('#identityList').addEventListener('click', async (e) => {
+  const b = e.target.closest('[data-disconnect]');
+  if (!b) return;
+  try {
+    await local.api(`auth/identities/${encodeURIComponent(b.dataset.disconnect)}`, { method: 'DELETE' });
+    loadSigninOptions();
+  } catch (err) {
+    toast(err.message);
+  }
+});
 $('#accountClose').onclick = () => $('#account').close();
 $('#passwordForm').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -636,8 +692,9 @@ $('#passwordForm').addEventListener('submit', async (e) => {
       body: JSON.stringify({ current: $('#pwCurrent').value, next: $('#pwNext').value }),
     });
     msg.className = 'ok';
-    msg.textContent = 'Password changed. Your other devices need to log in again.';
+    msg.textContent = 'Password saved. Your other devices need to log in again.';
     $('#pwCurrent').value = $('#pwNext').value = '';
+    loadSigninOptions();
   } catch (err) {
     msg.className = 'err';
     msg.textContent = err.message;
@@ -669,9 +726,18 @@ local.addEventListener('change', render);
 local.addEventListener('status', renderStatus);
 render();
 renderStatus();
+// Coming back from "Continue with …": show what happened, then tidy the address bar.
+const back = new URLSearchParams(location.search);
+if (back.has('login_error') || back.has('linked')) {
+  auth.error = back.get('login_error') || '';
+  if (back.has('linked')) setTimeout(() => toast('Connected. You can now log in with it too.'), 300);
+  history.replaceState(null, '', location.pathname);
+}
+
 // Restore the account this device last used, then check with the server.
 try {
   const state = await local.api('auth/state');
+  auth.providers = state.providers || [];
   if (state.user) {
     await local.useAccount(state.user);
     local.setStatus({ user: state.user });

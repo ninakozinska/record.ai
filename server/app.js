@@ -35,7 +35,7 @@ function lanAddresses() {
     .map((i) => i.address);
 }
 
-export function createApp({ dataDir, organizer: makeOrganizer } = {}) {
+export function createApp({ dataDir, organizer: makeOrganizer, oauth } = {}) {
   const store = openDb(dataDir);
   const imagesDir = path.join(dataDir, 'images');
   fs.mkdirSync(imagesDir, { recursive: true });
@@ -71,7 +71,7 @@ export function createApp({ dataDir, organizer: makeOrganizer } = {}) {
   app.use(express.json({ limit: '25mb' }));
 
   app.get('/api/health', (req, res) => res.json({ ok: true, app: 'record.ai' }));
-  app.use('/api/auth', authRoutes({ store, imagesDir }));
+  app.use('/api/auth', authRoutes({ store, imagesDir, oauth }));
   app.use('/api', requireUser(store));
 
   // --- notes ----------------------------------------------------------------

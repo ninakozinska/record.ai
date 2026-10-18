@@ -41,8 +41,11 @@ body {
   color: var(--text);
   padding-bottom: env(safe-area-inset-bottom);
 }
+[hidden] { display: none !important; }
 button, input, select, textarea { font: inherit; color: inherit; }
-button { cursor: pointer; border: 0; background: none; border-radius: 10px; padding: .5em .9em; }
+button, a.button { cursor: pointer; border: 0; background: none; border-radius: 10px; padding: .5em .9em; }
+a.button { display: inline-block; color: inherit; text-decoration: none; }
+a.button.ghost { border: 1px solid var(--border); }
 button:disabled { opacity: .5; cursor: default; }
 .primary { background: var(--accent); color: var(--accent-text); font-weight: 600; }
 .ghost { border: 1px solid var(--border); background: var(--surface); }
@@ -202,3 +205,21 @@ dialog::backdrop { background: rgba(10, 10, 20, .5); }
 #pwMessage.ok { color: #16a34a; }
 #pwMessage.err { color: var(--urgent); }
 #appAddress code { font-size: .95rem; word-break: break-all; }
+
+/* Continue with Google / Apple / … */
+.providers { display: grid; gap: 8px; margin: 4px 0 8px; }
+.provider-btn {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  padding: 11px 14px; border-radius: 10px; border: 1px solid var(--border);
+  background: var(--surface); color: inherit; font: inherit; font-weight: 600; text-decoration: none;
+}
+.provider-btn:hover { background: var(--bg); }
+.provider-mark {
+  width: 22px; height: 22px; border-radius: 6px; display: inline-grid; place-items: center;
+  color: #fff; font-size: 13px; font-weight: 700; flex: none;
+}
+.or { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 14px; margin: 6px 0; }
+.or::before, .or::after { content: ''; flex: 1; border-top: 1px solid var(--border); }
+.identity-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; }
+.identity-list li { display: flex; align-items: center; gap: 10px; }
+.identity-list .who { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

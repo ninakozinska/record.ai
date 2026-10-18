@@ -23,7 +23,7 @@ test('iPhone app protocol: token login, notes, photos, live updates', async () =
   try {
     // LoginView: auth/state, then signup (no cookies, token only)
     const state = await call('auth/state');
-    assert.deepEqual(Object.keys(state.data).sort(), ['signup', 'user']);
+    assert.deepEqual(Object.keys(state.data).sort(), ['providers', 'signup', 'user']);
     assert.equal(state.data.signup.firstAccount, true);
     const signup = await call('auth/signup', { method: 'POST', json: { name: 'Nina Kozinska', email: 'nina@example.com', password: 'correct horse', code: '' } });
     assert.equal(signup.status, 200);
