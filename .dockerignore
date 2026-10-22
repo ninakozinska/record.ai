@@ -2,4 +2,10 @@ node_modules
 data
 data-e2e
 .git
+.github
 test
+android
+ios
+docs
+*.command
+.env

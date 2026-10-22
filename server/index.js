@@ -3,6 +3,7 @@ import path from 'node:path';
 import { createApp } from './app.js';
 import { ensureOllamaModel } from './ollama.js';
 import { configuredProviders } from './oauth.js';
+import { importArchive } from './import.js';
 
 if (fs.existsSync('.env')) process.loadEnvFile('.env');
 
@@ -12,6 +13,9 @@ const local = (process.env.AI_PROVIDER || '').toLowerCase() === 'ollama';
 
 // With the local AI, get the model ready before notes are sent to it.
 if (local) await ensureOllamaModel();
+
+fs.mkdirSync(dataDir, { recursive: true });
+importArchive(dataDir);
 
 const { app, organizer, store } = createApp({ dataDir });
 

@@ -35,6 +35,20 @@ function lanAddresses() {
     .map((i) => i.address);
 }
 
+/**
+ * Which proxies to believe about the visitor's address and https. On your Mac
+ * only the computer itself (Tailscale); behind a host such as Fly.io set
+ * TRUST_PROXY=1, or every visitor looks alike and one person's wrong
+ * passwords would lock everybody out.
+ */
+export function trustProxy(value) {
+  if (!value) return 'loopback';
+  if (/^\d+$/.test(value)) return Number(value);
+  if (value === 'true') return true;
+  if (value === 'false') return false;
+  return value;
+}
+
 export function createApp({ dataDir, organizer: makeOrganizer, oauth } = {}) {
   const store = openDb(dataDir);
   const imagesDir = path.join(dataDir, 'images');
@@ -56,7 +70,7 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth } = {}) {
 
   const app = express();
   app.disable('x-powered-by');
-  app.set('trust proxy', 'loopback');
+  app.set('trust proxy', trustProxy(process.env.TRUST_PROXY));
   // Compress JSON and pages (often 5-10x smaller on mobile networks). Live
   // updates must reach the phone at once, and photos are already compressed.
   app.use(

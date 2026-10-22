@@ -5,6 +5,7 @@ COPY package.json package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 COPY server ./server
 COPY public ./public
+COPY scripts ./scripts
 VOLUME /data
 EXPOSE 3000
 CMD ["node", "--disable-warning=ExperimentalWarning", "server/index.js"]

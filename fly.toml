@@ -1,0 +1,43 @@
+# record.ai on Fly.io. Step by step: docs/DEPLOY_FLY.md
+# If the app name is taken, choose another one in `fly apps create` and put
+# it in `app` and `PUBLIC_URL` below.
+app = 'record-ai-nina'
+primary_region = 'fra'  # Frankfurt
+
+[build]
+  dockerfile = 'Dockerfile'
+
+[env]
+  PORT = '3000'
+  DATA_DIR = '/data'
+  PUBLIC_URL = 'https://record-ai-nina.fly.dev'
+  # Fly's network sits in front of the app: trust it (one hop) for the visitor's address.
+  TRUST_PROXY = '1'
+  # Online, the AI is Claude: Haiku is the fast, cheap one. The key goes in a secret:
+  #   fly secrets set ANTHROPIC_API_KEY=...
+  AI_PROVIDER = 'anthropic'
+  CLAUDE_MODEL = 'claude-haiku-5-5'
+
+# Notes and photos live on this disk (daily snapshots, kept 5 days).
+[[mounts]]
+  source = 'data'
+  destination = '/data'
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  # Always on: live sync needs an open connection, and the AI works in the background.
+  auto_stop_machines = 'off'
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    method = 'GET'
+    path = '/api/health'
+    interval = '30s'
+    timeout = '5s'
+    grace_period = '20s'
+
+[[vm]]
+  size = 'shared-cpu-1x'
+  memory = '512mb'

@@ -14,6 +14,8 @@
 | `server/index.js` | Starts the server, loads `.env`, gets the local AI model ready |
 | `server/app.js` | HTTP routes for notes, photos, live updates; serves the web app |
 | `server/auth.js` | Accounts: sign-up rules, login throttling, sessions, password hashing |
+| `server/import.js` | Moving notes to a new server: unpacks `DATA_DIR/import.tar.gz` on start ([DEPLOY_FLY.md](DEPLOY_FLY.md)) |
+| `fly.toml`, `Dockerfile` | Running online on Fly.io |
 | `server/oauth.js` | "Continue with Google / Apple / Microsoft / Facebook / LinkedIn / X / GitHub" ([SOCIAL_LOGIN.md](SOCIAL_LOGIN.md)) |
 | `server/db.js` | All storage, plus upgrades of older databases |
 | `server/organizer.js` | Prompts, Claude/Ollama calls, the per-user queue, reorganizing, plain-language errors |
@@ -64,6 +66,7 @@ npm run coverage       # npm test with a line/branch coverage table
 | `test/local-ai.test.js` | Ollama: requests, photos, bad answers, model download, not running |
 | `test/oauth.test.js` | Sign in with each kind of provider (faked): new accounts, matching verified emails only, sign-up rules, the phone apps' one-time code, connect and disconnect, Apple's signed secret |
 | `android/core/…/SocialLoginTest.kt` | The Android app's "Continue with Google" against the real server with a fake Google (`test/fixtures/fake-google-server.mjs`) |
+| `test/deploy.test.js` | Online hosting: visitors told apart behind the proxy, notes moved with `import.tar.gz` |
 | `test/ios-contract.test.js` | The exact requests the iPhone app makes |
 | `test/scripts.test.js` | Password reset; the Mac launchers, run with stand-ins for macOS commands |
 | `android/core/src/test/…/SyncRulesTest.kt` | Android merge rules: never go backwards, unsent edits kept while AI results are taken, sorting, groups, server addresses |

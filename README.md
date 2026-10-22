@@ -56,7 +56,8 @@ Get an API key at <https://console.anthropic.com/>. Without a key the app still 
 
 Your devices all talk to one small server that stores the notes. Camera, microphone and "install app" only work over **HTTPS**, so host it somewhere that gives you HTTPS:
 
-- **Render (easiest)**: push this repo to GitHub, then on render.com choose **New → Blueprint** and pick the repo. `render.yaml` sets up the server and a persistent disk. Enter `ANTHROPIC_API_KEY` when it asks, then open the site and create your account right away.
+- **Fly.io (cheapest, about $3.50/month)**: `fly.toml` is ready (Frankfurt, always on, 1 GB disk with daily snapshots). Step by step, including moving your notes from your Mac: [docs/DEPLOY_FLY.md](docs/DEPLOY_FLY.md).
+- **Render (no Terminal needed, about $7.25/month)**: push this repo to GitHub, then on render.com choose **New → Blueprint** and pick the repo. `render.yaml` sets up the server and a persistent disk. Enter `ANTHROPIC_API_KEY` when it asks, then open the site and create your account right away.
 - **Any Docker host** (Fly.io, Railway, a VPS…):
   ```bash
   docker build -t record-ai .
@@ -111,6 +112,7 @@ Open your server's URL, log in, then:
 | `OLLAMA_URL` | `http://127.0.0.1:11434` | Where Ollama runs. |
 | `REORGANIZE_EVERY` | `20` | Run a full reorganize after this many newly organized notes. |
 | `PORT` | `3000` | HTTP port. |
+| `TRUST_PROXY` | `loopback` | Which proxy to believe about visitors' addresses. Behind a host's proxy (Fly.io, Render) set `1`, or one person's wrong passwords slow down everyone. |
 | `DATA_DIR` | `./data` | Where the SQLite database and photos are stored. **Back this up.** |
 
 ## How it works
