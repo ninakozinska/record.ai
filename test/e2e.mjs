@@ -170,6 +170,24 @@ try {
   assert.deepEqual(store.myGroups([...store.db.prepare('SELECT id FROM users').all()][0].id), ['Baby']);
   console.log('✓ my own group added and kept');
 
+  // 7. Appearance: on a device in dark mode, choose Light; it sticks after a reload.
+  const bg = () => desktop.evaluate(() => getComputedStyle(document.body).backgroundColor);
+  await desktop.emulateMedia({ colorScheme: 'dark' });
+  assert.equal(await bg(), 'rgb(17, 17, 24)', 'Auto follows the dark device');
+  await desktop.click('#accountBtn');
+  await desktop.click('[data-theme-choice="light"]');
+  assert.equal(await bg(), 'rgb(246, 246, 249)', 'Light chosen');
+  await desktop.reload();
+  await desktop.waitForSelector('.note h3');
+  assert.equal(await bg(), 'rgb(246, 246, 249)', 'Light kept after reload');
+  await desktop.click('#accountBtn');
+  assert.ok(await desktop.isVisible('[data-theme-choice="light"].active'));
+  await desktop.click('[data-theme-choice="auto"]');
+  assert.equal(await bg(), 'rgb(17, 17, 24)', 'back to following the device');
+  await desktop.click('#accountClose');
+  await desktop.emulateMedia({ colorScheme: 'light' });
+  console.log('✓ appearance: auto, light, dark');
+
   // Every note finishes AI processing on both devices.
   for (const p of [desktop, phone]) {
     await p.waitForFunction(() => !document.querySelector('.ai-pending'), null, { timeout: 5000 }).catch(async (e) => {

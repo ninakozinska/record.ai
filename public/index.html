@@ -6,6 +6,11 @@
   <title>record.ai</title>
   <meta name="description" content="Notes you type, dictate or photograph — organized automatically.">
   <meta name="theme-color" content="#4f46e5">
+  <script>
+    // Light / Dark / Auto (follow the device), chosen under your initials. Set
+    // before the page draws, so it never flashes the other colours.
+    try { const t = localStorage.getItem('theme'); if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; } catch {}
+  </script>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
@@ -146,6 +151,15 @@
       </div>
       <p class="muted" id="accountEmail"></p>
       <div class="ai-box" id="appAddress" hidden></div>
+      <div class="stack">
+        <h3>Appearance</h3>
+        <div class="theme-switch" id="themeSwitch" role="group" aria-label="Appearance">
+          <button type="button" data-theme-choice="auto">Auto</button>
+          <button type="button" data-theme-choice="light">☀️ Light</button>
+          <button type="button" data-theme-choice="dark">🌙 Dark</button>
+        </div>
+        <p class="muted">Auto follows your device. Saved on this device.</p>
+      </div>
       <div id="myGroupsBox" class="stack" hidden>
         <h3>My groups</h3>
         <p class="muted">Groups you added. The AI keeps them and puts matching notes in them. Add more with ＋ Group above the notes.</p>

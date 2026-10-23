@@ -14,8 +14,9 @@
   --radius: 14px;
   color-scheme: light;
 }
+/* Dark colours: when the device is dark (unless Light was chosen), or when Dark was chosen. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg: #111118;
     --surface: #1b1b25;
     --text: #ececf3;
@@ -31,6 +32,22 @@
     color-scheme: dark;
   }
 }
+:root[data-theme="dark"] {
+  --bg: #111118;
+  --surface: #1b1b25;
+  --text: #ececf3;
+  --muted: #9a9ab0;
+  --border: #2c2c3a;
+  --accent: #818cf8;
+  --accent-text: #0f0f1a;
+  --urgent: #f87171;
+  --high: #fb923c;
+  --normal: #60a5fa;
+  --low: #8f8fa3;
+  --shadow: none;
+  color-scheme: dark;
+}
+:root[data-theme="light"] { color-scheme: light; }
 
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
@@ -225,3 +242,7 @@ dialog::backdrop { background: rgba(10, 10, 20, .5); }
 .identity-list .who { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .add-chip { border-style: dashed; color: var(--accent); }
+
+.theme-switch { display: flex; gap: 0; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; width: fit-content; }
+.theme-switch button { border-radius: 0; }
+.theme-switch button.active { background: var(--accent); color: var(--accent-text); }

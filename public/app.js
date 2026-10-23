@@ -680,6 +680,7 @@ $('#accountBtn').onclick = async () => {
   $('#account').showModal();
   loadSigninOptions();
   renderMyGroups();
+  applyTheme(currentTheme());
   try {
     const { addresses } = await local.api('server-info');
     const here = location.origin;
@@ -710,6 +711,24 @@ async function loadSigninOptions() {
     $('#signinOptions').hidden = true;
   }
 }
+// Appearance: Auto (follow the device), Light or Dark. Kept on this device.
+function currentTheme() {
+  try { return localStorage.getItem('theme') || 'auto'; } catch { return 'auto'; }
+}
+function applyTheme(choice) {
+  if (choice === 'light' || choice === 'dark') document.documentElement.dataset.theme = choice;
+  else delete document.documentElement.dataset.theme;
+  try {
+    if (choice === 'auto') localStorage.removeItem('theme');
+    else localStorage.setItem('theme', choice);
+  } catch { /* private mode: applies until the page is closed */ }
+  $('#themeSwitch').querySelectorAll('[data-theme-choice]').forEach((b) => b.classList.toggle('active', b.dataset.themeChoice === choice));
+}
+$('#themeSwitch').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-theme-choice]');
+  if (b) applyTheme(b.dataset.themeChoice);
+});
+
 function renderMyGroups() {
   $('#myGroupsBox').hidden = !myGroups.length;
   $('#myGroupsList').innerHTML = myGroups.map((g) =>
