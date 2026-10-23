@@ -14,6 +14,7 @@ const IMAGE_NAME = /^[a-zA-Z0-9-]{8,64}\.(jpg|jpeg|png|webp|gif)$/;
 const MAX_IMAGE_BYTES = 15 * 1024 * 1024;
 const NOTE_ID = /^[a-zA-Z0-9-]{8,64}$/;
 const MAX_BATCH = 500;
+const MAX_MY_GROUPS = 30;
 const NOTE_FIELDS = ['text', 'images', 'done', 'deleted', 'created_at', 'edited_at', 'user_group', 'user_priority'];
 
 /** Checks one note change from a client. Returns an error message, or null when it is valid. */
@@ -89,8 +90,25 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth } = {}) {
   app.use('/api', requireUser(store));
 
   // --- notes ----------------------------------------------------------------
+  // "My groups": groups the person made, which the AI always keeps and uses.
+  app.get('/api/groups/mine', (req, res) => res.json({ names: store.myGroups(req.user.id) }));
+  app.put('/api/groups/mine', (req, res) => {
+    const names = req.body?.names;
+    if (!Array.isArray(names) || names.length > MAX_MY_GROUPS || !names.every((n) => typeof n === 'string')) {
+      return res.status(400).json({ error: `Send up to ${MAX_MY_GROUPS} group names.` });
+    }
+    const clean = [];
+    for (const raw of names) {
+      const name = raw.trim().replace(/\s+/g, ' ');
+      if (!name || name.length > 40) return res.status(400).json({ error: 'Group names need 1 to 40 characters.' });
+      if (!clean.some((n) => n.toLowerCase() === name.toLowerCase())) clean.push(name);
+    }
+    store.setMyGroups(req.user.id, clean);
+    res.json({ names: clean });
+  });
+
   app.get('/api/status', (req, res) => {
-    res.json({ ai: organizer.status, rev: store.rev, groups: store.groups(req.user.id) });
+    res.json({ ai: organizer.status, rev: store.rev, groups: store.groups(req.user.id), myGroups: store.myGroups(req.user.id) });
   });
 
   // Where other devices on the same network can reach this server.

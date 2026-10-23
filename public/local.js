@@ -169,6 +169,7 @@ export class Local extends EventTarget {
     for (const store of ['notes', 'outbox', 'blobs', 'meta']) await req(this.tx(store, 'readwrite').clear());
     this.notes.clear();
     this.pending.clear();
+    this.dispatchEvent(new Event('wiped'));
     this.rev = 0;
     this.changed();
   }
@@ -189,6 +190,7 @@ export class Local extends EventTarget {
     this.connect();
     this.pull();
     this.flush();
+    this.dispatchEvent(new Event('started'));
     if (!this.started) {
       this.started = true;
       window.addEventListener('online', () => { this.connect(); this.pull(); this.flush(); });

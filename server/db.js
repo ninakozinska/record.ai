@@ -272,6 +272,19 @@ class Store {
       .map((r) => ({ name: r.name, count: r.count }));
   }
 
+  /** Groups the person created themselves ("My groups"): always shown, kept by the AI. */
+  myGroups(userId) {
+    try {
+      return JSON.parse(this.getMeta(`my_groups:${userId}`) || '[]');
+    } catch {
+      return [];
+    }
+  }
+
+  setMyGroups(userId, names) {
+    this.setMeta(`my_groups:${userId}`, JSON.stringify(names));
+  }
+
   // --- images ---------------------------------------------------------------
 
   imageOwner(name) {

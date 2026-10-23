@@ -160,6 +160,16 @@ try {
   await desktop.waitForSelector('[data-toggle-done]:text("Show done (1)")');
   console.log('✓ overrides and done state synced');
 
+  // 6. "My groups": add Baby with the ＋ chip; it shows with no notes yet and
+  //    survives a reload. (Prompts are answered by Playwright.)
+  desktop.once('dialog', (d) => d.accept('Baby'));
+  await desktop.click('#groupChips [data-add-group]');
+  await desktop.waitForSelector('#groupChips [data-group="Baby"]');
+  await desktop.reload();
+  await desktop.waitForSelector('#groupChips [data-group="Baby"]');
+  assert.deepEqual(store.myGroups([...store.db.prepare('SELECT id FROM users').all()][0].id), ['Baby']);
+  console.log('✓ my own group added and kept');
+
   // Every note finishes AI processing on both devices.
   for (const p of [desktop, phone]) {
     await p.waitForFunction(() => !document.querySelector('.ai-pending'), null, { timeout: 5000 }).catch(async (e) => {

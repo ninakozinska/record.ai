@@ -274,7 +274,7 @@ const editor = {
     $('#editorPriority').value = n.user_priority || '';
     $('#editorPriority').options[0].textContent = `Auto${n.ai_priority ? ` (${PRIORITY_LABEL[n.ai_priority]})` : ''}`;
     $('#editorDone').textContent = n.done ? 'Mark not done' : 'Mark done';
-    $('#groupList').innerHTML = groupsOf(local.list()).map((g) => `<option value="${esc(g)}">`).join('');
+    $('#groupList').innerHTML = withMyGroups(groupsOf(local.list())).map((g) => `<option value="${esc(g)}">`).join('');
     const ai = [];
     if (n.summary) ai.push(`<p>${esc(n.summary)}</p>`);
     if (n.priority_reason) ai.push(`<p class="muted">Priority: ${esc(n.priority_reason)}</p>`);
@@ -333,6 +333,29 @@ function groupsOf(notes) {
   for (const n of notes) if (!n.done) counts.set(n.group, (counts.get(n.group) || 0) + 1);
   return [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([g]) => g);
 }
+
+// "My groups": groups the person made. They always show, even with no notes
+// yet, and the AI files matching notes into them.
+let myGroups = [];
+async function loadMyGroups() {
+  try {
+    myGroups = (await local.api('groups/mine')).names;
+    await local.metaSet('myGroups', myGroups);
+  } catch {
+    myGroups = (await local.metaGet('myGroups')) || myGroups;
+  }
+  render();
+}
+async function saveMyGroups(names) {
+  myGroups = (await local.api('groups/mine', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ names }),
+  })).names;
+  await local.metaSet('myGroups', myGroups);
+  render();
+}
+const withMyGroups = (groups) => [...groups, ...myGroups.filter((g) => !groups.includes(g))];
 
 function sortNotes(a, b) {
   const p = PRIORITIES.indexOf(a.priority) - PRIORITIES.indexOf(b.priority);
@@ -413,12 +436,13 @@ function render() {
 
 function renderNow() {
   const all = local.list();
-  const groups = groupsOf(all);
+  const groups = withMyGroups(groupsOf(all));
   if (ui.group && !groups.includes(ui.group)) ui.group = null;
 
   $('#groupChips').innerHTML =
     `<button class="chip ${!ui.group ? 'active' : ''}" data-group="">All</button>` +
-    groups.map((g) => `<button class="chip ${ui.group === g ? 'active' : ''}" data-group="${esc(g)}">${esc(g)}</button>`).join('');
+    groups.map((g) => `<button class="chip ${ui.group === g ? 'active' : ''}" data-group="${esc(g)}">${esc(g)}</button>`).join('') +
+    `<button class="chip add-chip" data-add-group title="Add a group of your own. The AI will put matching notes in it.">＋ Group</button>`;
 
   const q = ui.query.toLowerCase().trim();
   const visible = all.filter((n) => matches(n, q) && (!ui.group || n.group === ui.group)).sort(sortNotes);
@@ -470,7 +494,18 @@ $('#list').addEventListener('click', async (e) => {
 });
 $('#viewer').addEventListener('click', () => $('#viewer').close());
 
-$('#groupChips').addEventListener('click', (e) => {
+$('#groupChips').addEventListener('click', async (e) => {
+  if (e.target.closest('[data-add-group]')) {
+    const name = prompt('New group (for example Baby or Work).\nThe AI will put matching notes in it:')?.trim();
+    if (!name) return;
+    try {
+      await saveMyGroups([...myGroups, name]);
+      toast(`"${name}" added. New notes that fit go there; tap ✨ Reorganize to sort older ones.`);
+    } catch (err) {
+      toast(err.message);
+    }
+    return;
+  }
   const b = e.target.closest('[data-group]');
   if (!b) return;
   ui.group = b.dataset.group || null;
@@ -525,7 +560,10 @@ function renderStatus() {
   const banner = $('#banner');
   if (local.ai && !local.ai.enabled) {
     banner.hidden = false;
-    banner.textContent = 'AI organization is off. Notes are saved and synced but not auto-organized. Double-click "Change AI.command" to turn it on.';
+    // On the Mac the launcher turns the AI on; online, the server's owner adds a key.
+    const onMac = ['localhost', '127.0.0.1'].includes(location.hostname);
+    banner.textContent = 'AI organization is off. Notes are saved and synced but not auto-organized. ' +
+      (onMac ? 'Double-click "Change AI.command" to turn it on.' : 'The server needs an AI key to turn it on.');
   } else {
     banner.hidden = true;
   }
@@ -641,6 +679,7 @@ $('#accountBtn').onclick = async () => {
   $('#pwCurrent').value = $('#pwNext').value = '';
   $('#account').showModal();
   loadSigninOptions();
+  renderMyGroups();
   try {
     const { addresses } = await local.api('server-info');
     const here = location.origin;
@@ -671,6 +710,21 @@ async function loadSigninOptions() {
     $('#signinOptions').hidden = true;
   }
 }
+function renderMyGroups() {
+  $('#myGroupsBox').hidden = !myGroups.length;
+  $('#myGroupsList').innerHTML = myGroups.map((g) =>
+    `<li><span class="who">${esc(g)}</span><button class="ghost" data-remove-group="${esc(g)}">Remove</button></li>`).join('');
+}
+$('#myGroupsList').addEventListener('click', async (e) => {
+  const b = e.target.closest('[data-remove-group]');
+  if (!b) return;
+  try {
+    await saveMyGroups(myGroups.filter((g) => g !== b.dataset.removeGroup));
+    renderMyGroups();
+  } catch (err) {
+    toast(err.message);
+  }
+});
 $('#identityList').addEventListener('click', async (e) => {
   const b = e.target.closest('[data-disconnect]');
   if (!b) return;
@@ -724,6 +778,8 @@ setInterval(render, 60000);
 await local.init();
 local.addEventListener('change', render);
 local.addEventListener('status', renderStatus);
+local.addEventListener('started', loadMyGroups);
+local.addEventListener('wiped', () => { myGroups = []; });
 render();
 renderStatus();
 // Coming back from "Continue with …": show what happened, then tidy the address bar.

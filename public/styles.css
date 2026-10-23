@@ -223,3 +223,5 @@ dialog::backdrop { background: rgba(10, 10, 20, .5); }
 .identity-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; }
 .identity-list li { display: flex; align-items: center; gap: 10px; }
 .identity-list .who { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.add-chip { border-style: dashed; color: var(--accent); }
