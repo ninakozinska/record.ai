@@ -74,3 +74,14 @@ test('notes and photos move to a new server with import.tar.gz', async () => {
   assert.deepEqual(store.active(user.id).map((n) => n.text), ['moved note']);
   assert.ok(fs.existsSync(path.join(fresh, 'images', 'aaaaaaaa-photo.jpg')));
 });
+
+test('online, the account menu offers only the public address, not the host\'s internal ones', async () => {
+  process.env.PUBLIC_URL = 'https://record-ai-nina.fly.dev/';
+  const s = await start();
+  try {
+    assert.deepEqual((await s.api('server-info')).body.addresses, ['https://record-ai-nina.fly.dev']);
+  } finally {
+    delete process.env.PUBLIC_URL;
+    s.close();
+  }
+});
