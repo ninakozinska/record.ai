@@ -16,6 +16,11 @@ import { PRIORITIES } from './db.js';
 // Read lazily so values from a .env file (loaded at startup) apply.
 const provider = () => (process.env.AI_PROVIDER || 'anthropic').toLowerCase();
 const claudeModel = () => process.env.CLAUDE_MODEL || 'claude-opus-5-5';
+
+/** The person's own groups: the AI must use these exact names when a note fits. */
+const myGroupsLine = (names) => (names.length
+  ? `The person's own groups (use these exact names whenever a note fits one): ${names.join(', ')}\n`
+  : '');
 export const ollamaModel = () => process.env.OLLAMA_MODEL || 'gemma3:4b';
 export const ollamaUrl = () => (process.env.OLLAMA_URL || 'http://127.0.0.1:11434').replace(/\/$/, '');
 // Re-run the whole-collection tidy-up after this many newly organized notes.
@@ -120,10 +125,13 @@ export class Organizer {
     }
 
     const groups = this.store.groups(note.user_id).map((g) => `${g.name} (${g.count})`);
+    const mine = this.store.myGroups(note.user_id);
     const images = note.images.map((name) => this.readImage(name)).filter(Boolean);
     const text =
       `Today is ${today()}.\n` +
-      `Existing groups: ${groups.length ? groups.join(', ') : '(none yet)'}\n\n` +
+      `Existing groups: ${groups.length ? groups.join(', ') : '(none yet)'}\n` +
+      myGroupsLine(mine) +
+      `\n` +
       `<note created="${new Date(note.created_at).toISOString()}" images="${note.images.length}">\n` +
       `${note.text || '(no text — photo only)'}\n</note>\n\nAnalyze this note.`;
 
@@ -177,7 +185,11 @@ export class Organizer {
           lines.join('\n') +
           `\n\nReorganize the whole collection: produce a clean, consistent set of groups ` +
           `(merge near-duplicates, split groups that mix unrelated topics) and re-rank ` +
-          `priorities relative to each other and to today's date. Return every note id.`,
+          `priorities relative to each other and to today's date. Return every note id.` +
+          (this.store.myGroups(userId).length
+            ? `\n\n` + myGroupsLine(this.store.myGroups(userId)) +
+              `Never rename, merge or split these groups; move notes into them whenever they fit.`
+            : ''),
         schema: Reorganization,
         effort: 'medium',
         maxTokens: 64000,

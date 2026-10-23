@@ -6,6 +6,11 @@
   <title>record.ai</title>
   <meta name="description" content="Notes you type, dictate or photograph — organized automatically.">
   <meta name="theme-color" content="#4f46e5">
+  <script>
+    // Light / Dark / Auto (follow the device), chosen under your initials. Set
+    // before the page draws, so it never flashes the other colours.
+    try { const t = localStorage.getItem('theme'); if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; } catch {}
+  </script>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
@@ -117,6 +122,8 @@
     <form class="sheet-inner" id="loginForm" novalidate>
       <h2 id="loginTitle">Log in</h2>
       <p id="loginIntro" class="muted"></p>
+      <div id="providerButtons" class="providers" hidden></div>
+      <p class="or" id="loginOr" hidden><span>or with your email</span></p>
       <label class="field" id="nameField" hidden>Your name
         <input id="loginName" autocomplete="name">
       </label>
@@ -144,9 +151,28 @@
       </div>
       <p class="muted" id="accountEmail"></p>
       <div class="ai-box" id="appAddress" hidden></div>
+      <div class="stack">
+        <h3>Appearance</h3>
+        <div class="theme-switch" id="themeSwitch" role="group" aria-label="Appearance">
+          <button type="button" data-theme-choice="auto">Auto</button>
+          <button type="button" data-theme-choice="light">☀️ Light</button>
+          <button type="button" data-theme-choice="dark">🌙 Dark</button>
+        </div>
+        <p class="muted">Auto follows your device. Saved on this device.</p>
+      </div>
+      <div id="myGroupsBox" class="stack" hidden>
+        <h3>My groups</h3>
+        <p class="muted">Groups you added. The AI keeps them and puts matching notes in them. Add more with ＋ Group above the notes.</p>
+        <ul id="myGroupsList" class="identity-list"></ul>
+      </div>
+      <div id="signinOptions" class="stack" hidden>
+        <h3>Sign-in options</h3>
+        <p class="muted">Log in to this account with any of these.</p>
+        <ul id="identityList" class="identity-list"></ul>
+      </div>
       <form id="passwordForm" class="stack" novalidate>
-        <h3>Change password</h3>
-        <label class="field">Current password
+        <h3 id="pwTitle">Change password</h3>
+        <label class="field" id="pwCurrentField">Current password
           <input id="pwCurrent" type="password" autocomplete="current-password">
         </label>
         <label class="field">New password (at least 8 characters)

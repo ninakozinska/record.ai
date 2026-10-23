@@ -38,6 +38,7 @@ final class NoteStore {
     private(set) var serverURL: URL?
     private(set) var user: User?
     private(set) var signupPolicy: SignupPolicy?
+    private(set) var providers: [AuthProvider] = []
     private(set) var online = false
     private(set) var unsent = 0
     private(set) var ai: AIStatus?
@@ -141,6 +142,7 @@ final class NoteStore {
         guard let api else { return }
         let state = try await api.get("auth/state", as: AuthState.self)
         signupPolicy = state.signup
+        providers = state.providers ?? []
         if state.user == nil, token != nil {
             // Our session ended (password changed, logged out elsewhere).
             setToken(nil)
@@ -160,6 +162,42 @@ final class NoteStore {
                                         ["name": name, "email": email, "password": password, "code": code],
                                         as: AuthResult.self)
         signedIn(result)
+    }
+
+    /// Where to start "Continue with …", plus the secret that proves later that
+    /// this app started it. Only this app ever sees the secret.
+    func socialLoginStart(provider: String, invite: String) -> (url: URL, verifier: String)? {
+        guard let serverURL else { return nil }
+        let verifier = OAuthSecret.make()
+        var parts = URLComponents(string: serverURL.absoluteString + "/api/auth/oauth/\(provider)/start")
+        parts?.queryItems = [URLQueryItem(name: "app", value: OAuthSecret.challenge(for: verifier))]
+        if !invite.isEmpty { parts?.queryItems?.append(URLQueryItem(name: "invite", value: invite)) }
+        guard let url = parts?.url else { return nil }
+        return (url, verifier)
+    }
+
+    /// The sign-in sheet came back to recordai://auth?code=… (or ?error=…).
+    func socialLoginFinish(callback: URL, verifier: String) async throws {
+        guard let api else { return }
+        let items = URLComponents(url: callback, resolvingAgainstBaseURL: false)?.queryItems ?? []
+        if let message = items.first(where: { $0.name == "error" })?.value {
+            throw APIError(status: 400, message: message)
+        }
+        guard let code = items.first(where: { $0.name == "code" })?.value else {
+            throw APIError(status: 400, message: "Sign-in didn't finish. Please try again.")
+        }
+        let result = try await api.post("auth/oauth/exchange", ["code": code, "verifier": verifier], as: AuthResult.self)
+        signedIn(result)
+    }
+
+    func accountInfo() async throws -> AccountInfo? {
+        guard let api else { return nil }
+        return try await api.get("auth/me", as: AccountInfo.self)
+    }
+
+    func disconnect(provider: String) async throws {
+        guard let api else { return }
+        _ = try await api.request("auth/identities/\(provider)", method: "DELETE")
     }
 
     private func signedIn(_ result: AuthResult) {

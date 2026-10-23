@@ -25,6 +25,27 @@ Sessions expire after 400 days without use. The server stores only a SHA-256 has
 
 **Who may sign up:** the first account always can. It becomes the owner and takes over notes and photos created before accounts existed. After that, sign-up needs `ALLOW_SIGNUP=true`, or the invite code set in `SIGNUP_CODE`. Passwords need at least 8 characters and are stored as scrypt hashes.
 
+## Sign in with Google, Apple, …
+
+| Method | Path | Answer |
+|---|---|---|
+| GET | `/api/auth/state` | also lists `providers: [{id, name}]`, the "Continue with …" options set up on this server |
+| GET | `/api/auth/oauth/:provider/start` | redirects to the provider. Query: `invite` (invite code for a new account), `link=1` (add to the logged-in account), `app=<challenge>` (phone apps, see below) |
+| GET or POST | `/api/auth/oauth/:provider/callback` | where the provider sends people back. Web: logs in (cookie) and redirects to `/`, `/?login_error=…` or `/?linked=<provider>` |
+| POST | `/api/auth/oauth/exchange` | `{code, verifier}` → `{token, user}` (phone apps) |
+| GET | `/api/auth/me` | also `hasPassword` and `identities: [{provider, name, email}]` |
+| DELETE | `/api/auth/identities/:provider` | disconnects one; 409 if it is the last way to log in |
+
+`provider` is `google`, `apple`, `microsoft`, `facebook`, `linkedin`, `x` or `github`.
+
+**Phone apps:**
+1. The app makes a random secret (`verifier`, 43 characters) and keeps it on the phone.
+2. It opens `start?app=<challenge>` in the browser, where `challenge` = base64url(SHA-256(verifier)).
+3. After sign-in, the server's page opens `recordai://auth?code=…`, or `recordai://auth?error=…`.
+4. The app sends `{code, verifier}` to `/exchange` within 2 minutes. The code works once, and only with the matching secret.
+
+POST `/api/auth/password` accepts no `current` when the account has no password yet (made with a provider).
+
 ## Notes
 
 A note as the server sends it:
@@ -53,6 +74,7 @@ A note as the server sends it:
 | POST | `/api/notes/:id/reanalyze` | | `{"ok":true}`: queues the AI again |
 | POST | `/api/reorganize` | | `{updated}` or `{skipped:true}`: the AI re-groups and re-ranks all your open notes |
 | GET | `/api/status` | | `{ai: {enabled, provider, model, pending, reorganizing}, rev, groups: [{name,count}]}` |
+| GET / PUT | `/api/groups/mine` | `{names}` (PUT: up to 30 names of 1–40 characters) | "My groups": groups the person made. They always show, and the AI files matching notes into them and never renames or merges them. Also in `/api/status` as `myGroups` |
 | GET | `/api/server-info` | | `{port, addresses: ["http://192.168.1.20:3000", …]}`: where other devices on the network can reach this server |
 
 - **Use `/api/sync`** for normal syncing. The web, iPhone and Android apps send all waiting edits in one `POST /api/sync`, so a phone that was offline catches up with one round trip instead of one per note. `PUT /api/notes/:id` stays for single edits.

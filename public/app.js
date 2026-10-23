@@ -274,7 +274,7 @@ const editor = {
     $('#editorPriority').value = n.user_priority || '';
     $('#editorPriority').options[0].textContent = `Auto${n.ai_priority ? ` (${PRIORITY_LABEL[n.ai_priority]})` : ''}`;
     $('#editorDone').textContent = n.done ? 'Mark not done' : 'Mark done';
-    $('#groupList').innerHTML = groupsOf(local.list()).map((g) => `<option value="${esc(g)}">`).join('');
+    $('#groupList').innerHTML = withMyGroups(groupsOf(local.list())).map((g) => `<option value="${esc(g)}">`).join('');
     const ai = [];
     if (n.summary) ai.push(`<p>${esc(n.summary)}</p>`);
     if (n.priority_reason) ai.push(`<p class="muted">Priority: ${esc(n.priority_reason)}</p>`);
@@ -333,6 +333,29 @@ function groupsOf(notes) {
   for (const n of notes) if (!n.done) counts.set(n.group, (counts.get(n.group) || 0) + 1);
   return [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([g]) => g);
 }
+
+// "My groups": groups the person made. They always show, even with no notes
+// yet, and the AI files matching notes into them.
+let myGroups = [];
+async function loadMyGroups() {
+  try {
+    myGroups = (await local.api('groups/mine')).names;
+    await local.metaSet('myGroups', myGroups);
+  } catch {
+    myGroups = (await local.metaGet('myGroups')) || myGroups;
+  }
+  render();
+}
+async function saveMyGroups(names) {
+  myGroups = (await local.api('groups/mine', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ names }),
+  })).names;
+  await local.metaSet('myGroups', myGroups);
+  render();
+}
+const withMyGroups = (groups) => [...groups, ...myGroups.filter((g) => !groups.includes(g))];
 
 function sortNotes(a, b) {
   const p = PRIORITIES.indexOf(a.priority) - PRIORITIES.indexOf(b.priority);
@@ -413,12 +436,13 @@ function render() {
 
 function renderNow() {
   const all = local.list();
-  const groups = groupsOf(all);
+  const groups = withMyGroups(groupsOf(all));
   if (ui.group && !groups.includes(ui.group)) ui.group = null;
 
   $('#groupChips').innerHTML =
     `<button class="chip ${!ui.group ? 'active' : ''}" data-group="">All</button>` +
-    groups.map((g) => `<button class="chip ${ui.group === g ? 'active' : ''}" data-group="${esc(g)}">${esc(g)}</button>`).join('');
+    groups.map((g) => `<button class="chip ${ui.group === g ? 'active' : ''}" data-group="${esc(g)}">${esc(g)}</button>`).join('') +
+    `<button class="chip add-chip" data-add-group title="Add a group of your own. The AI will put matching notes in it.">＋ Group</button>`;
 
   const q = ui.query.toLowerCase().trim();
   const visible = all.filter((n) => matches(n, q) && (!ui.group || n.group === ui.group)).sort(sortNotes);
@@ -470,7 +494,18 @@ $('#list').addEventListener('click', async (e) => {
 });
 $('#viewer').addEventListener('click', () => $('#viewer').close());
 
-$('#groupChips').addEventListener('click', (e) => {
+$('#groupChips').addEventListener('click', async (e) => {
+  if (e.target.closest('[data-add-group]')) {
+    const name = prompt('New group (for example Baby or Work).\nThe AI will put matching notes in it:')?.trim();
+    if (!name) return;
+    try {
+      await saveMyGroups([...myGroups, name]);
+      toast(`"${name}" added. New notes that fit go there; tap ✨ Reorganize to sort older ones.`);
+    } catch (err) {
+      toast(err.message);
+    }
+    return;
+  }
   const b = e.target.closest('[data-group]');
   if (!b) return;
   ui.group = b.dataset.group || null;
@@ -525,7 +560,10 @@ function renderStatus() {
   const banner = $('#banner');
   if (local.ai && !local.ai.enabled) {
     banner.hidden = false;
-    banner.textContent = 'AI organization is off. Notes are saved and synced but not auto-organized. Double-click "Change AI.command" to turn it on.';
+    // On the Mac the launcher turns the AI on; online, the server's owner adds a key.
+    const onMac = ['localhost', '127.0.0.1'].includes(location.hostname);
+    banner.textContent = 'AI organization is off. Notes are saved and synced but not auto-organized. ' +
+      (onMac ? 'Double-click "Change AI.command" to turn it on.' : 'The server needs an AI key to turn it on.');
   } else {
     banner.hidden = true;
   }
@@ -542,13 +580,26 @@ function renderStatus() {
 // ---------------------------------------------------------------------------
 // Accounts: log in / sign up / account menu
 // ---------------------------------------------------------------------------
+// Small brand-coloured marks for the "Continue with …" buttons.
+const PROVIDER_MARK = {
+  google: ['G', '#4285f4'], apple: ['A', '#000'], microsoft: ['M', '#2f6fde'], facebook: ['f', '#1877f2'],
+  linkedin: ['in', '#0a66c2'], x: ['𝕏', '#000'], github: ['GH', '#24292f'],
+};
+const providerMark = (id) => {
+  const [text, color] = PROVIDER_MARK[id] || [id[0].toUpperCase(), '#555'];
+  return `<span class="provider-mark" style="background:${color}">${esc(text)}</span>`;
+};
+
 const auth = {
   mode: 'login', // or 'signup'
   policy: null,
+  providers: [],
+  error: '',
   async open() {
     try {
       const state = await local.api('auth/state');
       this.policy = state.signup;
+      this.providers = state.providers || [];
       if (state.user) {
         // Still logged in (e.g. after a network hiccup).
         await local.useAccount(state.user);
@@ -573,7 +624,9 @@ const auth = {
     $('#codeField').hidden = !(signup && p.needsCode);
     $('#loginPassword').autocomplete = signup ? 'new-password' : 'current-password';
     $('#loginSubmit').textContent = signup ? 'Create account' : 'Log in';
-    $('#loginError').textContent = '';
+    $('#loginError').textContent = this.error;
+    this.error = '';
+    this.renderProviders();
     const sw = $('#loginSwitch');
     if (signup && !p.firstAccount) sw.innerHTML = 'Already have an account? <button type="button" data-mode="login">Log in</button>';
     else if (!signup && p.open) sw.innerHTML = 'New here? <button type="button" data-mode="signup">Create an account</button>';
@@ -582,6 +635,17 @@ const auth = {
     (signup ? $('#loginName') : $('#loginEmail')).focus();
   },
 };
+auth.renderProviders = function () {
+  const box = $('#providerButtons');
+  box.hidden = $('#loginOr').hidden = !this.providers.length;
+  // When signing up with an invite code, the code goes along with the button.
+  const invite = this.mode === 'signup' ? $('#loginCode').value.trim() : '';
+  box.innerHTML = this.providers.map((p) => {
+    const q = invite ? `?invite=${encodeURIComponent(invite)}` : '';
+    return `<a class="provider-btn" href="api/auth/oauth/${encodeURIComponent(p.id)}/start${q}">${providerMark(p.id)}Continue with ${esc(p.name)}</a>`;
+  }).join('');
+};
+$('#loginCode').addEventListener('input', () => auth.renderProviders());
 $('#loginSwitch').addEventListener('click', (e) => {
   const b = e.target.closest('[data-mode]');
   if (b) auth.show(b.dataset.mode);
@@ -614,6 +678,9 @@ $('#accountBtn').onclick = async () => {
   $('#pwMessage').textContent = '';
   $('#pwCurrent').value = $('#pwNext').value = '';
   $('#account').showModal();
+  loadSigninOptions();
+  renderMyGroups();
+  applyTheme(currentTheme());
   try {
     const { addresses } = await local.api('server-info');
     const here = location.origin;
@@ -625,6 +692,68 @@ $('#accountBtn').onclick = async () => {
     $('#appAddress').hidden = true;
   }
 };
+async function loadSigninOptions() {
+  try {
+    const me = await local.api('auth/me');
+    $('#pwTitle').textContent = me.hasPassword ? 'Change password' : 'Set a password';
+    $('#pwCurrentField').hidden = !me.hasPassword;
+    const connected = new Map(me.identities.map((i) => [i.provider, i]));
+    const all = [...me.providers];
+    for (const i of me.identities) if (!all.some((p) => p.id === i.provider)) all.push({ id: i.provider, name: i.name });
+    $('#signinOptions').hidden = !all.length;
+    $('#identityList').innerHTML = all.map((p) => {
+      const c = connected.get(p.id);
+      return `<li>${providerMark(p.id)}<span class="who">${esc(p.name)}${c?.email ? ` <span class="muted">· ${esc(c.email)}</span>` : ''}</span>` +
+        (c ? `<button class="ghost" data-disconnect="${esc(p.id)}">Disconnect</button>`
+           : `<a class="ghost button" href="api/auth/oauth/${encodeURIComponent(p.id)}/start?link=1">Connect</a>`) + '</li>';
+    }).join('');
+  } catch {
+    $('#signinOptions').hidden = true;
+  }
+}
+// Appearance: Auto (follow the device), Light or Dark. Kept on this device.
+function currentTheme() {
+  try { return localStorage.getItem('theme') || 'auto'; } catch { return 'auto'; }
+}
+function applyTheme(choice) {
+  if (choice === 'light' || choice === 'dark') document.documentElement.dataset.theme = choice;
+  else delete document.documentElement.dataset.theme;
+  try {
+    if (choice === 'auto') localStorage.removeItem('theme');
+    else localStorage.setItem('theme', choice);
+  } catch { /* private mode: applies until the page is closed */ }
+  $('#themeSwitch').querySelectorAll('[data-theme-choice]').forEach((b) => b.classList.toggle('active', b.dataset.themeChoice === choice));
+}
+$('#themeSwitch').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-theme-choice]');
+  if (b) applyTheme(b.dataset.themeChoice);
+});
+
+function renderMyGroups() {
+  $('#myGroupsBox').hidden = !myGroups.length;
+  $('#myGroupsList').innerHTML = myGroups.map((g) =>
+    `<li><span class="who">${esc(g)}</span><button class="ghost" data-remove-group="${esc(g)}">Remove</button></li>`).join('');
+}
+$('#myGroupsList').addEventListener('click', async (e) => {
+  const b = e.target.closest('[data-remove-group]');
+  if (!b) return;
+  try {
+    await saveMyGroups(myGroups.filter((g) => g !== b.dataset.removeGroup));
+    renderMyGroups();
+  } catch (err) {
+    toast(err.message);
+  }
+});
+$('#identityList').addEventListener('click', async (e) => {
+  const b = e.target.closest('[data-disconnect]');
+  if (!b) return;
+  try {
+    await local.api(`auth/identities/${encodeURIComponent(b.dataset.disconnect)}`, { method: 'DELETE' });
+    loadSigninOptions();
+  } catch (err) {
+    toast(err.message);
+  }
+});
 $('#accountClose').onclick = () => $('#account').close();
 $('#passwordForm').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -636,8 +765,9 @@ $('#passwordForm').addEventListener('submit', async (e) => {
       body: JSON.stringify({ current: $('#pwCurrent').value, next: $('#pwNext').value }),
     });
     msg.className = 'ok';
-    msg.textContent = 'Password changed. Your other devices need to log in again.';
+    msg.textContent = 'Password saved. Your other devices need to log in again.';
     $('#pwCurrent').value = $('#pwNext').value = '';
+    loadSigninOptions();
   } catch (err) {
     msg.className = 'err';
     msg.textContent = err.message;
@@ -667,11 +797,22 @@ setInterval(render, 60000);
 await local.init();
 local.addEventListener('change', render);
 local.addEventListener('status', renderStatus);
+local.addEventListener('started', loadMyGroups);
+local.addEventListener('wiped', () => { myGroups = []; });
 render();
 renderStatus();
+// Coming back from "Continue with …": show what happened, then tidy the address bar.
+const back = new URLSearchParams(location.search);
+if (back.has('login_error') || back.has('linked')) {
+  auth.error = back.get('login_error') || '';
+  if (back.has('linked')) setTimeout(() => toast('Connected. You can now log in with it too.'), 300);
+  history.replaceState(null, '', location.pathname);
+}
+
 // Restore the account this device last used, then check with the server.
 try {
   const state = await local.api('auth/state');
+  auth.providers = state.providers || [];
   if (state.user) {
     await local.useAccount(state.user);
     local.setStatus({ user: state.user });

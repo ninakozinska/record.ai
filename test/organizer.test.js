@@ -169,3 +169,29 @@ test('local AI: missing model and server errors are explained', async () => {
     server.close();
   }
 });
+
+test('"My groups" are given to the AI, for single notes and for reorganizing', async () => {
+  const client = scripted(ok({ ...analysis, group: 'Baby' }), (p) => ({
+    stop_reason: 'end_turn',
+    parsed_output: { notes: [{ id: 'note-baby-0001', group: 'Baby', priority: 'high', priority_reason: 'r' }] },
+  }));
+  const t = setup(client);
+  try {
+    t.store.setMyGroups(t.a.id, ['Baby', 'Work']);
+    note(t, t.a, 'note-baby-0001', 'buy a jacket for the baby');
+    await t.organizer.organizeNote('note-baby-0001');
+    const prompt = JSON.stringify(client.calls[0].messages);
+    assert.match(prompt, /own groups \(use these exact names whenever a note fits one\): Baby, Work/);
+    assert.equal(t.store.get('note-baby-0001').group, 'Baby');
+
+    await t.organizer.reorganizeAll(t.a.id);
+    assert.match(JSON.stringify(client.calls[1].messages), /Baby, Work[\s\S]*Never rename, merge or split these groups/);
+
+    // B has no groups of their own: nothing extra in their prompt.
+    note(t, t.b, 'note-b-000001');
+    await t.organizer.organizeNote('note-b-000001');
+    assert.doesNotMatch(JSON.stringify(client.calls[2].messages), /own groups/);
+  } finally {
+    t.restore();
+  }
+});

@@ -163,3 +163,22 @@ test('changing priority while the AI is working does not lose the AI result', as
     s.close();
   }
 });
+
+test('"My groups": saved per person, cleaned up, and given to the AI', async () => {
+  const s = await start();
+  try {
+    let r = await s.api('groups/mine');
+    assert.deepEqual(r.body.names, []);
+    r = await s.api('groups/mine', { method: 'PUT', body: JSON.stringify({ names: ['  Baby ', 'Work', 'baby'] }) });
+    assert.equal(r.status, 200);
+    assert.deepEqual(r.body.names, ['Baby', 'Work'], 'trimmed, no duplicates');
+    assert.deepEqual((await s.api('status')).body.myGroups, ['Baby', 'Work']);
+    assert.equal((await s.api('groups/mine', { method: 'PUT', body: JSON.stringify({ names: ['x'.repeat(41)] }) })).status, 400);
+    assert.equal((await s.api('groups/mine', { method: 'PUT', body: JSON.stringify({ names: 'Baby' }) })).status, 400);
+    assert.equal((await s.api('groups/mine', { method: 'PUT', body: JSON.stringify({ names: Array(31).fill('a').map((a, i) => a + i) }) })).status, 400);
+    // Someone else's groups are separate.
+    assert.deepEqual(s.store.myGroups('someone-else'), []);
+  } finally {
+    s.close();
+  }
+});

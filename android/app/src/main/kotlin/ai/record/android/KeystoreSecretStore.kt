@@ -12,7 +12,7 @@ import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 
 /**
- * Keeps the login token encrypted. The key lives in the Android Keystore
+ * Keeps the login token (and a sign-in in progress) encrypted. The key lives in the Android Keystore
  * (hardware-backed on most phones) and never leaves it.
  */
 class KeystoreSecretStore(context: Context) : SecretStore {
@@ -32,32 +32,39 @@ class KeystoreSecretStore(context: Context) : SecretStore {
         return gen.generateKey()
     }
 
-    @Volatile private var cached: String? = null
-    @Volatile private var loaded = false
+    private val cache = java.util.concurrent.ConcurrentHashMap<String, Any>()
+    private object Absent
+
+    private fun read(name: String): String? {
+        cache[name]?.let { return it as? String }
+        val value = runCatching {
+            val stored = prefs.getString(name, null) ?: return@runCatching null
+            val bytes = Base64.decode(stored, Base64.NO_WRAP)
+            val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+            cipher.init(Cipher.DECRYPT_MODE, key(), GCMParameterSpec(128, bytes.copyOfRange(0, 12)))
+            String(cipher.doFinal(bytes.copyOfRange(12, bytes.size)))
+        }.getOrNull()
+        cache[name] = value ?: Absent
+        return value
+    }
+
+    private fun write(name: String, value: String?) {
+        cache[name] = value ?: Absent
+        if (value == null) {
+            prefs.edit().remove(name).apply()
+            return
+        }
+        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+        cipher.init(Cipher.ENCRYPT_MODE, key())
+        val sealed = cipher.iv + cipher.doFinal(value.toByteArray())
+        prefs.edit().putString(name, Base64.encodeToString(sealed, Base64.NO_WRAP)).apply()
+    }
 
     override var token: String?
-        get() {
-            if (loaded) return cached
-            cached = runCatching {
-                val stored = prefs.getString("token", null) ?: return@runCatching null
-                val bytes = Base64.decode(stored, Base64.NO_WRAP)
-                val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-                cipher.init(Cipher.DECRYPT_MODE, key(), GCMParameterSpec(128, bytes.copyOfRange(0, 12)))
-                String(cipher.doFinal(bytes.copyOfRange(12, bytes.size)))
-            }.getOrNull()
-            loaded = true
-            return cached
-        }
-        set(value) {
-            cached = value
-            loaded = true
-            if (value == null) {
-                prefs.edit().remove("token").apply()
-                return
-            }
-            val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-            cipher.init(Cipher.ENCRYPT_MODE, key())
-            val sealed = cipher.iv + cipher.doFinal(value.toByteArray())
-            prefs.edit().putString("token", Base64.encodeToString(sealed, Base64.NO_WRAP)).apply()
-        }
+        get() = read("token")
+        set(value) = write("token", value)
+
+    override var oauthVerifier: String?
+        get() = read("oauthVerifier")
+        set(value) = write("oauthVerifier", value)
 }

@@ -14,6 +14,7 @@ export async function start(opts = {}) {
   const client = opts.client;
   const { app, store, organizer } = createApp({
     dataDir,
+    oauth: opts.oauth,
     organizer: client
       ? (args) => new Organizer({ ...args, client, log: { error() {} } })
       : (args) => new Organizer({ ...args, log: { error() {} } }),
@@ -39,5 +40,5 @@ export async function start(opts = {}) {
     });
     user = r.body.user;
   }
-  return { api, store, organizer, dataDir, user, base, close: () => server.close() };
+  return { api, store, organizer, dataDir, user, base, cookie: () => cookie, close: () => server.close() };
 }

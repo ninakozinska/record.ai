@@ -106,6 +106,14 @@ class Api(val baseUrl: String, private val token: String?, private val client: O
 
     suspend fun logoutOthers() { post("auth/logout-others", JsonObject(emptyMap())) }
 
+    /** Trades the one-time code from "Continue with …" (plus this app's secret) for a login. */
+    suspend fun oauthExchange(code: String, verifier: String): AuthResult =
+        decode(post("auth/oauth/exchange", buildJsonObject { put("code", code); put("verifier", verifier) }))
+
+    suspend fun accountInfo(): AccountInfo = decode(call("auth/me"))
+
+    suspend fun disconnect(provider: String) { call("auth/identities/$provider", "DELETE") }
+
     suspend fun notes(since: Long): NotesPage = decode(call("notes?since=$since"))
 
     /** One round trip: send every change, get back everything changed since `since`. */

@@ -24,6 +24,7 @@ data class UiState(
     val serverUrl: String? = null,
     val user: User? = null,
     val signup: SignupPolicy? = null,
+    val providers: List<AuthProvider> = emptyList(),
     val notes: Map<String, Note> = emptyMap(),
     val online: Boolean = false,
     val unsent: Int = 0,
@@ -142,7 +143,7 @@ class NoteRepository(
     suspend fun refreshAuthState() = withContext(confined) {
         val api = api ?: return@withContext
         val s = api.authState()
-        _state.update { it.copy(signup = s.signup) }
+        _state.update { it.copy(signup = s.signup, providers = s.providers) }
         if (s.user == null && secrets.token != null) {
             // Our session ended (password changed, logged out elsewhere).
             secrets.token = null
@@ -159,6 +160,36 @@ class NoteRepository(
         val api = api ?: return
         signedIn(api.signup(name.trim(), email.trim(), password, code.trim()))
     }
+
+    /**
+     * Where to start "Continue with …" in the browser. The secret stays on the
+     * phone; the server only lets the one who holds it finish the sign-in.
+     */
+    fun socialLoginUrl(provider: String, invite: String = ""): String? {
+        val server = _state.value.serverUrl ?: return null
+        val verifier = OAuthSecret.make()
+        secrets.oauthVerifier = verifier
+        val q = buildString {
+            append("app=").append(OAuthSecret.challenge(verifier))
+            if (invite.isNotBlank()) append("&invite=").append(java.net.URLEncoder.encode(invite.trim(), "UTF-8"))
+        }
+        return "$server/api/auth/oauth/${java.net.URLEncoder.encode(provider, "UTF-8")}/start?$q"
+    }
+
+    /** The browser came back to recordai://auth?code=… (or ?error=…). */
+    suspend fun socialLoginFinish(callback: String) {
+        val api = api ?: return
+        val query = OAuthSecret.query(callback)
+        query["error"]?.let { throw ApiException(400, it) }
+        val code = query["code"] ?: throw ApiException(400, "Sign-in didn't finish. Please try again.")
+        val verifier = secrets.oauthVerifier ?: throw ApiException(400, "Sign-in expired. Please try again.")
+        secrets.oauthVerifier = null
+        signedIn(api.oauthExchange(code, verifier))
+    }
+
+    suspend fun accountInfo(): AccountInfo? = api?.accountInfo()
+
+    suspend fun disconnect(provider: String) { api?.disconnect(provider) }
 
     private suspend fun signedIn(result: AuthResult) = withContext(confined) {
         if (cachedUserId != null && cachedUserId != result.user.id) wipe()

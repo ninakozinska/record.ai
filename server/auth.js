@@ -8,6 +8,7 @@
 import crypto from 'node:crypto';
 import { promisify } from 'node:util';
 import express from 'express';
+import { configuredProviders, oauthRoutes, OAuthError, PROVIDERS } from './oauth.js';
 
 const scrypt = promisify(crypto.scrypt);
 const COOKIE = 'notes_session';
@@ -73,17 +74,42 @@ export function signupPolicy(store) {
   return { open: false, needsCode: false, firstAccount: false };
 }
 
-const publicUser = (u) => ({ id: u.id, name: u.name, email: u.email });
+// Accounts made with a provider that shares no email (X) get a placeholder
+// address that can never receive mail; it is never shown.
+const NO_EMAIL = '@no-email.invalid';
+const publicUser = (u) => ({ id: u.id, name: u.name, email: u.email.endsWith(NO_EMAIL) ? '' : u.email });
 
-export function authRoutes({ store, imagesDir, throttle = new Throttle() }) {
+export function authRoutes({ store, imagesDir, throttle = new Throttle(), oauth = {} }) {
   const router = express.Router();
+  const env = oauth.env || process.env;
 
-  const startSession = (req, res, user) => {
+  const startSession = (req, res, user, { json = true } = {}) => {
     const token = store.createSession(user.id, req.get('user-agent'));
     const secure = req.secure || req.get('x-forwarded-proto') === 'https' ? '; Secure' : '';
     res.setHeader('Set-Cookie', `${COOKIE}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${COOKIE_MAX_AGE}${secure}`);
-    res.json({ token, user: publicUser(user) });
+    if (json) res.json({ token, user: publicUser(user) });
   };
+
+  /** A new account from "Continue with …". Same rules as signing up with a password. */
+  const createAccount = (profile, invite) => {
+    const policy = signupPolicy(store);
+    if (!policy.open) throw new OAuthError('New accounts are not allowed on this server. Ask its owner for an invite.');
+    if (policy.needsCode && invite !== process.env.SIGNUP_CODE) {
+      throw new OAuthError('This server needs an invite code. Choose "Create an account", enter the code, then use the button again.');
+    }
+    const email = profile.email || `${String(profile.id).replace(/[^A-Za-z0-9._-]/g, '')}.${profile.provider}${NO_EMAIL}`;
+    const name = String(profile.name || '').trim() || (profile.email ? profile.email.split('@')[0] : 'record.ai user');
+    return store.createUser({ email, name: name.slice(0, 80), pwHash: '', imagesDir });
+  };
+
+  router.use('/oauth', oauthRoutes({
+    store,
+    env,
+    fetch: oauth.fetch,
+    startSession,
+    createAccount: (profile, invite) => createAccount(profile, invite),
+    currentUser: (req) => store.sessionUser(getToken(req)),
+  }));
 
   const clearCookie = (res) => res.setHeader('Set-Cookie', `${COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`);
 
@@ -91,7 +117,7 @@ export function authRoutes({ store, imagesDir, throttle = new Throttle() }) {
   router.get('/state', (req, res) => {
     const user = store.sessionUser(getToken(req));
     const policy = signupPolicy(store);
-    res.json({ user: user ? publicUser(user) : null, signup: policy });
+    res.json({ user: user ? publicUser(user) : null, signup: policy, providers: configuredProviders(env) });
   });
 
   router.post('/signup', async (req, res) => {
@@ -149,7 +175,23 @@ export function authRoutes({ store, imagesDir, throttle = new Throttle() }) {
   });
 
   router.get('/me', (req, res) => {
-    res.json({ user: publicUser(req.user), devices: store.sessionCount(req.user.id) });
+    res.json({
+      user: publicUser(req.user),
+      devices: store.sessionCount(req.user.id),
+      hasPassword: !!store.passwordHash(req.user.id),
+      identities: store.identities(req.user.id).map((i) => ({ provider: i.provider, name: PROVIDERS[i.provider]?.name || i.provider, email: i.email })),
+      providers: configuredProviders(env),
+    });
+  });
+
+  /** Disconnect "Continue with …", as long as another way to log in is left. */
+  router.delete('/identities/:provider', (req, res) => {
+    const others = store.identities(req.user.id).filter((i) => i.provider !== req.params.provider).length;
+    if (!others && !store.passwordHash(req.user.id)) {
+      return res.status(409).json({ error: 'Set a password first, so you can still log in.' });
+    }
+    if (!store.removeIdentity(req.user.id, req.params.provider)) return res.status(404).json({ error: 'Not connected.' });
+    res.json({ ok: true });
   });
 
   router.post('/logout-others', (req, res) => {
@@ -159,7 +201,9 @@ export function authRoutes({ store, imagesDir, throttle = new Throttle() }) {
 
   router.post('/password', async (req, res) => {
     const { current, next } = req.body || {};
-    if (!(await verifyPassword(String(current || ''), store.passwordHash(req.user.id)))) {
+    // Accounts made with Google etc. have no password yet: they can set one without it.
+    const stored = store.passwordHash(req.user.id);
+    if (stored && !(await verifyPassword(String(current || ''), stored))) {
       return res.status(403).json({ error: 'Your current password is not correct.' });
     }
     if (String(next || '').length < MIN_PASSWORD) {

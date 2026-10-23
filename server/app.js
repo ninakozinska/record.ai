@@ -14,6 +14,7 @@ const IMAGE_NAME = /^[a-zA-Z0-9-]{8,64}\.(jpg|jpeg|png|webp|gif)$/;
 const MAX_IMAGE_BYTES = 15 * 1024 * 1024;
 const NOTE_ID = /^[a-zA-Z0-9-]{8,64}$/;
 const MAX_BATCH = 500;
+const MAX_MY_GROUPS = 30;
 const NOTE_FIELDS = ['text', 'images', 'done', 'deleted', 'created_at', 'edited_at', 'user_group', 'user_priority'];
 
 /** Checks one note change from a client. Returns an error message, or null when it is valid. */
@@ -35,7 +36,21 @@ function lanAddresses() {
     .map((i) => i.address);
 }
 
-export function createApp({ dataDir, organizer: makeOrganizer } = {}) {
+/**
+ * Which proxies to believe about the visitor's address and https. On your Mac
+ * only the computer itself (Tailscale); behind a host such as Fly.io set
+ * TRUST_PROXY=1, or every visitor looks alike and one person's wrong
+ * passwords would lock everybody out.
+ */
+export function trustProxy(value) {
+  if (!value) return 'loopback';
+  if (/^\d+$/.test(value)) return Number(value);
+  if (value === 'true') return true;
+  if (value === 'false') return false;
+  return value;
+}
+
+export function createApp({ dataDir, organizer: makeOrganizer, oauth } = {}) {
   const store = openDb(dataDir);
   const imagesDir = path.join(dataDir, 'images');
   fs.mkdirSync(imagesDir, { recursive: true });
@@ -56,7 +71,7 @@ export function createApp({ dataDir, organizer: makeOrganizer } = {}) {
 
   const app = express();
   app.disable('x-powered-by');
-  app.set('trust proxy', 'loopback');
+  app.set('trust proxy', trustProxy(process.env.TRUST_PROXY));
   // Compress JSON and pages (often 5-10x smaller on mobile networks). Live
   // updates must reach the phone at once, and photos are already compressed.
   app.use(
@@ -71,12 +86,29 @@ export function createApp({ dataDir, organizer: makeOrganizer } = {}) {
   app.use(express.json({ limit: '25mb' }));
 
   app.get('/api/health', (req, res) => res.json({ ok: true, app: 'record.ai' }));
-  app.use('/api/auth', authRoutes({ store, imagesDir }));
+  app.use('/api/auth', authRoutes({ store, imagesDir, oauth }));
   app.use('/api', requireUser(store));
 
   // --- notes ----------------------------------------------------------------
+  // "My groups": groups the person made, which the AI always keeps and uses.
+  app.get('/api/groups/mine', (req, res) => res.json({ names: store.myGroups(req.user.id) }));
+  app.put('/api/groups/mine', (req, res) => {
+    const names = req.body?.names;
+    if (!Array.isArray(names) || names.length > MAX_MY_GROUPS || !names.every((n) => typeof n === 'string')) {
+      return res.status(400).json({ error: `Send up to ${MAX_MY_GROUPS} group names.` });
+    }
+    const clean = [];
+    for (const raw of names) {
+      const name = raw.trim().replace(/\s+/g, ' ');
+      if (!name || name.length > 40) return res.status(400).json({ error: 'Group names need 1 to 40 characters.' });
+      if (!clean.some((n) => n.toLowerCase() === name.toLowerCase())) clean.push(name);
+    }
+    store.setMyGroups(req.user.id, clean);
+    res.json({ names: clean });
+  });
+
   app.get('/api/status', (req, res) => {
-    res.json({ ai: organizer.status, rev: store.rev, groups: store.groups(req.user.id) });
+    res.json({ ai: organizer.status, rev: store.rev, groups: store.groups(req.user.id), myGroups: store.myGroups(req.user.id) });
   });
 
   // Where other devices on the same network can reach this server.

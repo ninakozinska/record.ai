@@ -8,6 +8,10 @@ services:
     envVars:
       - key: ANTHROPIC_API_KEY
         sync: false
+      - key: TRUST_PROXY
+        value: "1"
+      - key: CLAUDE_MODEL
+        value: claude-haiku-5-5
     disk:
       name: data
       mountPath: /data
