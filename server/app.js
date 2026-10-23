@@ -114,7 +114,11 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth } = {}) {
   // Where other devices on the same network can reach this server.
   app.get('/api/server-info', (req, res) => {
     const port = req.socket.localPort;
-    res.json({ port, addresses: lanAddresses().map((a) => `http://${a}:${port}`) });
+    // Online (PUBLIC_URL set), the machine's own network addresses are the
+    // host's internal ones, which no phone can reach: offer only the public address.
+    const publicUrl = process.env.PUBLIC_URL?.replace(/\/$/, '');
+    const addresses = publicUrl ? [publicUrl] : lanAddresses().map((a) => `http://${a}:${port}`);
+    res.json({ port, addresses });
   });
 
   // Incremental sync: everything that changed after `since` (including deletions).
