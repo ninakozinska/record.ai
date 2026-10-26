@@ -50,10 +50,25 @@ class Api(val baseUrl: String, private val token: String?, private val client: O
         private val JSON_TYPE = "application/json".toMediaType()
 
         /** Turns what the person typed ("192.168.1.20:3000") into a server address, or null. */
+        /**
+         * A computer at home (an IP address, "localhost", a ".local" name, or anything
+         * with a port such as :3000) speaks plain http; a server on the internet
+         * (record-ai-nina.fly.dev) only https. A login sent over http to such a server
+         * is redirected and loses its password, so guessing right matters.
+         */
+        internal fun isLocal(address: String): Boolean {
+            val host = address.substringBefore('/')
+            val name = host.substringBefore(':')
+            return ':' in host || name == "localhost" || name.endsWith(".local") ||
+                Regex("^\\d{1,3}(\\.\\d{1,3}){3}$").matches(name)
+        }
+
         fun normalize(input: String): String? {
             var s = input.trim().trimEnd('/')
             if (s.isEmpty()) return null
-            if (!s.startsWith("http://", ignoreCase = true) && !s.startsWith("https://", ignoreCase = true)) s = "http://$s"
+            if (!s.startsWith("http://", ignoreCase = true) && !s.startsWith("https://", ignoreCase = true)) {
+                s = (if (isLocal(s)) "http://" else "https://") + s
+            }
             return s.toHttpUrlOrNull()?.toString()?.trimEnd('/')
         }
     }

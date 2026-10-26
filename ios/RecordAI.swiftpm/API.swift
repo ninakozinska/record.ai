@@ -13,11 +13,25 @@ struct API {
     var baseURL: URL
     var token: String?
 
+    /// A computer at home (an IP address, "localhost", a ".local" name, or anything
+    /// with a port such as :3000) speaks plain http; a server on the internet
+    /// (record-ai-nina.fly.dev) only https. A login sent over http to such a
+    /// server is redirected and loses its password, so guessing right matters.
+    static func isLocal(_ address: String) -> Bool {
+        let host = String(address.split(separator: "/", maxSplits: 1).first ?? "")
+        let name = String(host.split(separator: ":", maxSplits: 1).first ?? "")
+        let parts = name.split(separator: ".")
+        let isIP = parts.count == 4 && parts.allSatisfy { Int($0) != nil }
+        return host.contains(":") || name == "localhost" || name.hasSuffix(".local") || isIP
+    }
+
     /// Turns what the person typed ("172.20.10.2:3000") into a server URL.
     static func normalize(_ input: String) -> URL? {
         var s = input.trimmingCharacters(in: .whitespacesAndNewlines)
         if s.isEmpty { return nil }
-        if !s.lowercased().hasPrefix("http://") && !s.lowercased().hasPrefix("https://") { s = "http://" + s }
+        if !s.lowercased().hasPrefix("http://") && !s.lowercased().hasPrefix("https://") {
+            s = (isLocal(s) ? "http://" : "https://") + s
+        }
         while s.hasSuffix("/") { s.removeLast() }
         return URL(string: s)
     }

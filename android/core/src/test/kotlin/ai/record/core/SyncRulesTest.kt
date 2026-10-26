@@ -19,6 +19,12 @@ class SyncRulesTest {
         assertEquals("http://172.20.10.2:3000", Api.normalize(" 172.20.10.2:3000/ "))
         assertEquals("https://mac.tail1234.ts.net", Api.normalize("https://mac.tail1234.ts.net"))
         assertNull(Api.normalize(""))
+        // Typed without http(s): servers on the internet get https, computers at home http.
+        assertEquals("https://record-ai-nina.fly.dev", Api.normalize("record-ai-nina.fly.dev"))
+        assertEquals("http://localhost:3000", Api.normalize("localhost:3000"))
+        assertEquals("http://10.0.2.2:3000", Api.normalize("10.0.2.2:3000"))
+        assertEquals("http://ninas-macbook.local:3000", Api.normalize("ninas-macbook.local:3000"))
+        assertEquals("http://record-ai-nina.fly.dev", Api.normalize("http://record-ai-nina.fly.dev"), "an explicit choice is kept")
     }
 
     @Test fun `effective group and priority prefer the person's choice`() {
