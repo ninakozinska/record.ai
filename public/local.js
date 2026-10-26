@@ -73,8 +73,18 @@ export class Local extends EventTarget {
     this.dispatchEvent(new Event('status'));
   }
 
+  /** Notes to show (list items are shown inside their list). */
   list() {
-    return [...this.notes.values()].filter((n) => !n.deleted).map(effective);
+    return [...this.notes.values()].filter((n) => !n.deleted && !n.parent_id).map(effective);
+  }
+
+  /** A list's items: open ones first, most urgent first, then in the order they were added. */
+  items(parentId) {
+    const rank = (n) => ['urgent', 'high', 'normal', 'low'].indexOf(n.priority);
+    return [...this.notes.values()]
+      .filter((n) => n.parent_id === parentId && !n.deleted)
+      .map(effective)
+      .sort((a, b) => a.done - b.done || rank(a) - rank(b) || a.created_at - b.created_at);
   }
 
   // ---- local edits -----------------------------------------------------------
@@ -97,7 +107,9 @@ export class Local extends EventTarget {
       edited_at: Math.max(now, (prev?.edited_at || 0) + 1),
     };
     const contentChanged = !prev || prev.text !== note.text || JSON.stringify(prev.images) !== JSON.stringify(note.images);
-    if (contentChanged && !note.deleted) note.ai_status = 'pending';
+    // List items aren't sent to the AI (only their list is).
+    if (note.parent_id) note.ai_status = 'done';
+    else if (contentChanged && !note.deleted) note.ai_status = 'pending';
     this.notes.set(id, note);
     await req(this.tx('notes', 'readwrite').put(note));
 
@@ -204,7 +216,7 @@ export class Local extends EventTarget {
 
   connect() {
     this.es?.close();
-    const es = new EventSource('api/events');
+    const es = new EventSource('api/events?items=1');
     this.es = es;
     es.addEventListener('hello', (e) => {
       const { ai } = JSON.parse(e.data);
@@ -232,7 +244,7 @@ export class Local extends EventTarget {
     if (this.pulling) return;
     this.pulling = true;
     try {
-      const { rev, notes } = await this.api(`notes?since=${this.rev}`);
+      const { rev, notes } = await this.api(`notes?since=${this.rev}&items=1`);
       await this.merge(notes);
       // A server whose database was reset would have a lower rev; resync fully.
       if (rev < this.rev) {
@@ -310,7 +322,7 @@ export class Local extends EventTarget {
       const { rev, results, notes: changed } = await this.api('sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ since, changes: notes.map((i) => ({ id: i.id, ...i.body })) }),
+        body: JSON.stringify({ since, items: true, changes: notes.map((i) => ({ id: i.id, ...i.body })) }),
       });
       for (const [k, item] of notes.entries()) {
         // Sent (or refused for good): clear it, unless a newer edit was queued meanwhile.

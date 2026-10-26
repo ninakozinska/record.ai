@@ -39,7 +39,7 @@
 
   <main>
     <section class="composer card" id="composer">
-      <textarea data-role="text" rows="3" placeholder="Write a note, or tap 🎤 to dictate…"></textarea>
+      <textarea data-role="text" rows="3" placeholder="Write a note, or tap 🎤 to dictate… (lines starting with - become a list)"></textarea>
       <div data-role="interim" class="interim"></div>
       <div data-role="thumbs" class="thumbs"></div>
       <div class="composer-actions">
@@ -74,6 +74,14 @@
           <button type="button" data-role="camera" class="icon-btn" title="Take a photo">📷</button>
           <button type="button" data-role="photo" class="icon-btn" title="Add images">🖼️</button>
           <input data-role="file" type="file" accept="image/*" multiple hidden>
+        </div>
+      </div>
+      <div class="items-box">
+        <div class="items-head"><h3>List</h3><span class="muted" id="itemsCount"></span></div>
+        <ul id="itemList" class="item-list"></ul>
+        <div class="add-item">
+          <input id="newItem" placeholder="Add an item…" aria-label="New item">
+          <button type="button" id="addItem" class="ghost">Add</button>
         </div>
       </div>
       <div class="overrides">

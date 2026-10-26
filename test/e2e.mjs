@@ -170,7 +170,37 @@ try {
   assert.deepEqual(store.myGroups([...store.db.prepare('SELECT id FROM users').all()][0].id), ['Baby']);
   console.log('✓ my own group added and kept');
 
-  // 7. Appearance: on a device in dark mode, choose Light; it sticks after a reload.
+  // 7. Lists: "- " lines become items; tick one from the card, add and
+  //    reprioritize in the editor; the other device follows.
+  await desktop.fill('#composer textarea', 'Weekend shopping\n- bread\n- apples\n- jacket for Ola');
+  await desktop.keyboard.press('Control+Enter');
+  const list = '.note:has(h3:text("Weekend shopping"))';
+  await phone.waitForSelector(`${list} .list-count:text("☑ 0/3")`);
+  assert.equal(await phone.locator('.note h3:text("bread")').count(), 0, 'items are not notes of their own');
+  await phone.click(`${list} li:has-text("apples") [data-item-check]`);
+  await desktop.waitForSelector(`${list} .list-count:text("☑ 1/3")`);
+  await desktop.click(`${list} h3`);
+  await desktop.waitForSelector('#itemsCount:text("1/3 done")');
+  await desktop.fill('#newItem', 'milk');
+  await desktop.press('#newItem', 'Enter');
+  assert.ok(await desktop.isVisible('#editor[open]'), 'Enter adds an item and keeps the editor open');
+  await desktop.waitForSelector('#itemsCount:text("1/4 done")');
+  await desktop.selectOption('#itemList [data-item]:has([value="jacket for Ola"]) [data-item-priority]', 'urgent');
+  // Open items first, the urgent one on top; done ones last.
+  await desktop.waitForFunction(() => document.querySelector('#itemList [data-item] [data-item-text]').value === 'jacket for Ola');
+  assert.equal(await desktop.inputValue('#itemList [data-item]:last-child [data-item-text]'), 'apples');
+  await desktop.screenshot({ path: path.join(out, 'desktop-list-editor.png') });
+  await desktop.click('#editorSave');
+  await phone.waitForSelector(`${list} .list-count:text("☑ 1/4")`);
+  await phone.waitForSelector(`${list} li.p-urgent:has-text("jacket for Ola")`);
+  // Search finds a list by one of its items.
+  await phone.fill('#search', 'milk');
+  await phone.waitForSelector(`${list}`);
+  await phone.screenshot({ path: path.join(out, 'phone-list.png') });
+  await phone.fill('#search', '');
+  console.log('✓ lists: items ticked, added and sorted, synced');
+
+  // 8. Appearance: on a device in dark mode, choose Light; it sticks after a reload.
   const bg = () => desktop.evaluate(() => getComputedStyle(document.body).backgroundColor);
   await desktop.emulateMedia({ colorScheme: 'dark' });
   assert.equal(await bg(), 'rgb(17, 17, 24)', 'Auto follows the dark device');

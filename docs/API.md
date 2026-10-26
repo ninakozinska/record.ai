@@ -64,13 +64,14 @@ A note as the server sends it:
 
 - `user_group` / `user_priority` are the person's own choices. `null` means "let the AI decide". `group` / `priority` are the effective values: the person's choice if set, otherwise the AI's.
 - `ai_status` is one of `pending`, `done`, `error` (see `ai_error`), or `off` (no AI configured).
+- `parent_id` is `null` for a note. A **list item** is a note with `parent_id` set to its list's id. Items go one level deep, skip the AI (`ai_status` is `done`), take their priority from `user_priority`, and are deleted with their list. Their parent can't change after creation.
 - `rev` increases with every change on the server. Clients must ignore a note whose `rev` is lower than the copy they already have, because replies and live updates can arrive out of order.
 
 | Method | Path | Body | Answer |
 |---|---|---|---|
-| GET | `/api/notes?since=<rev>` | | `{rev, notes}`: your notes changed after `rev` (deleted ones too) |
-| POST | `/api/sync` | `{since, changes: [{id, …same fields as PUT}]}` (at most 500) | `{rev, results: [{id, status}], notes}`: sends every waiting edit **and** catches up in one request. `status` is `ok`, `stale`, `forbidden` or `invalid`; `notes` = everything changed after `since`, including the results of your own edits |
-| PUT | `/api/notes/:id` | any of `text, images, done, deleted, user_group, user_priority, created_at` + **`edited_at` (required)** | `{note, stale}`. `stale: true` = a newer edit already exists and yours was ignored; 403 = the id belongs to someone else |
+| GET | `/api/notes?since=<rev>[&items=1]` | | `{rev, notes}`: your notes changed after `rev` (deleted ones too). List items are included only with `items=1` |
+| POST | `/api/sync` | `{since, items, changes: [{id, …same fields as PUT}]}` (at most 500; `items: true` to also receive list items) | `{rev, results: [{id, status}], notes}`: sends every waiting edit **and** catches up in one request. `status` is `ok`, `stale`, `forbidden` or `invalid`; `notes` = everything changed after `since`, including the results of your own edits |
+| PUT | `/api/notes/:id` | any of `text, images, done, deleted, user_group, user_priority, created_at, parent_id` + **`edited_at` (required)** | `{note, stale}`. `stale: true` = a newer edit already exists and yours was ignored; 403 = the id belongs to someone else |
 | POST | `/api/notes/:id/reanalyze` | | `{"ok":true}`: queues the AI again |
 | POST | `/api/reorganize` | | `{updated}` or `{skipped:true}`: the AI re-groups and re-ranks all your open notes |
 | GET | `/api/status` | | `{ai: {enabled, provider, model, pending, reorganizing}, rev, groups: [{name,count}]}` |
@@ -98,12 +99,12 @@ A note as the server sends it:
 
 ## Live updates
 
-`GET /api/events` is a [Server-Sent Events](https://developer.mozilla.org/docs/Web/API/Server-sent_events) stream for the logged-in user. Each message is an `event:` line followed by one `data:` line of JSON:
+`GET /api/events[?items=1]` is a [Server-Sent Events](https://developer.mozilla.org/docs/Web/API/Server-sent_events) stream for the logged-in user. Each message is an `event:` line followed by one `data:` line of JSON:
 
 | event | data | when |
 |---|---|---|
 | `hello` | `{rev, ai}` | right after connecting: pull `/api/notes?since=` to catch up |
-| `note` | a note | any of your notes changed (yours, another device's, or the AI's) |
+| `note` | a note | any of your notes changed (yours, another device's, or the AI's). List items only with `?items=1` |
 | `status` | the `ai` status | a reorganize started or finished |
 
 A comment line `: ping` arrives every 25 seconds to keep the connection open.

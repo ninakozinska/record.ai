@@ -17,6 +17,11 @@ import { PRIORITIES } from './db.js';
 const provider = () => (process.env.AI_PROVIDER || 'anthropic').toLowerCase();
 const claudeModel = () => process.env.CLAUDE_MODEL || 'claude-opus-5-5';
 
+/** A list's items, so the AI can title and rank the list as a whole. */
+const listItemsBlock = (items) => (items.length
+  ? `<list_items>\n${items.slice(0, 50).map((i) => `- [${i.done ? 'x' : ' '}] ${i.text}`).join('\n')}\n</list_items>\n`
+  : '');
+
 /** The person's own groups: the AI must use these exact names when a note fits. */
 const myGroupsLine = (names) => (names.length
   ? `The person's own groups (use these exact names whenever a note fits one): ${names.join(', ')}\n`
@@ -133,7 +138,9 @@ export class Organizer {
       myGroupsLine(mine) +
       `\n` +
       `<note created="${new Date(note.created_at).toISOString()}" images="${note.images.length}">\n` +
-      `${note.text || '(no text — photo only)'}\n</note>\n\nAnalyze this note.`;
+      `${note.text || '(no text — photo only)'}\n</note>\n` +
+      listItemsBlock(this.store.items?.(id) || []) +
+      `\nAnalyze this note.`;
 
     try {
       const result = await this.ask({ text, images, schema: NoteAnalysis, effort: 'low', maxTokens: 4000 });

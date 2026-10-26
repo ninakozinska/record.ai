@@ -246,3 +246,29 @@ dialog::backdrop { background: rgba(10, 10, 20, .5); }
 .theme-switch { display: flex; gap: 0; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; width: fit-content; }
 .theme-switch button { border-radius: 0; }
 .theme-switch button.active { background: var(--accent); color: var(--accent-text); }
+
+/* Lists */
+.list-preview { margin: 6px 0 2px; }
+.list-progress { height: 4px; background: var(--border); border-radius: 4px; overflow: hidden; }
+.list-progress span { display: block; height: 100%; background: #16a34a; }
+.list-count { font-size: .8rem; color: var(--muted); }
+.list-preview ul { list-style: none; padding: 0; margin: 4px 0 0; display: grid; gap: 2px; }
+.list-preview li { display: flex; align-items: center; gap: 8px; font-size: .95rem; }
+.list-preview li.more { color: var(--muted); font-size: .85rem; padding-left: 30px; }
+.check.small { width: 20px; height: 20px; min-width: 20px; font-size: .7rem; padding: 0; }
+.list-preview li.p-urgent .check { border-color: var(--urgent); }
+.list-preview li.p-high .check { border-color: var(--high); }
+.items-box { display: grid; gap: 8px; }
+.items-head { display: flex; align-items: baseline; gap: 10px; }
+.items-head h3 { margin: 0; font-size: 1rem; }
+.item-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; }
+.item { display: flex; align-items: center; gap: 8px; border-left: 3px solid var(--normal); padding-left: 8px; }
+.item.p-urgent { border-left-color: var(--urgent); }
+.item.p-high { border-left-color: var(--high); }
+.item.p-low { border-left-color: var(--low); }
+.item.done .item-text { text-decoration: line-through; color: var(--muted); }
+.item-text { flex: 1; min-width: 0; border: 1px solid transparent; background: transparent; border-radius: 8px; padding: .35em .5em; }
+.item-text:focus { border-color: var(--border); background: var(--surface); outline: none; }
+.item-priority { border: 1px solid var(--border); border-radius: 8px; background: var(--surface); padding: .25em .4em; font-size: .85rem; }
+.add-item { display: flex; gap: 8px; }
+.add-item input { flex: 1; border: 1px solid var(--border); border-radius: 10px; padding: .5em .7em; background: var(--surface); }

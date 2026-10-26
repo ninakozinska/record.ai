@@ -68,6 +68,11 @@ function migrate(db) {
     db.exec('ALTER TABLE notes ADD COLUMN user_id TEXT');
   }
   db.exec('CREATE INDEX IF NOT EXISTS notes_user_rev ON notes(user_id, rev)');
+  // Lists: an item is a small note that belongs to another note (its list).
+  if (!columns(db, 'notes').includes('parent_id')) {
+    db.exec('ALTER TABLE notes ADD COLUMN parent_id TEXT');
+  }
+  db.exec('CREATE INDEX IF NOT EXISTS notes_parent ON notes(parent_id)');
   // Sessions used to be anonymous (one shared password). Start over with
   // per-user sessions that store only a hash of the token.
   if (!columns(db, 'sessions').includes('user_id')) {
@@ -123,6 +128,7 @@ function rowToNote(r) {
     priority: r.user_priority || r.ai_priority || 'normal',
     rev: r.rev,
     user_id: r.user_id,
+    parent_id: r.parent_id ?? null,
   };
 }
 
@@ -146,16 +152,17 @@ class Store {
     return rowToNote(this.db.prepare('SELECT * FROM notes WHERE id = ?').get(id));
   }
 
-  changesSince(userId, rev) {
+  /** Everything that changed after `rev`. `items: false` leaves out list items (for apps that don't show lists yet). */
+  changesSince(userId, rev, { items = true } = {}) {
     return this.db
-      .prepare('SELECT * FROM notes WHERE user_id = ? AND rev > ? ORDER BY rev')
+      .prepare('SELECT * FROM notes WHERE user_id = ? AND rev > ?' + (items ? '' : ' AND parent_id IS NULL') + ' ORDER BY rev')
       .all(userId, rev)
       .map(rowToNote);
   }
 
-  /** Open notes of one user, or of everyone when userId is omitted. */
+  /** Open notes (not list items) of one user, or of everyone when userId is omitted. */
   active(userId) {
-    const sql = 'SELECT * FROM notes WHERE deleted = 0' + (userId ? ' AND user_id = ?' : '') + ' ORDER BY created_at';
+    const sql = 'SELECT * FROM notes WHERE deleted = 0 AND parent_id IS NULL' + (userId ? ' AND user_id = ?' : '') + ' ORDER BY created_at';
     return this.db
       .prepare(sql)
       .all(...(userId ? [userId] : []))
@@ -174,6 +181,12 @@ class Store {
     if (existing && existing.edited_at > input.edited_at) {
       return { note: existing, stale: true };
     }
+    // A list item belongs to a note of the same person (one level only).
+    const parentId = existing ? existing.parent_id : input.parent_id ?? null;
+    if (!existing && parentId) {
+      const parent = this.get(parentId);
+      if (parent && (parent.user_id !== userId || parent.parent_id)) return { forbidden: true };
+    }
     const images = JSON.stringify(input.images ?? existing?.images ?? []);
     const text = input.text ?? existing?.text ?? '';
     const contentChanged =
@@ -182,13 +195,14 @@ class Store {
     if (!existing) {
       this.db
         .prepare(
-          `INSERT INTO notes (id, user_id, text, images, done, deleted, created_at, edited_at,
+          `INSERT INTO notes (id, user_id, parent_id, text, images, done, deleted, created_at, edited_at,
              user_group, user_priority, ai_status, rev)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
         .run(
           input.id,
           userId,
+          parentId,
           text,
           images,
           input.done ? 1 : 0,
@@ -197,6 +211,8 @@ class Store {
           input.edited_at,
           input.user_group ?? null,
           input.user_priority ?? null,
+          // Items aren't sent to the AI: only their list is.
+          parentId ? 'done' : 'pending',
           rev,
         );
     } else {
@@ -205,7 +221,7 @@ class Store {
         .prepare(
           `UPDATE notes SET text = ?, images = ?, done = ?, deleted = ?, edited_at = ?,
              user_group = ?, user_priority = ?,
-             ai_status = CASE WHEN ? THEN 'pending' ELSE ai_status END,
+             ai_status = CASE WHEN ? AND parent_id IS NULL THEN 'pending' ELSE ai_status END,
              rev = ?
            WHERE id = ?`,
         )
@@ -222,7 +238,25 @@ class Store {
           input.id,
         );
     }
-    return { note: this.get(input.id), contentChanged };
+    return { note: this.get(input.id), contentChanged: contentChanged && !parentId };
+  }
+
+  /** Items of a list, in the order they were added. */
+  items(parentId) {
+    return this.db
+      .prepare('SELECT * FROM notes WHERE parent_id = ? AND deleted = 0 ORDER BY created_at')
+      .all(parentId)
+      .map(rowToNote);
+  }
+
+  /** Deleting a list deletes its items too. Returns the items it changed. */
+  deleteItems(parentId) {
+    const changed = [];
+    for (const item of this.items(parentId)) {
+      this.db.prepare('UPDATE notes SET deleted = 1, edited_at = ?, rev = ? WHERE id = ?').run(Date.now(), this.nextRev(), item.id);
+      changed.push(this.get(item.id));
+    }
+    return changed;
   }
 
   /** Write AI-owned fields. Never touches user-owned fields. */
@@ -265,7 +299,7 @@ class Store {
     return this.db
       .prepare(
         `SELECT COALESCE(user_group, ai_group) AS name, COUNT(*) AS count
-         FROM notes WHERE user_id = ? AND deleted = 0 AND COALESCE(user_group, ai_group) IS NOT NULL
+         FROM notes WHERE user_id = ? AND deleted = 0 AND parent_id IS NULL AND COALESCE(user_group, ai_group) IS NOT NULL
          GROUP BY name ORDER BY count DESC`,
       )
       .all(userId)
