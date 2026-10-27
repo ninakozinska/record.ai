@@ -241,10 +241,32 @@ class Composer {
 }
 
 const composer = new Composer($('#composer'));
+// Lines starting with "- ", "* ", "• ", "[ ]" or "☐" become list items.
+const ITEM_LINE = /^\s*(?:[-*•]|\[ ?\]|☐)\s+(.+)$/;
+function splitList(text) {
+  const rest = [];
+  const items = [];
+  for (const line of text.split('\n')) {
+    const m = line.match(ITEM_LINE);
+    if (m) items.push(m[1].trim());
+    else rest.push(line);
+  }
+  return { text: rest.join('\n').trim(), items };
+}
+
+async function addItems(parentId, texts) {
+  for (const t of texts) await local.save(uuid(), { parent_id: parentId, text: t });
+}
+
 async function saveComposer() {
   composer.dictation.stop();
   if (composer.isEmpty()) return;
-  await local.save(uuid(), composer.value);
+  const { text, images } = composer.value;
+  const list = splitList(text);
+  const id = uuid();
+  // The list (its title line) goes first, so its items always have a parent.
+  await local.save(id, { text: list.items.length ? list.text || 'List' : text, images });
+  await addItems(id, list.items);
   composer.reset();
   composer.text.focus();
 }
@@ -283,7 +305,23 @@ const editor = {
     if (n.ai_status === 'error') ai.push(`<p class="error">AI error: ${esc(n.ai_error)}</p>`);
     $('#editorAi').innerHTML = ai.join('');
     $('#editorAi').hidden = !ai.length;
+    $('#newItem').value = '';
+    this.renderItems();
     this.dialog.showModal();
+  },
+  renderItems() {
+    const items = local.items(this.id);
+    const open = items.filter((i) => !i.done).length;
+    $('#itemsCount').textContent = items.length ? `${items.length - open}/${items.length} done` : '';
+    $('#itemList').innerHTML = items.map((i) => `
+      <li class="item p-${i.priority} ${i.done ? 'done' : ''}" data-item="${esc(i.id)}">
+        <button type="button" class="check" data-item-toggle title="${i.done ? 'Mark not done' : 'Mark done'}">${i.done ? '✓' : ''}</button>
+        <input class="item-text" data-item-text value="${esc(i.text)}" aria-label="Item">
+        <select class="item-priority" data-item-priority aria-label="Priority">
+          ${['urgent', 'high', 'normal', 'low'].map((p) => `<option value="${p}" ${i.priority === p ? 'selected' : ''}>${PRIORITY_LABEL[p]}</option>`).join('')}
+        </select>
+        <button type="button" class="icon-btn" data-item-delete title="Remove item">✕</button>
+      </li>`).join('');
   },
   async save() {
     const n = local.notes.get(this.id);
@@ -298,6 +336,53 @@ const editor = {
     if (Object.keys(patch).length) await local.save(this.id, patch);
   },
 };
+async function addEditorItem() {
+  const input = $('#newItem');
+  const texts = input.value.split('\n').map((t) => t.trim()).filter(Boolean);
+  if (!texts.length) return;
+  input.value = '';
+  await addItems(editor.id, texts);
+  editor.renderItems();
+  input.focus();
+}
+$('#addItem').onclick = addEditorItem;
+$('#newItem').addEventListener('keydown', (e) => {
+  // Enter adds the item (instead of closing the editor).
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    addEditorItem();
+  }
+});
+$('#itemList').addEventListener('click', async (e) => {
+  const li = e.target.closest('[data-item]');
+  if (!li) return;
+  const id = li.dataset.item;
+  if (e.target.closest('[data-item-toggle]')) await local.save(id, { done: !local.notes.get(id).done });
+  else if (e.target.closest('[data-item-delete]')) await local.save(id, { deleted: true });
+  else return;
+  editor.renderItems();
+});
+$('#itemList').addEventListener('change', async (e) => {
+  const li = e.target.closest('[data-item]');
+  if (!li) return;
+  const id = li.dataset.item;
+  if (e.target.matches('[data-item-text]')) {
+    const text = e.target.value.trim();
+    if (text) await local.save(id, { text });
+    else await local.save(id, { deleted: true });
+  } else if (e.target.matches('[data-item-priority]')) {
+    await local.save(id, { user_priority: e.target.value });
+  } else return;
+  editor.renderItems();
+});
+// Items typed into the list keep the editor open on Enter.
+$('#itemList').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && e.target.matches('[data-item-text]')) {
+    e.preventDefault();
+    e.target.blur();
+  }
+});
+
 editor.dialog.addEventListener('close', async () => {
   editor.composer.dictation.stop();
   if (editor.dialog.returnValue === 'save') await editor.save();
@@ -370,7 +455,7 @@ function sortNotes(a, b) {
 
 function matches(n, q) {
   if (!q) return true;
-  const hay = [n.text, n.title, n.summary, n.group, ...(n.tags || [])].join(' ').toLowerCase();
+  const hay = [n.text, n.title, n.summary, n.group, ...(n.tags || []), ...local.items(n.id).map((i) => i.text)].join(' ').toLowerCase();
   return q.split(/\s+/).every((w) => hay.includes(w));
 }
 
@@ -392,6 +477,20 @@ function dueLabel(date) {
   return { text: `due ${date}`, cls: '' };
 }
 
+/** A list's progress and its first open items, tickable from the card. */
+function listPreview(id) {
+  const items = local.items(id);
+  if (!items.length) return '';
+  const done = items.filter((i) => i.done).length;
+  const open = items.filter((i) => !i.done).slice(0, 4);
+  return `<div class="list-preview">
+    <div class="list-progress"><span style="width:${Math.round((done / items.length) * 100)}%"></span></div>
+    <span class="list-count">☑ ${done}/${items.length}</span>
+    <ul>${open.map((i) => `<li class="p-${i.priority}"><button class="check small" data-item-check="${esc(i.id)}" title="Mark done"></button>${esc(i.text)}</li>`).join('')}
+    ${items.length - done > open.length ? `<li class="more">+ ${items.length - done - open.length} more</li>` : ''}</ul>
+  </div>`;
+}
+
 function card(n, { showGroup }) {
   const title = n.title || n.text.split('\n')[0].slice(0, 80) || (n.images.length ? 'Photo' : 'Untitled');
   const body = n.title ? n.text : n.text.split('\n').slice(1).join('\n');
@@ -407,6 +506,7 @@ function card(n, { showGroup }) {
           <h3>${esc(title)}</h3>${status}
         </div>
         ${body.trim() ? `<p class="note-text">${esc(body.trim())}</p>` : ''}
+        ${listPreview(n.id)}
         ${n.images.length ? `<div class="note-images">${n.images.map((i) => `<img data-img="${esc(i)}" alt="" loading="lazy">`).join('')}</div>` : ''}
         <div class="meta">
           <span class="badge p-${n.priority}">${PRIORITY_LABEL[n.priority]}${n.user_priority ? ' 📌' : ''}</span>
@@ -486,6 +586,11 @@ $('#list').addEventListener('click', async (e) => {
   const article = e.target.closest('.note');
   if (!article) return;
   const id = article.dataset.id;
+  const itemCheck = e.target.closest('[data-item-check]');
+  if (itemCheck) {
+    await local.save(itemCheck.dataset.itemCheck, { done: true });
+    return;
+  }
   if (e.target.closest('[data-check]')) {
     await local.save(id, { done: !local.notes.get(id).done });
     return;
@@ -667,6 +772,23 @@ $('#loginForm').addEventListener('submit', async (e) => {
 });
 $('#login').addEventListener('cancel', (e) => e.preventDefault());
 
+// Show / Hide on password fields, so people can check what they typed.
+function showPassword(button, show) {
+  button.previousElementSibling.type = show ? 'text' : 'password';
+  button.textContent = show ? 'Hide' : 'Show';
+  button.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+  button.setAttribute('aria-pressed', String(show));
+}
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-pw-toggle]');
+  if (b) showPassword(b, b.previousElementSibling.type === 'password');
+});
+// Passwords are hidden again when the window closes or a new password is saved.
+function hidePasswords() {
+  for (const b of document.querySelectorAll('[data-pw-toggle]')) showPassword(b, false);
+}
+for (const id of ['#login', '#account']) $(id).addEventListener('close', hidePasswords);
+
 function initials(name) {
   return (name || '?').split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('');
 }
@@ -767,6 +889,7 @@ $('#passwordForm').addEventListener('submit', async (e) => {
     msg.className = 'ok';
     msg.textContent = 'Password saved. Your other devices need to log in again.';
     $('#pwCurrent').value = $('#pwNext').value = '';
+    hidePasswords();
     loadSigninOptions();
   } catch (err) {
     msg.className = 'err';

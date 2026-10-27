@@ -15,13 +15,14 @@ const MAX_IMAGE_BYTES = 15 * 1024 * 1024;
 const NOTE_ID = /^[a-zA-Z0-9-]{8,64}$/;
 const MAX_BATCH = 500;
 const MAX_MY_GROUPS = 30;
-const NOTE_FIELDS = ['text', 'images', 'done', 'deleted', 'created_at', 'edited_at', 'user_group', 'user_priority'];
+const NOTE_FIELDS = ['text', 'images', 'done', 'deleted', 'created_at', 'edited_at', 'user_group', 'user_priority', 'parent_id'];
 
 /** Checks one note change from a client. Returns an error message, or null when it is valid. */
 function invalidChange(id, body) {
   if (!NOTE_ID.test(String(id))) return 'Bad id';
   if (typeof body.edited_at !== 'number') return 'edited_at required';
   if (body.user_priority != null && !PRIORITIES.includes(body.user_priority)) return 'Bad priority';
+  if (body.parent_id != null && (!NOTE_ID.test(String(body.parent_id)) || body.parent_id === id)) return 'Bad parent_id';
   if (body.images && !(Array.isArray(body.images) && body.images.every((n) => IMAGE_NAME.test(n)))) {
     return 'Bad image list';
   }
@@ -58,8 +59,11 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth } = {}) {
   // --- live updates (Server-Sent Events), one channel per user ---------------
   const clients = new Map(); // userId -> Set<res>
   const send = (res, event, data) => res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+  // Apps that don't show lists yet (older phone apps) don't get list items.
   const onChange = (note) => {
-    for (const res of clients.get(note.user_id) || []) send(res, 'note', note);
+    for (const res of clients.get(note.user_id) || []) {
+      if (!note.parent_id || res.wantsItems) send(res, 'note', note);
+    }
   };
   const broadcastStatus = (status) => {
     for (const set of clients.values()) for (const res of set) send(res, 'status', status);
@@ -124,7 +128,7 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth } = {}) {
   // Incremental sync: everything that changed after `since` (including deletions).
   app.get('/api/notes', (req, res) => {
     const since = Number(req.query.since) || 0;
-    res.json({ rev: store.rev, notes: store.changesSince(req.user.id, since) });
+    res.json({ rev: store.rev, notes: store.changesSince(req.user.id, since, { items: req.query.items === '1' }) });
   });
 
   /** Applies one client change: { status: 'ok' | 'stale' | 'forbidden' | 'invalid', note?, error? }. */
@@ -140,6 +144,8 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth } = {}) {
     if (!stale) {
       onChange(note);
       if (contentChanged && !note.deleted) organizer.enqueue(id);
+      // Deleting a list deletes its items.
+      if (note.deleted && !note.parent_id) for (const item of store.deleteItems(id)) onChange(item);
     }
     return { status: stale ? 'stale' : 'ok', note };
   };
@@ -154,7 +160,7 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth } = {}) {
   // One round trip for a whole sync: send every unsent change, get back
   // everything that changed since `since` (including your own saved changes).
   app.post('/api/sync', (req, res) => {
-    const { since = 0, changes = [] } = req.body || {};
+    const { since = 0, changes = [], items = false } = req.body || {};
     if (!Array.isArray(changes) || changes.length > MAX_BATCH) {
       return res.status(400).json({ error: `changes must be a list of at most ${MAX_BATCH}` });
     }
@@ -162,7 +168,7 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth } = {}) {
       const { status, error } = applyChange(req.user.id, c?.id, c || {});
       return error ? { id: c?.id, status, error } : { id: c?.id, status };
     });
-    res.json({ rev: store.rev, results, notes: store.changesSince(req.user.id, Number(since) || 0) });
+    res.json({ rev: store.rev, results, notes: store.changesSince(req.user.id, Number(since) || 0, { items: items === true }) });
   });
 
   // Ask the AI to analyse one note again.
@@ -235,6 +241,7 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth } = {}) {
       Connection: 'keep-alive',
       'X-Accel-Buffering': 'no',
     });
+    res.wantsItems = req.query.items === '1';
     send(res, 'hello', { rev: store.rev, ai: organizer.status });
     const uid = req.user.id;
     if (!clients.has(uid)) clients.set(uid, new Set());
