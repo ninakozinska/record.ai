@@ -207,6 +207,13 @@ dialog::backdrop { background: rgba(10, 10, 20, .5); }
 .field input {
   padding: .6em .75em; border-radius: 10px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: 1rem;
 }
+/* Password fields: Show / Hide what you typed. */
+.pw-wrap { position: relative; display: flex; }
+.pw-wrap input { flex: 1; min-width: 0; padding-right: 4.5em; }
+.pw-toggle {
+  position: absolute; right: .35em; top: 50%; transform: translateY(-50%);
+  padding: .3em .6em; border-radius: 8px; color: var(--accent); font-size: .85rem; font-weight: 600;
+}
 #loginForm h2, #account h2 { margin: 0; }
 #loginForm .muted { margin: 0; }
 .switch { margin: 0; text-align: center; font-size: .9rem; color: var(--muted); }

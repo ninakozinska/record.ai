@@ -97,6 +97,12 @@ try {
   assert.equal(await phone.isVisible('#loginCode'), false, 'no invite code field when logging in');
   await phone.fill('#loginEmail', 'nina@example.com');
   await phone.fill('#loginPassword', 'wrong password');
+  // Show lets you check what you typed; Hide covers it again.
+  await phone.click('#loginForm [data-pw-toggle]');
+  assert.equal(await phone.getAttribute('#loginPassword', 'type'), 'text');
+  await phone.screenshot({ path: path.join(out, 'phone-password-shown.png') });
+  await phone.click('#loginForm [data-pw-toggle]:text("Hide")');
+  assert.equal(await phone.getAttribute('#loginPassword', 'type'), 'password');
   await phone.click('#loginSubmit');
   await phone.waitForSelector('#loginError:text("Wrong email or password")');
   await phone.fill('#loginPassword', 'correct horse');

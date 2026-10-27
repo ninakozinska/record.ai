@@ -772,6 +772,23 @@ $('#loginForm').addEventListener('submit', async (e) => {
 });
 $('#login').addEventListener('cancel', (e) => e.preventDefault());
 
+// Show / Hide on password fields, so people can check what they typed.
+function showPassword(button, show) {
+  button.previousElementSibling.type = show ? 'text' : 'password';
+  button.textContent = show ? 'Hide' : 'Show';
+  button.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+  button.setAttribute('aria-pressed', String(show));
+}
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-pw-toggle]');
+  if (b) showPassword(b, b.previousElementSibling.type === 'password');
+});
+// Passwords are hidden again when the window closes or a new password is saved.
+function hidePasswords() {
+  for (const b of document.querySelectorAll('[data-pw-toggle]')) showPassword(b, false);
+}
+for (const id of ['#login', '#account']) $(id).addEventListener('close', hidePasswords);
+
 function initials(name) {
   return (name || '?').split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('');
 }
@@ -872,6 +889,7 @@ $('#passwordForm').addEventListener('submit', async (e) => {
     msg.className = 'ok';
     msg.textContent = 'Password saved. Your other devices need to log in again.';
     $('#pwCurrent').value = $('#pwNext').value = '';
+    hidePasswords();
     loadSigninOptions();
   } catch (err) {
     msg.className = 'err';

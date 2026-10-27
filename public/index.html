@@ -139,7 +139,7 @@
         <input id="loginEmail" type="email" autocomplete="email" inputmode="email" autocapitalize="off">
       </label>
       <label class="field">Password
-        <input id="loginPassword" type="password" autocomplete="current-password">
+        <span class="pw-wrap"><input id="loginPassword" type="password" autocomplete="current-password"><button type="button" class="pw-toggle" data-pw-toggle aria-label="Show password" aria-pressed="false">Show</button></span>
       </label>
       <label class="field" id="codeField" hidden>Invite code
         <input id="loginCode" autocomplete="off" autocapitalize="off">
@@ -181,10 +181,10 @@
       <form id="passwordForm" class="stack" novalidate>
         <h3 id="pwTitle">Change password</h3>
         <label class="field" id="pwCurrentField">Current password
-          <input id="pwCurrent" type="password" autocomplete="current-password">
+          <span class="pw-wrap"><input id="pwCurrent" type="password" autocomplete="current-password"><button type="button" class="pw-toggle" data-pw-toggle aria-label="Show password" aria-pressed="false">Show</button></span>
         </label>
         <label class="field">New password (at least 8 characters)
-          <input id="pwNext" type="password" autocomplete="new-password">
+          <span class="pw-wrap"><input id="pwNext" type="password" autocomplete="new-password"><button type="button" class="pw-toggle" data-pw-toggle aria-label="Show password" aria-pressed="false">Show</button></span>
         </label>
         <p id="pwMessage" role="status"></p>
         <button class="ghost">Change password</button>
