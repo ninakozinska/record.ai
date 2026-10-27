@@ -97,7 +97,42 @@ function migrate(db) {
       PRIMARY KEY (provider, subject)
     );
     CREATE INDEX IF NOT EXISTS identities_user ON identities(user_id);
+    -- Sharing: a note (with its items) or a whole group, shared with someone by email.
+    -- user_id is filled in once that email has an account.
+    CREATE TABLE IF NOT EXISTS shares (
+      id         TEXT PRIMARY KEY,
+      owner_id   TEXT NOT NULL,
+      kind       TEXT NOT NULL,              -- 'note' or 'group'
+      target     TEXT NOT NULL,              -- the note id, or the group name
+      email      TEXT NOT NULL COLLATE NOCASE,
+      user_id    TEXT,
+      role       TEXT NOT NULL,              -- 'edit' or 'view'
+      created_at INTEGER NOT NULL,
+      UNIQUE (owner_id, kind, target, email)
+    );
+    CREATE INDEX IF NOT EXISTS shares_user ON shares(user_id);
+    CREATE INDEX IF NOT EXISTS shares_owner ON shares(owner_id);
+    -- Shared notes a person may have on their devices, so each device can be
+    -- told to remove them when sharing stops. visible = 0 once it stopped.
+    CREATE TABLE IF NOT EXISTS share_seen (
+      user_id TEXT NOT NULL,
+      note_id TEXT NOT NULL,
+      visible INTEGER NOT NULL DEFAULT 1,
+      PRIMARY KEY (user_id, note_id)
+    ) WITHOUT ROWID;
   `);
+}
+
+// The group a note counts in for sharing: an item counts in its list's group.
+const ROOT_GROUP = `CASE WHEN n.parent_id IS NULL THEN COALESCE(n.user_group, n.ai_group, 'Inbox')
+  ELSE COALESCE(p.user_group, p.ai_group, 'Inbox') END`;
+// Shares that cover note n (joined with its list p) for its owner.
+const SHARE_MATCHES = `s.owner_id = n.user_id AND (
+  (s.kind = 'note' AND s.target = COALESCE(n.parent_id, n.id))
+  OR (s.kind = 'group' AND s.target = ${ROOT_GROUP} COLLATE NOCASE))`;
+
+function rowToShare(r) {
+  return r ? { id: r.id, owner_id: r.owner_id, kind: r.kind, target: r.target, email: r.email, user_id: r.user_id, role: r.role, created_at: r.created_at } : null;
 }
 
 const hashToken = (token) => crypto.createHash('sha256').update(token).digest('hex');
@@ -152,12 +187,41 @@ class Store {
     return rowToNote(this.db.prepare('SELECT * FROM notes WHERE id = ?').get(id));
   }
 
-  /** Everything that changed after `rev`. `items: false` leaves out list items (for apps that don't show lists yet). */
-  changesSince(userId, rev, { items = true } = {}) {
-    return this.db
+  /**
+   * Everything that changed after `rev`. `items: false` leaves out list items
+   * (for apps that don't show lists yet); `shared: true` adds notes others
+   * shared with this person (each with its `role`), and a removal notice
+   * ({ id, deleted, revoked }) for shared notes they can no longer see.
+   */
+  changesSince(userId, rev, { items = true, shared = false } = {}) {
+    const own = this.db
       .prepare('SELECT * FROM notes WHERE user_id = ? AND rev > ?' + (items ? '' : ' AND parent_id IS NULL') + ' ORDER BY rev')
       .all(userId, rev)
       .map(rowToNote);
+    if (!shared) return own;
+    const onlyLists = items ? '' : ' AND n.parent_id IS NULL';
+    // An item is sent again when its list changed, e.g. when the list moved into a shared group.
+    const visible = this.db
+      .prepare(
+        `SELECT n.*, MAX(s.role = 'edit') AS can_edit FROM notes n
+         LEFT JOIN notes p ON p.id = n.parent_id
+         JOIN shares s ON s.user_id = ? AND ${SHARE_MATCHES}
+         WHERE n.user_id != ? AND (n.rev > ? OR p.rev > ?)${onlyLists}
+         GROUP BY n.id`,
+      )
+      .all(userId, userId, rev, rev)
+      .map((r) => this.forRecipient(userId, rowToNote(r), r.can_edit ? 'edit' : 'view'));
+    const ids = new Set(visible.map((n) => n.id));
+    const gone = this.db
+      .prepare(
+        `SELECT n.* FROM share_seen ss JOIN notes n ON n.id = ss.note_id
+         LEFT JOIN notes p ON p.id = n.parent_id
+         WHERE ss.user_id = ? AND (n.rev > ? OR p.rev > ?)${onlyLists}`,
+      )
+      .all(userId, rev, rev)
+      .filter((r) => !ids.has(r.id))
+      .map((r) => this.revoked(userId, rowToNote(r)));
+    return [...own, ...visible, ...gone].sort((a, b) => a.rev - b.rev);
   }
 
   /** Open notes (not list items) of one user, or of everyone when userId is omitted. */
@@ -177,15 +241,31 @@ class Store {
    */
   upsertFromClient(userId, input) {
     const existing = this.get(input.id);
-    if (existing && existing.user_id !== userId) return { forbidden: true };
+    if (existing && existing.user_id !== userId) {
+      // Someone it was shared with: editors change the text, photos, done and
+      // the items; the owner's groups and priorities stay the owner's, and only
+      // the owner deletes the list itself.
+      if (this.access(userId, existing) !== 'edit') return { forbidden: true };
+      delete input.user_group;
+      if (!existing.parent_id) {
+        delete input.user_priority;
+        delete input.deleted;
+      }
+    }
     if (existing && existing.edited_at > input.edited_at) {
       return { note: existing, stale: true };
     }
-    // A list item belongs to a note of the same person (one level only).
+    // A list item belongs to the list's owner (one level only); people the list
+    // is shared with for editing can add items too.
     const parentId = existing ? existing.parent_id : input.parent_id ?? null;
+    let ownerId = existing ? existing.user_id : userId;
     if (!existing && parentId) {
       const parent = this.get(parentId);
-      if (parent && (parent.user_id !== userId || parent.parent_id)) return { forbidden: true };
+      if (parent) {
+        if (parent.parent_id) return { forbidden: true };
+        if (parent.user_id !== userId && this.access(userId, parent) !== 'edit') return { forbidden: true };
+        ownerId = parent.user_id;
+      }
     }
     const images = JSON.stringify(input.images ?? existing?.images ?? []);
     const text = input.text ?? existing?.text ?? '';
@@ -201,7 +281,7 @@ class Store {
         )
         .run(
           input.id,
-          userId,
+          ownerId,
           parentId,
           text,
           images,
@@ -319,10 +399,132 @@ class Store {
     this.setMeta(`my_groups:${userId}`, JSON.stringify(names));
   }
 
+  // --- sharing ----------------------------------------------------------------
+
+  /** 'owner', 'edit', 'view' or null: what this person may do with a note. */
+  access(userId, note) {
+    if (!note) return null;
+    if (note.user_id === userId) return 'owner';
+    return this.audience(note).get(userId) ?? null;
+  }
+
+  /** Everyone a note is shared with (who has an account): Map userId -> 'edit' | 'view'. */
+  audience(note) {
+    const rows = this.db
+      .prepare(
+        `SELECT s.user_id, MAX(s.role = 'edit') AS can_edit FROM notes n
+         LEFT JOIN notes p ON p.id = n.parent_id
+         JOIN shares s ON s.user_id IS NOT NULL AND ${SHARE_MATCHES}
+         WHERE n.id = ? GROUP BY s.user_id`,
+      )
+      .all(note.id);
+    return new Map(rows.map((r) => [r.user_id, r.can_edit ? 'edit' : 'view']));
+  }
+
+  /** A shared note as its recipient gets it; remembers that they may have it. */
+  forRecipient(userId, note, role) {
+    this.db
+      .prepare('INSERT INTO share_seen (user_id, note_id, visible) VALUES (?, ?, 1) ON CONFLICT DO UPDATE SET visible = 1')
+      .run(userId, note.id);
+    return { ...note, role, owner_name: this.getUser(note.user_id)?.name ?? '' };
+  }
+
+  /** Tells a former recipient to remove a note (without its contents). */
+  revoked(userId, note) {
+    this.db.prepare('UPDATE share_seen SET visible = 0 WHERE user_id = ? AND note_id = ?').run(userId, note.id);
+    return { id: note.id, parent_id: note.parent_id, user_id: note.user_id, rev: note.rev, edited_at: note.edited_at, deleted: true, revoked: true };
+  }
+
+  /** People who can currently have this note on their devices. */
+  seenBy(noteId) {
+    return this.db.prepare('SELECT user_id FROM share_seen WHERE note_id = ? AND visible = 1').all(noteId).map((r) => r.user_id);
+  }
+
+  getShare(id) {
+    return rowToShare(this.db.prepare('SELECT * FROM shares WHERE id = ?').get(id));
+  }
+
+  /** Shares I made (with the person's name once they have an account). */
+  sharesBy(ownerId) {
+    return this.db
+      .prepare('SELECT s.*, u.name AS name FROM shares s LEFT JOIN users u ON u.id = s.user_id WHERE s.owner_id = ? ORDER BY s.created_at')
+      .all(ownerId)
+      .map((r) => ({ ...rowToShare(r), name: r.name ?? null }));
+  }
+
+  /** What others shared with me, and who shared it. */
+  sharesWith(userId) {
+    return this.db
+      .prepare(
+        `SELECT s.*, u.name AS owner_name, u.email AS owner_email FROM shares s JOIN users u ON u.id = s.owner_id
+         WHERE s.user_id = ? ORDER BY s.created_at`,
+      )
+      .all(userId)
+      .map((r) => ({ ...rowToShare(r), owner: { id: r.owner_id, name: r.owner_name, email: r.owner_email } }));
+  }
+
+  shareCount(ownerId) {
+    return this.db.prepare('SELECT COUNT(*) AS n FROM shares WHERE owner_id = ?').get(ownerId).n;
+  }
+
+  /** Shares a note or group with an email address; sharing again changes the role. */
+  addShare(ownerId, { kind, target, email, role }) {
+    const user = this.findUserByEmail(email);
+    const existing = this.db
+      .prepare('SELECT id FROM shares WHERE owner_id = ? AND kind = ? AND target = ? AND email = ?')
+      .get(ownerId, kind, target, email);
+    if (existing) {
+      this.db.prepare('UPDATE shares SET role = ?, user_id = ? WHERE id = ?').run(role, user?.id ?? null, existing.id);
+      return this.getShare(existing.id);
+    }
+    const id = crypto.randomUUID();
+    this.db
+      .prepare('INSERT INTO shares (id, owner_id, kind, target, email, user_id, role, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(id, ownerId, kind, target, email, user?.id ?? null, role, Date.now());
+    return this.getShare(id);
+  }
+
+  setShareRole(id, role) {
+    this.db.prepare('UPDATE shares SET role = ? WHERE id = ?').run(role, id);
+    return this.getShare(id);
+  }
+
+  removeShare(id) {
+    this.db.prepare('DELETE FROM shares WHERE id = ?').run(id);
+  }
+
+  /**
+   * Gives the notes a share covers a new revision, so every device of the
+   * owner and of the person picks up the change (a new share, a new role, or
+   * an ended one) at its next sync. Returns those notes.
+   */
+  touchShare(share) {
+    const rows = this.db
+      .prepare(
+        `SELECT n.id FROM notes n LEFT JOIN notes p ON p.id = n.parent_id
+         WHERE n.user_id = ? AND CASE ? WHEN 'note' THEN COALESCE(n.parent_id, n.id) = ?
+           ELSE ${ROOT_GROUP} = ? COLLATE NOCASE END`,
+      )
+      .all(share.owner_id, share.kind, share.target, share.target);
+    return rows.map(({ id }) => {
+      this.db.prepare('UPDATE notes SET rev = ? WHERE id = ?').run(this.nextRev(), id);
+      return this.get(id);
+    });
+  }
+
   // --- images ---------------------------------------------------------------
 
   imageOwner(name) {
     return this.db.prepare('SELECT user_id FROM images WHERE name = ?').get(name)?.user_id ?? null;
+  }
+
+  /** A photo can be seen by its uploader and by anyone who can see a note it is in. */
+  canSeeImage(userId, name) {
+    if (this.imageOwner(name) === userId) return true;
+    return this.db
+      .prepare('SELECT * FROM notes WHERE images LIKE ? AND deleted = 0')
+      .all(`%"${name}"%`)
+      .some((r) => this.access(userId, rowToNote(r)));
   }
 
   addImage(name, userId) {
@@ -356,6 +558,8 @@ class Store {
     this.db
       .prepare('INSERT INTO users (id, email, name, pw_hash, created_at) VALUES (?, ?, ?, ?, ?)')
       .run(id, email.trim(), name.trim(), pwHash, Date.now());
+    // Things shared with this email before the account existed.
+    this.db.prepare('UPDATE shares SET user_id = ? WHERE email = ? AND user_id IS NULL').run(id, email.trim());
     if (first) {
       const legacy = this.db.prepare('SELECT id FROM notes WHERE user_id IS NULL').all();
       for (const { id: noteId } of legacy) {

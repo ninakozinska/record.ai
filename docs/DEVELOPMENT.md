@@ -46,7 +46,8 @@ The web, iPhone and Android clients follow the same rules:
 9. **Small first.** Lists show 320px previews; the full photo loads only when opened. Images are cached in memory and on the device.
 10. **Live, not polling.** While the app is open, changes arrive over `/api/events`. A phone app closes this connection when it goes to the background (saving battery) and catches up with one sync when it comes back. Unsent edits are sent before the app is suspended (iPhone: background task; Android: WorkManager when the network returns).
 11. **Lists are opt-in.** An app that shows lists asks for items (`items=1` / `items: true`); older apps never receive them, so they don't show items as loose notes.
-12. **Logging out removes** the account's notes, photos and outbox from the device.
+12. **Sharing is opt-in too** (`shared=1` / `shared: true`). Shared notes carry `role`; a `revoked` note is removed from the device.
+13. **Logging out removes** the account's notes, photos and outbox from the device.
 
 ## Tests
 

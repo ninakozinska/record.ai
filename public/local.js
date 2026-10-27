@@ -6,7 +6,8 @@
 // by revision number when reconnecting.
 
 const DB_NAME = 'record-ai';
-const AI_FIELDS = ['title', 'summary', 'ai_group', 'ai_priority', 'priority_reason', 'tags', 'due_date', 'ai_status', 'ai_error', 'rev'];
+// Fields only the server sets: the AI's, and for shared notes the access and the owner's name.
+const AI_FIELDS = ['title', 'summary', 'ai_group', 'ai_priority', 'priority_reason', 'tags', 'due_date', 'ai_status', 'ai_error', 'rev', 'role', 'owner_name'];
 
 function req(r) {
   return new Promise((resolve, reject) => {
@@ -216,7 +217,7 @@ export class Local extends EventTarget {
 
   connect() {
     this.es?.close();
-    const es = new EventSource('api/events?items=1');
+    const es = new EventSource('api/events?items=1&shared=1');
     this.es = es;
     es.addEventListener('hello', (e) => {
       const { ai } = JSON.parse(e.data);
@@ -226,6 +227,8 @@ export class Local extends EventTarget {
     });
     es.addEventListener('note', (e) => this.merge([JSON.parse(e.data)]));
     es.addEventListener('status', (e) => this.setStatus({ ai: JSON.parse(e.data) }));
+    // Something was shared with me, or my sharing changed: reload the share lists.
+    es.addEventListener('shares', () => this.dispatchEvent(new Event('shares')));
     es.onerror = async () => {
       this.setStatus({ online: false });
       // EventSource retries by itself, except after an HTTP error (e.g. 401).
@@ -244,7 +247,7 @@ export class Local extends EventTarget {
     if (this.pulling) return;
     this.pulling = true;
     try {
-      const { rev, notes } = await this.api(`notes?since=${this.rev}&items=1`);
+      const { rev, notes } = await this.api(`notes?since=${this.rev}&items=1&shared=1`);
       await this.merge(notes);
       // A server whose database was reset would have a lower rev; resync fully.
       if (rev < this.rev) {
@@ -269,7 +272,16 @@ export class Local extends EventTarget {
   async merge(serverNotes) {
     if (!serverNotes.length) return;
     const store = this.tx('notes', 'readwrite');
+    const removed = [];
     for (const s of serverNotes) {
+      // Someone stopped sharing this with me: remove it from this device.
+      if (s.revoked) {
+        this.notes.delete(s.id);
+        store.delete(s.id);
+        this.pending.delete(s.id);
+        removed.push('note:' + s.id);
+        continue;
+      }
       const local = this.notes.get(s.id);
       // Replies and live updates can arrive out of order; never let an older
       // server state (lower revision) overwrite a newer one.
@@ -286,6 +298,8 @@ export class Local extends EventTarget {
       this.notes.set(s.id, next);
       store.put(next);
     }
+    // (Not inside the loop: waiting there would end the notes transaction.)
+    for (const key of removed) await req(this.tx('outbox', 'readwrite').delete(key));
     this.changed();
   }
 
@@ -322,7 +336,7 @@ export class Local extends EventTarget {
       const { rev, results, notes: changed } = await this.api('sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ since, items: true, changes: notes.map((i) => ({ id: i.id, ...i.body })) }),
+        body: JSON.stringify({ since, items: true, shared: true, changes: notes.map((i) => ({ id: i.id, ...i.body })) }),
       });
       for (const [k, item] of notes.entries()) {
         // Sent (or refused for good): clear it, unless a newer edit was queued meanwhile.

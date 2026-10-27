@@ -59,10 +59,35 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth } = {}) {
   // --- live updates (Server-Sent Events), one channel per user ---------------
   const clients = new Map(); // userId -> Set<res>
   const send = (res, event, data) => res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
-  // Apps that don't show lists yet (older phone apps) don't get list items.
+  // Apps that don't show lists or sharing yet (older phone apps) don't get list
+  // items or other people's notes.
+  const sendNote = (userId, note) => {
+    for (const res of clients.get(userId) || []) {
+      if (note.parent_id && !res.wantsItems) continue;
+      if (note.user_id !== userId && !res.wantsShared) continue;
+      send(res, 'note', note);
+    }
+  };
+  const sendShares = (userId) => {
+    for (const res of clients.get(userId) || []) if (res.wantsShared) send(res, 'shares', {});
+  };
+  // A changed note goes to its owner, to everyone it is shared with, and as a
+  // removal notice to anyone who could see it before but no longer can.
   const onChange = (note) => {
-    for (const res of clients.get(note.user_id) || []) {
-      if (!note.parent_id || res.wantsItems) send(res, 'note', note);
+    sendNote(note.user_id, note);
+    const audience = store.audience(note);
+    for (const [userId, role] of audience) {
+      const firstTime = !store.seenBy(note.id).includes(userId);
+      sendNote(userId, store.forRecipient(userId, note, role));
+      // A list that just became visible (e.g. moved into a shared group) brings its items.
+      if (firstTime && !note.parent_id) for (const item of store.items(note.id)) sendNote(userId, store.forRecipient(userId, item, role));
+    }
+    for (const userId of store.seenBy(note.id)) {
+      if (audience.has(userId)) continue;
+      sendNote(userId, store.revoked(userId, note));
+      if (!note.parent_id) {
+        for (const item of store.items(note.id)) if (store.seenBy(item.id).includes(userId)) sendNote(userId, store.revoked(userId, item));
+      }
     }
   };
   const broadcastStatus = (status) => {
@@ -128,7 +153,8 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth } = {}) {
   // Incremental sync: everything that changed after `since` (including deletions).
   app.get('/api/notes', (req, res) => {
     const since = Number(req.query.since) || 0;
-    res.json({ rev: store.rev, notes: store.changesSince(req.user.id, since, { items: req.query.items === '1' }) });
+    const notes = store.changesSince(req.user.id, since, { items: req.query.items === '1', shared: req.query.shared === '1' });
+    res.json({ rev: store.rev, notes });
   });
 
   /** Applies one client change: { status: 'ok' | 'stale' | 'forbidden' | 'invalid', note?, error? }. */
@@ -141,13 +167,14 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth } = {}) {
     if (input.user_group != null) input.user_group = String(input.user_group).trim().slice(0, 60) || null;
     const { note, stale, contentChanged, forbidden } = store.upsertFromClient(userId, input);
     if (forbidden) return { status: 'forbidden', error: 'Not your note' };
+    const mine = note.user_id === userId;
     if (!stale) {
       onChange(note);
       if (contentChanged && !note.deleted) organizer.enqueue(id);
       // Deleting a list deletes its items.
       if (note.deleted && !note.parent_id) for (const item of store.deleteItems(id)) onChange(item);
     }
-    return { status: stale ? 'stale' : 'ok', note };
+    return { status: stale ? 'stale' : 'ok', note: mine ? note : store.forRecipient(userId, note, store.access(userId, note)) };
   };
 
   app.put('/api/notes/:id', (req, res) => {
@@ -160,7 +187,7 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth } = {}) {
   // One round trip for a whole sync: send every unsent change, get back
   // everything that changed since `since` (including your own saved changes).
   app.post('/api/sync', (req, res) => {
-    const { since = 0, changes = [], items = false } = req.body || {};
+    const { since = 0, changes = [], items = false, shared = false } = req.body || {};
     if (!Array.isArray(changes) || changes.length > MAX_BATCH) {
       return res.status(400).json({ error: `changes must be a list of at most ${MAX_BATCH}` });
     }
@@ -168,7 +195,8 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth } = {}) {
       const { status, error } = applyChange(req.user.id, c?.id, c || {});
       return error ? { id: c?.id, status, error } : { id: c?.id, status };
     });
-    res.json({ rev: store.rev, results, notes: store.changesSince(req.user.id, Number(since) || 0, { items: items === true }) });
+    const notes = store.changesSince(req.user.id, Number(since) || 0, { items: items === true, shared: shared === true });
+    res.json({ rev: store.rev, results, notes });
   });
 
   // Ask the AI to analyse one note again.
@@ -189,6 +217,63 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth } = {}) {
     } finally {
       broadcastStatus(organizer.status);
     }
+  });
+
+  // --- sharing ----------------------------------------------------------------
+  // Share a note (with its list items) or a whole group with someone, by email.
+  const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const ROLES = ['edit', 'view'];
+  // After a share changes: new revisions for its notes (so every device
+  // syncs them), live updates, and both people's apps reload their share lists.
+  const shareChanged = (share) => {
+    for (const note of store.touchShare(share)) onChange(note);
+    sendShares(share.owner_id);
+    if (share.user_id) sendShares(share.user_id);
+  };
+
+  app.get('/api/shares', (req, res) => {
+    res.json({ mine: store.sharesBy(req.user.id), withMe: store.sharesWith(req.user.id) });
+  });
+
+  app.post('/api/shares', (req, res) => {
+    const { kind, role = 'edit' } = req.body || {};
+    const email = String(req.body?.email ?? '').trim().toLowerCase();
+    let target = String(req.body?.target ?? '').trim();
+    if (!['note', 'group'].includes(kind)) return res.status(400).json({ error: 'Share a note or a group.' });
+    if (!ROLES.includes(role)) return res.status(400).json({ error: 'Choose "can edit" or "view only".' });
+    if (!EMAIL.test(email) || email.length > 200) return res.status(400).json({ error: 'Enter the email address of the person.' });
+    if (email === req.user.email.toLowerCase()) return res.status(400).json({ error: "That's your own email." });
+    if (kind === 'note') {
+      const note = store.get(target);
+      if (!note || note.user_id !== req.user.id || note.deleted) return res.status(404).json({ error: 'Note not found' });
+      if (note.parent_id) return res.status(400).json({ error: 'Share the whole list.' });
+    } else if (!target || target.length > 60) {
+      return res.status(400).json({ error: 'Group names need 1 to 60 characters.' });
+    }
+    if (store.shareCount(req.user.id) >= 200) return res.status(400).json({ error: 'You can share up to 200 things.' });
+    const share = store.addShare(req.user.id, { kind, target, email, role });
+    shareChanged(share);
+    res.json({ share, hasAccount: !!share.user_id });
+  });
+
+  app.patch('/api/shares/:id', (req, res) => {
+    const share = store.getShare(req.params.id);
+    if (!share || share.owner_id !== req.user.id) return res.status(404).json({ error: 'Not found' });
+    if (!ROLES.includes(req.body?.role)) return res.status(400).json({ error: 'Choose "can edit" or "view only".' });
+    const updated = store.setShareRole(share.id, req.body.role);
+    shareChanged(updated);
+    res.json({ share: updated });
+  });
+
+  // The owner stops sharing, or the person leaves.
+  app.delete('/api/shares/:id', (req, res) => {
+    const share = store.getShare(req.params.id);
+    if (!share || (share.owner_id !== req.user.id && share.user_id !== req.user.id)) {
+      return res.status(404).json({ error: 'Not found' });
+    }
+    store.removeShare(share.id);
+    shareChanged(share);
+    res.json({ ok: true });
   });
 
   // --- images ---------------------------------------------------------------
@@ -226,7 +311,7 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth } = {}) {
   app.get('/api/images/:name', (req, res) => {
     const { name } = req.params;
     if (!IMAGE_NAME.test(name)) return res.status(400).end();
-    if (store.imageOwner(name) !== req.user.id) return res.status(404).end();
+    if (!store.canSeeImage(req.user.id, name)) return res.status(404).end();
     res.setHeader('Cache-Control', 'private, max-age=31536000, immutable');
     const thumb = imagePath(name, 'thumb');
     const file = req.query.variant === 'thumb' && fs.existsSync(thumb) ? thumb : imagePath(name, 'full');
@@ -242,6 +327,7 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth } = {}) {
       'X-Accel-Buffering': 'no',
     });
     res.wantsItems = req.query.items === '1';
+    res.wantsShared = req.query.shared === '1';
     send(res, 'hello', { rev: store.rev, ai: organizer.status });
     const uid = req.user.id;
     if (!clients.has(uid)) clients.set(uid, new Set());

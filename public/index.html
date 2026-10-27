@@ -99,13 +99,38 @@
           </select>
         </label>
       </div>
+      <p class="muted shared-line" id="editorShared" hidden></p>
       <div class="sheet-actions">
         <button type="button" id="editorDelete" class="danger ghost">Delete</button>
+        <button type="button" id="editorShare" class="ghost">👥 Share</button>
         <button type="button" id="editorReanalyze" class="ghost">Re-analyze</button>
         <button type="button" id="editorDone" class="ghost">Mark done</button>
         <span class="spacer"></span>
         <button value="save" class="primary" id="editorSave">Save</button>
       </div>
+    </form>
+  </dialog>
+
+  <!-- Share a note or a group -->
+  <dialog id="share" class="sheet">
+    <form class="sheet-inner" id="shareForm" novalidate>
+      <div class="sheet-head">
+        <h2 id="shareTitle">Share</h2>
+        <button type="button" class="icon-btn" id="shareClose" title="Close">✕</button>
+      </div>
+      <p class="muted" id="shareIntro"></p>
+      <ul id="sharePeople" class="identity-list share-people"></ul>
+      <label class="field">Email of the person
+        <input id="shareEmail" type="email" inputmode="email" autocapitalize="off" autocomplete="email" placeholder="name@example.com">
+      </label>
+      <label class="field">They can
+        <select id="shareRole">
+          <option value="edit">Edit: tick, add and change</option>
+          <option value="view">Only view</option>
+        </select>
+      </label>
+      <p id="shareError" class="error" role="alert"></p>
+      <button class="primary" id="shareSubmit">Share</button>
     </form>
   </dialog>
 

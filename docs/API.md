@@ -83,6 +83,23 @@ A note as the server sends it:
 - **Conflicts:** the last edit wins, by `edited_at`. An old offline edit cannot overwrite a newer one.
 - **AI:** changing `text` or `images` sets `ai_status` to `pending` and queues the note. Changing only the other fields does not.
 
+## Sharing
+
+A note (with its list items) or a whole group can be shared with other people by email. People it's shared with can **edit** (the text, photos, done, and the list's items) or only **view**. The owner's groups and priorities stay the owner's, and only the owner deletes the note. A shared group covers every note in it, including notes that move into it later. When a note moves out of the group, it is removed from the person's devices.
+
+| Method | Path | Body | Answer |
+|---|---|---|---|
+| GET | `/api/shares` | | `{mine: [{id, kind, target, email, name, role, user_id}], withMe: [{id, kind, target, role, owner: {id, name, email}}]}`. `name`/`user_id` are `null` until that email has an account |
+| POST | `/api/shares` | `{kind: 'note' \| 'group', target: <note id or group name>, email, role: 'edit' \| 'view'}` (role defaults to `edit`) | `{share, hasAccount}`. Sharing the same thing with the same email again changes the role. Group names match whatever the case. An email without an account gets it as soon as it signs up |
+| PATCH | `/api/shares/:id` | `{role}` | `{share}` (owner only) |
+| DELETE | `/api/shares/:id` | | `{ok: true}`: the owner stops sharing, or the person leaves |
+
+- Apps receive notes shared with them only when they ask: `shared=1` on `GET /api/notes` and `/api/events`, `shared: true` in `POST /api/sync`. Such a note has `role` (`edit` or `view`) and `owner_name`; its `user_id` is the owner's.
+- When someone can no longer see a note, their next sync (and live updates) carries `{id, parent_id, user_id, rev, edited_at, deleted: true, revoked: true}`, without the contents. Remove it from the device.
+- A new list item added by an editor belongs to the list's owner.
+- `event: shares` on `/api/events` means "reload `/api/shares`".
+- Photos in a shared note can be opened by the people it's shared with.
+
 ## Photos
 
 | Method | Path | Body | Answer |
