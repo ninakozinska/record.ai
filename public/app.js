@@ -778,13 +778,16 @@ function googleCalendarUrl({ title, text }, { date, time }) {
   return `https://calendar.google.com/calendar/render?${q}`;
 }
 
+/** The day of a note's date as people say it: "Today", "Tomorrow", "Tue 3 Nov" (+ the year when it isn't this year). */
 function dueLabel(date) {
-  const days = Math.round((new Date(date + 'T00:00:00') - new Date(new Date().toDateString())) / 86400000);
+  const day = new Date(date + 'T00:00:00');
+  const days = Math.round((day - new Date(new Date().toDateString())) / 86400000);
   if (days < 0) return { text: `overdue ${-days}d`, cls: 'overdue' };
-  if (days === 0) return { text: 'due today', cls: 'overdue' };
-  if (days === 1) return { text: 'due tomorrow', cls: 'soon' };
-  if (days < 7) return { text: `due in ${days}d`, cls: 'soon' };
-  return { text: `due ${date}`, cls: '' };
+  if (days === 0) return { text: '📅 Today', cls: 'overdue' };
+  if (days === 1) return { text: '📅 Tomorrow', cls: 'soon' };
+  const sameYear = day.getFullYear() === new Date().getFullYear();
+  const text = day.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short', ...(sameYear ? {} : { year: 'numeric' }) });
+  return { text: `📅 ${text}`, cls: days < 7 ? 'soon' : '' };
 }
 
 /** A list's progress and its first open items, tickable from the card. */

@@ -230,13 +230,13 @@ try {
   assert.match(ics, /DTSTART:20300514T093000/);
   assert.match(download.suggestedFilename(), /\.ics$/);
   await desktop.click('#editorSave');
-  await phone.waitForSelector(`${report} .due:text("due 2030-05-14 · 09:30 📌")`);
+  await phone.waitForSelector(`${report} .due:text-matches("^📅 Tue, May 14, 2030 · 09:30 📌$")`);
   // Back to Auto: the AI's date returns.
   await desktop.click(`${report} h3`);
   await desktop.click('#whenAuto');
   assert.equal(await desktop.inputValue('#editorDate'), tomorrow);
   await desktop.click('#editorSave');
-  await phone.waitForSelector(`${report} .due:text("due tomorrow")`);
+  await phone.waitForSelector(`${report} .due:text("📅 Tomorrow")`);
   // Connect a calendar: a private link that calendar apps read.
   await desktop.click('#accountBtn');
   await desktop.click('#calendarShow');
