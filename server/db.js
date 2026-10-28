@@ -535,6 +535,11 @@ class Store {
 
   // --- users ----------------------------------------------------------------
 
+  /** The first account: the server's owner. */
+  firstUserId() {
+    return this.db.prepare('SELECT id FROM users ORDER BY created_at, rowid LIMIT 1').get()?.id ?? null;
+  }
+
   userCount() {
     return this.db.prepare('SELECT COUNT(*) AS n FROM users').get().n;
   }

@@ -137,7 +137,12 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth } = {}) {
   });
 
   app.get('/api/status', (req, res) => {
-    res.json({ ai: organizer.status, rev: store.rev, groups: store.groups(req.user.id), myGroups: store.myGroups(req.user.id) });
+    res.json({
+      ai: { ...organizer.status, usage: organizer.usage?.(req.user.id) },
+      rev: store.rev,
+      groups: store.groups(req.user.id),
+      myGroups: store.myGroups(req.user.id),
+    });
   });
 
   // Where other devices on the same network can reach this server.
@@ -213,7 +218,7 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth } = {}) {
     try {
       res.json(await organizer.reorganizeAll(req.user.id));
     } catch (err) {
-      res.status(500).json({ error: err.message });
+      res.status(err.status || 500).json({ error: err.message });
     } finally {
       broadcastStatus(organizer.status);
     }

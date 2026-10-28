@@ -31,6 +31,18 @@ export const ollamaUrl = () => (process.env.OLLAMA_URL || 'http://127.0.0.1:1143
 // Re-run the whole-collection tidy-up after this many newly organized notes.
 const reorganizeEvery = () => Number(process.env.REORGANIZE_EVERY || 20);
 
+// Each person gets this many AI uses a month (organizing a note = 1, a full
+// reorganize = 5), because all of them run on the server owner's AI account.
+// The owner (the first account, plus any email in AI_UNLIMITED) has no limit.
+// AI_MONTHLY_LIMIT=0 turns the limit off. The free local AI (Ollama) has none.
+const monthlyLimit = () => Number(process.env.AI_MONTHLY_LIMIT ?? 300);
+const REORGANIZE_COST = 5;
+const thisMonth = () => new Date().toISOString().slice(0, 7);
+function nextMonthStart() {
+  const d = new Date();
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1)).toISOString().slice(0, 10);
+}
+
 const NoteAnalysis = z.object({
   title: z.string().describe('Short title, max ~8 words, in the language of the note'),
   summary: z.string().describe('One sentence summary of the note'),
@@ -78,6 +90,31 @@ export class Organizer {
     this.queue = new Set();
     this.running = false;
     this.reorganizing = false;
+    // Notes held back by the monthly limit get their turn once a new month starts.
+    this.month = thisMonth();
+    setInterval(() => {
+      if (thisMonth() === this.month) return;
+      this.month = thisMonth();
+      for (const n of this.store.active()) if (n.ai_status === 'limit') this.enqueue(this.store.applyAi(n.id, { status: 'pending' }).id);
+    }, 3600e3).unref();
+  }
+
+  /** This month's AI use of one person: { used, limit (null = no limit), resets }. */
+  usage(userId) {
+    const unlimited =
+      this.provider !== 'anthropic' ||
+      !monthlyLimit() ||
+      this.store.firstUserId() === userId ||
+      (process.env.AI_UNLIMITED || '').toLowerCase().split(',').map((e) => e.trim()).includes(this.store.getUser(userId)?.email.toLowerCase());
+    return { used: Number(this.store.getMeta(`ai_used:${userId}:${thisMonth()}`) || 0), limit: unlimited ? null : monthlyLimit(), resets: nextMonthStart() };
+  }
+
+  /** Counts AI use against the person's monthly limit; false when it would go over. */
+  charge(userId, units) {
+    const { used, limit } = this.usage(userId);
+    if (limit !== null && used + units > limit) return false;
+    this.store.setMeta(`ai_used:${userId}:${thisMonth()}`, used + units);
+    return true;
   }
 
   get status() {
@@ -99,7 +136,7 @@ export class Organizer {
   resumePending() {
     if (this.enabled) {
       for (const n of this.store.active()) {
-        if (n.ai_status === 'error' || n.ai_status === 'off') this.store.applyAi(n.id, { status: 'pending' });
+        if (['error', 'off', 'limit'].includes(n.ai_status)) this.store.applyAi(n.id, { status: 'pending' });
       }
     }
     for (const id of this.store.pendingIds()) this.queue.add(id);
@@ -126,6 +163,16 @@ export class Organizer {
 
     if (!this.enabled) {
       this.onChange(this.store.applyAi(id, fallbackAnalysis(note)));
+      return;
+    }
+
+    if (!this.charge(note.user_id, 1)) {
+      const { limit, resets } = this.usage(note.user_id);
+      this.onChange(this.store.applyAi(id, {
+        ...fallbackAnalysis(note),
+        status: 'limit',
+        error: `This month's ${limit} AI sortings are used up. Your notes are saved and synced; the AI sorts them again from ${resets}.`,
+      }));
       return;
     }
 
@@ -161,7 +208,8 @@ export class Organizer {
     const key = `organized_since_reorg:${userId}`;
     const count = Number(this.store.getMeta(key) || 0) + 1;
     this.store.setMeta(key, count);
-    if (count >= reorganizeEvery()) {
+    const { used, limit } = this.usage(userId);
+    if (count >= reorganizeEvery() && (limit === null || used + REORGANIZE_COST <= limit)) {
       this.reorganizeAll(userId).catch((err) => this.log.error('[organizer] reorganize:', err.message));
     }
   }
@@ -170,6 +218,10 @@ export class Organizer {
   async reorganizeAll(userId) {
     if (!this.enabled) throw new Error('AI is not configured');
     if (this.reorganizing) return { skipped: true };
+    if (!this.charge(userId, REORGANIZE_COST)) {
+      const { limit, resets } = this.usage(userId);
+      throw Object.assign(new Error(`This month's ${limit} AI uses are used up. Reorganize works again from ${resets}.`), { status: 429 });
+    }
     this.reorganizing = true;
     this.store.setMeta(`organized_since_reorg:${userId}`, 0);
     try {
