@@ -326,3 +326,4 @@ a.btn { display: inline-flex; align-items: center; text-decoration: none; color:
 }
 .toast { display: flex; align-items: center; gap: .3rem; }
 .toast-undo { color: inherit; font-weight: 700; text-decoration: underline; padding: 0 .2rem; }
+#pastePlain { justify-self: center; font-size: .85rem; }

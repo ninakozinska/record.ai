@@ -255,7 +255,8 @@ function splitList(text) {
 }
 
 async function addItems(parentId, texts) {
-  for (const t of texts) await local.save(uuid(), { parent_id: parentId, text: t });
+  for (const t of texts) await local.save(uuid(), { parent_id: parentId, text: t }, { send: false });
+  local.flush();
 }
 
 // Pasting several lines (e.g. items copied from another note): ask whether
@@ -266,16 +267,27 @@ function pastedLines(e) {
   const lines = text.split(/\r?\n/).map((l) => l.replace(BULLET, '').trim()).filter(Boolean);
   return lines.length > 1 ? { text, lines } : null;
 }
-/** Resolves to 'many', 'one', or '' (cancelled). */
-function askPaste(lines, { title, many, one }) {
+// One question at a time. The window's "closed" signal comes a moment later;
+// one that arrives after the window opened again belongs to the old question.
+let pasteAnswer = null;
+$('#pasteChoice').addEventListener('close', () => {
+  if ($('#pasteChoice').open) return;
+  const answer = pasteAnswer;
+  pasteAnswer = null;
+  answer?.($('#pasteChoice').returnValue);
+});
+/** Resolves to 'a' (the main choice), 'b', 'plain' (only when offered), or '' (closed). */
+function askPaste(lines, { title, a, b, plain = false }) {
   const d = $('#pasteChoice');
   $('#pasteTitle').textContent = title;
   $('#pastePreview').innerHTML = lines.slice(0, 6).map((l) => `<li>${esc(l)}</li>`).join('') + (lines.length > 6 ? `<li>… ${lines.length - 6} more</li>` : '');
-  $('#pasteMany').textContent = many;
-  $('#pasteOne').textContent = one;
+  $('#pasteA').textContent = a;
+  $('#pasteB').textContent = b;
+  $('#pastePlain').hidden = !plain;
   d.returnValue = '';
   d.showModal();
-  return new Promise((resolve) => d.addEventListener('close', () => resolve(d.returnValue), { once: true }));
+  pasteAnswer?.('');
+  return new Promise((resolve) => (pasteAnswer = resolve));
 }
 /** Puts text where the cursor was when pasting (the question window moves the focus). */
 function insertText(box, text, [start, end]) {
@@ -289,17 +301,24 @@ composer.text.addEventListener('paste', async (e) => {
   e.preventDefault();
   const box = composer.text;
   const at = [box.selectionStart, box.selectionEnd];
+  const n = pasted.lines.length;
   const choice = await askPaste(pasted.lines, {
-    title: `Paste ${pasted.lines.length} lines`,
-    many: `Make a list (${pasted.lines.length} items)`,
-    one: 'Keep as one note',
+    title: `Paste ${n} lines`,
+    a: `One note with a checklist (${n} items)`,
+    b: `${n} separate notes`,
+    plain: true,
   });
-  if (choice === 'many') {
+  if (choice === 'b') {
+    // Each line its own note, sorted by the AI on its own.
+    for (const line of pasted.lines) await local.save(uuid(), { text: line }, { send: false });
+    local.flush();
+    toast(`${n} notes added`);
+  } else if (choice === 'a') {
     // Each item on a line of its own, also when pasting into the middle of a line.
     const before = at[0] === 0 || box.value[at[0] - 1] === '\n' ? '' : '\n';
     const after = at[1] === box.value.length || box.value[at[1]] === '\n' ? '' : '\n';
     insertText(box, before + pasted.lines.map((l) => `- ${l}`).join('\n') + after, at);
-  } else if (choice === 'one') {
+  } else if (choice === 'plain') {
     insertText(box, pasted.text, at);
   }
 });
@@ -309,11 +328,11 @@ $('#newItem').addEventListener('paste', async (e) => {
   e.preventDefault();
   const choice = await askPaste(pasted.lines, {
     title: `Paste ${pasted.lines.length} lines`,
-    many: `Add ${pasted.lines.length} items`,
-    one: 'Add as one item',
+    a: `Add ${pasted.lines.length} items`,
+    b: 'Add as one item',
   });
   if (!choice) return;
-  await addItems(editor.id, choice === 'many' ? pasted.lines : [pasted.lines.join(', ')]);
+  await addItems(editor.id, choice === 'a' ? pasted.lines : [pasted.lines.join(', ')]);
   editor.renderItems();
   $('#newItem').focus();
 });
@@ -325,7 +344,9 @@ async function saveComposer() {
   const list = splitList(text);
   const id = uuid();
   // The list (its title line) goes first, so its items always have a parent.
-  await local.save(id, { text: list.items.length ? list.text || 'List' : text, images });
+  // A checklist without a title line gets its title from the AI.
+  // The list and its items reach the server together, so the AI sees the items.
+  await local.save(id, { text: list.items.length ? list.text : text, images }, { send: false });
   await addItems(id, list.items);
   composer.reset();
   composer.text.focus();
@@ -782,7 +803,7 @@ function listPreview(n) {
 }
 
 function card(n, { showGroup }) {
-  const title = n.title || n.text.split('\n')[0].slice(0, 80) || (n.images.length ? 'Photo' : 'Untitled');
+  const title = n.title || n.text.split('\n')[0].slice(0, 80) || local.items(n.id)[0]?.text || (n.images.length ? 'Photo' : 'Untitled');
   // The text under the title, unless it just repeats the title (a list called "Groceries").
   const body = !n.title ? n.text.split('\n').slice(1).join('\n') : n.text.trim() === n.title.trim() ? '' : n.text;
   const due = n.due_date ? dueLabel(n.due_date) : null;
