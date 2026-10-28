@@ -164,6 +164,11 @@ try {
   await desktop.waitForSelector('.group h2:text("Hobbies")');
   await phone.click('.note:has(h3:text("Buy milk")) [data-check]');
   await desktop.waitForSelector('[data-toggle-done]:text("Show done (1)")');
+  // A wrong tap? Undo puts it back.
+  await phone.click('.toast:has-text("Marked done: Buy milk") .toast-undo');
+  await desktop.waitForSelector('[data-toggle-done]', { state: 'detached' });
+  await phone.click('.note:has(h3:text("Buy milk")) [data-check]');
+  await desktop.waitForSelector('[data-toggle-done]:text("Show done (1)")');
   console.log('✓ overrides and done state synced');
 
   // 6. "My groups": add Baby with the ＋ chip; it shows with no notes yet and
