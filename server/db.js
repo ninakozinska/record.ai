@@ -73,6 +73,9 @@ function migrate(db) {
     db.exec('ALTER TABLE notes ADD COLUMN parent_id TEXT');
   }
   db.exec('CREATE INDEX IF NOT EXISTS notes_parent ON notes(parent_id)');
+  // Dates: the AI's time of day, and the person's own date/time (overrides the AI's).
+  if (!columns(db, 'notes').includes('due_time')) db.exec('ALTER TABLE notes ADD COLUMN due_time TEXT');
+  if (!columns(db, 'notes').includes('user_due')) db.exec('ALTER TABLE notes ADD COLUMN user_due TEXT');
   // Sessions used to be anonymous (one shared password). Start over with
   // per-user sessions that store only a hash of the token.
   if (!columns(db, 'sessions').includes('user_id')) {
@@ -156,7 +159,12 @@ function rowToNote(r) {
     ai_priority: r.ai_priority,
     priority_reason: r.priority_reason,
     tags: JSON.parse(r.tags),
-    due_date: r.due_date,
+    // user_due: null = the AI decides, '' = no date, 'YYYY-MM-DD' or 'YYYY-MM-DDTHH:MM'.
+    user_due: r.user_due ?? null,
+    ai_due_date: r.due_date,
+    ai_due_time: r.due_time ?? null,
+    due_date: r.user_due == null ? r.due_date : r.user_due.slice(0, 10) || null,
+    due_time: r.user_due == null ? r.due_time ?? null : r.user_due.slice(11, 16) || null,
     ai_status: r.ai_status,
     ai_error: r.ai_error,
     group: r.user_group || r.ai_group || 'Inbox',
@@ -276,8 +284,8 @@ class Store {
       this.db
         .prepare(
           `INSERT INTO notes (id, user_id, parent_id, text, images, done, deleted, created_at, edited_at,
-             user_group, user_priority, ai_status, rev)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+             user_group, user_priority, user_due, ai_status, rev)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
         .run(
           input.id,
@@ -291,6 +299,7 @@ class Store {
           input.edited_at,
           input.user_group ?? null,
           input.user_priority ?? null,
+          input.user_due ?? null,
           // Items aren't sent to the AI: only their list is.
           parentId ? 'done' : 'pending',
           rev,
@@ -300,7 +309,7 @@ class Store {
       this.db
         .prepare(
           `UPDATE notes SET text = ?, images = ?, done = ?, deleted = ?, edited_at = ?,
-             user_group = ?, user_priority = ?,
+             user_group = ?, user_priority = ?, user_due = ?,
              ai_status = CASE WHEN ? AND parent_id IS NULL THEN 'pending' ELSE ai_status END,
              rev = ?
            WHERE id = ?`,
@@ -313,6 +322,7 @@ class Store {
           input.edited_at,
           pick('user_group') ?? null,
           pick('user_priority') ?? null,
+          pick('user_due') ?? null,
           contentChanged ? 1 : 0,
           rev,
           input.id,
@@ -348,7 +358,7 @@ class Store {
            title = COALESCE(?, title), summary = COALESCE(?, summary),
            ai_group = COALESCE(?, ai_group), ai_priority = COALESCE(?, ai_priority),
            priority_reason = COALESCE(?, priority_reason),
-           tags = COALESCE(?, tags), due_date = ?,
+           tags = COALESCE(?, tags), due_date = ?, due_time = ?,
            ai_status = ?, ai_error = ?, rev = ?
          WHERE id = ?`,
       )
@@ -359,7 +369,8 @@ class Store {
         ai.priority ?? null,
         ai.priority_reason ?? null,
         ai.tags ? JSON.stringify(ai.tags) : null,
-        ai.due_date === undefined ? this.get(id)?.due_date ?? null : ai.due_date,
+        ai.due_date === undefined ? this.get(id)?.ai_due_date ?? null : ai.due_date,
+        ai.due_time === undefined ? this.get(id)?.ai_due_time ?? null : ai.due_date ? ai.due_time : null,
         ai.status,
         ai.error ?? null,
         rev,

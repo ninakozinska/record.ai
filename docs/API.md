@@ -64,6 +64,7 @@ A note as the server sends it:
 
 - `user_group` / `user_priority` are the person's own choices. `null` means "let the AI decide". `group` / `priority` are the effective values: the person's choice if set, otherwise the AI's.
 - `ai_status` is one of `pending`, `done`, `error` (see `ai_error`), `off` (no AI configured), or `limit` (this month's AI uses are used up; `ai_error` says when it starts again).
+- **Dates:** `due_date` (`YYYY-MM-DD`) and `due_time` (`HH:MM` or `null`) are the effective date and time. `user_due` is the person's choice: `null` = let the AI decide (`ai_due_date` / `ai_due_time`), `''` = no date, `'YYYY-MM-DD'` or `'YYYY-MM-DDTHH:MM'`. The AI counts relative dates ("next Tuesday") from the day the note was written.
 - `parent_id` is `null` for a note. A **list item** is a note with `parent_id` set to its list's id. Items go one level deep, skip the AI (`ai_status` is `done`), take their priority from `user_priority`, and are deleted with their list. Their parent can't change after creation.
 - `rev` increases with every change on the server. Clients must ignore a note whose `rev` is lower than the copy they already have, because replies and live updates can arrive out of order.
 
@@ -71,7 +72,7 @@ A note as the server sends it:
 |---|---|---|---|
 | GET | `/api/notes?since=<rev>[&items=1]` | | `{rev, notes}`: your notes changed after `rev` (deleted ones too). List items are included only with `items=1` |
 | POST | `/api/sync` | `{since, items, changes: [{id, …same fields as PUT}]}` (at most 500; `items: true` to also receive list items) | `{rev, results: [{id, status}], notes}`: sends every waiting edit **and** catches up in one request. `status` is `ok`, `stale`, `forbidden` or `invalid`; `notes` = everything changed after `since`, including the results of your own edits |
-| PUT | `/api/notes/:id` | any of `text, images, done, deleted, user_group, user_priority, created_at, parent_id` + **`edited_at` (required)** | `{note, stale}`. `stale: true` = a newer edit already exists and yours was ignored; 403 = the id belongs to someone else |
+| PUT | `/api/notes/:id` | any of `text, images, done, deleted, user_group, user_priority, user_due, created_at, parent_id` + **`edited_at` (required)** | `{note, stale}`. `stale: true` = a newer edit already exists and yours was ignored; 403 = the id belongs to someone else |
 | POST | `/api/notes/:id/reanalyze` | | `{"ok":true}`: queues the AI again |
 | POST | `/api/reorganize` | | `{updated}` or `{skipped:true}`: the AI re-groups and re-ranks all your open notes. 429 when this month's AI uses are used up |
 | GET | `/api/status` | | `{ai: {enabled, provider, model, pending, reorganizing, usage: {used, limit, resets}}, rev, groups: [{name,count}]}`. `usage` is your AI use this month; `limit: null` = no limit |
@@ -99,6 +100,15 @@ A note (with its list items) or a whole group can be shared with other people by
 - A new list item added by an editor belongs to the list's owner.
 - `event: shares` on `/api/events` means "reload `/api/shares`".
 - Photos in a shared note can be opened by the people it's shared with.
+
+## Calendar
+
+| Method | Path | Body | Answer |
+|---|---|---|---|
+| GET | `/api/notes/:id/calendar.ics` | | One note with a date as a calendar file (all day, or one hour from its time; the device's time zone) |
+| GET | `/api/calendar-link?tz=Europe/Rome` | | `{url, webcal}`: your private calendar link, made the first time. `tz` (optional) is the time zone for times in it |
+| POST | `/api/calendar-link/reset` | | `{url, webcal}`: a new link; the old one stops working |
+| GET | `/api/calendar/<secret>.ics` | | **No login** (calendar apps can't log in; the link is the secret). Your open notes with a date, and those shared with you |
 
 ## Photos
 

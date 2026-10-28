@@ -8,6 +8,8 @@ import compression from 'compression';
 import { openDb, PRIORITIES } from './db.js';
 import { Organizer } from './organizer.js';
 import { authRoutes, requireUser } from './auth.js';
+import { toIcs, noteTitle } from './calendar.js';
+import crypto from 'node:crypto';
 
 const PUBLIC_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'public');
 const IMAGE_NAME = /^[a-zA-Z0-9-]{8,64}\.(jpg|jpeg|png|webp|gif)$/;
@@ -15,13 +17,15 @@ const MAX_IMAGE_BYTES = 15 * 1024 * 1024;
 const NOTE_ID = /^[a-zA-Z0-9-]{8,64}$/;
 const MAX_BATCH = 500;
 const MAX_MY_GROUPS = 30;
-const NOTE_FIELDS = ['text', 'images', 'done', 'deleted', 'created_at', 'edited_at', 'user_group', 'user_priority', 'parent_id'];
+const NOTE_FIELDS = ['text', 'images', 'done', 'deleted', 'created_at', 'edited_at', 'user_group', 'user_priority', 'user_due', 'parent_id'];
+const USER_DUE = /^(\d{4}-\d{2}-\d{2}(T\d{2}:\d{2})?)?$/;
 
 /** Checks one note change from a client. Returns an error message, or null when it is valid. */
 function invalidChange(id, body) {
   if (!NOTE_ID.test(String(id))) return 'Bad id';
   if (typeof body.edited_at !== 'number') return 'edited_at required';
   if (body.user_priority != null && !PRIORITIES.includes(body.user_priority)) return 'Bad priority';
+  if (body.user_due != null && !USER_DUE.test(String(body.user_due))) return 'Bad date';
   if (body.parent_id != null && (!NOTE_ID.test(String(body.parent_id)) || body.parent_id === id)) return 'Bad parent_id';
   if (body.images && !(Array.isArray(body.images) && body.images.every((n) => IMAGE_NAME.test(n)))) {
     return 'Bad image list';
@@ -116,7 +120,67 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth } = {}) {
 
   app.get('/api/health', (req, res) => res.json({ ok: true, app: 'record.ai' }));
   app.use('/api/auth', authRoutes({ store, imagesDir, oauth }));
+
+  // --- calendar ---------------------------------------------------------------
+  // Dated notes as a calendar that Google Calendar, iPhone, Mac or Outlook can
+  // subscribe to. Calendar apps can't log in, so the link itself carries a
+  // secret; a new link turns the old one off.
+  const publicUrl = (req) => process.env.PUBLIC_URL?.replace(/\/$/, '') || `${req.protocol}://${req.get('host')}`;
+  const validTz = (tz) => {
+    try {
+      return tz && tz.length < 64 && new Intl.DateTimeFormat('en', { timeZone: tz }) ? tz : null;
+    } catch {
+      return null;
+    }
+  };
+  const calendarNotes = (userId) =>
+    store.changesSince(userId, 0, { items: false, shared: true }).filter((n) => !n.revoked && !n.deleted && !n.done && n.due_date);
+  const sendIcs = (res, ics, filename) => {
+    res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache');
+    if (filename) res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(ics);
+  };
+  app.get('/api/calendar/:file', (req, res) => {
+    const token = req.params.file.replace(/\.ics$/, '');
+    const userId = token.length > 20 ? store.getMeta(`cal_user:${token}`) : null;
+    if (!userId || !store.getUser(userId)) return res.status(404).send('This calendar link is no longer active.');
+    const tz = store.getMeta(`cal_tz:${userId}`);
+    sendIcs(res, toIcs(calendarNotes(userId), { name: 'record.ai', tz, link: publicUrl(req), itemsOf: (id) => store.items(id) }));
+  });
+
   app.use('/api', requireUser(store));
+
+  const calendarLink = (req) => {
+    const token = store.getMeta(`cal_token:${req.user.id}`);
+    const url = `${publicUrl(req)}/api/calendar/${token}.ics`;
+    return { url, webcal: url.replace(/^https?:/, 'webcal:') };
+  };
+  const newCalendarToken = (userId) => {
+    const old = store.getMeta(`cal_token:${userId}`);
+    if (old) store.setMeta(`cal_user:${old}`, '');
+    const token = crypto.randomBytes(24).toString('base64url');
+    store.setMeta(`cal_token:${userId}`, token);
+    store.setMeta(`cal_user:${token}`, userId);
+  };
+  // Your calendar link (made the first time). `tz` = this device's time zone.
+  app.get('/api/calendar-link', (req, res) => {
+    const tz = validTz(String(req.query.tz || ''));
+    if (tz) store.setMeta(`cal_tz:${req.user.id}`, tz);
+    if (!store.getMeta(`cal_token:${req.user.id}`)) newCalendarToken(req.user.id);
+    res.json(calendarLink(req));
+  });
+  app.post('/api/calendar-link/reset', (req, res) => {
+    newCalendarToken(req.user.id);
+    res.json(calendarLink(req));
+  });
+  // One note as a calendar file, to add it to any calendar.
+  app.get('/api/notes/:id/calendar.ics', (req, res) => {
+    const note = store.get(req.params.id);
+    if (!note || note.deleted || !store.access(req.user.id, note) || !note.due_date) return res.status(404).json({ error: 'No date on this note' });
+    const name = noteTitle(note).replace(/[^\w\- ]+/g, '').trim().slice(0, 40) || 'note';
+    sendIcs(res, toIcs([note], { link: publicUrl(req), itemsOf: (id) => store.items(id) }), `${name}.ics`);
+  });
 
   // --- notes ----------------------------------------------------------------
   // "My groups": groups the person made, which the AI always keeps and uses.

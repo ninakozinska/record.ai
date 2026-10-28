@@ -85,6 +85,20 @@
           <button type="button" id="addItem" class="ghost">Add</button>
         </div>
       </div>
+      <div class="when-box">
+        <div class="items-head"><h3>📅 Date</h3><span class="muted" id="whenHint"></span></div>
+        <div class="when-row">
+          <input type="date" id="editorDate" aria-label="Date">
+          <input type="time" id="editorTime" aria-label="Time (optional)">
+          <button type="button" class="ghost" id="whenAuto" title="Let the AI find the date in the note">Auto</button>
+          <button type="button" class="icon-btn" id="whenClear" title="No date">✕</button>
+        </div>
+        <div class="cal-actions" id="calActions" hidden>
+          <span class="muted">Add to calendar:</span>
+          <a class="btn ghost" id="calGoogle" target="_blank" rel="noopener">Google Calendar</a>
+          <a class="btn ghost" id="calFile" href="#">iPhone · Mac · Outlook</a>
+        </div>
+      </div>
       <div class="overrides">
         <label>Group
           <input id="editorGroup" list="groupList" placeholder="Auto">
@@ -194,6 +208,20 @@
           <button type="button" data-theme-choice="dark">🌙 Dark</button>
         </div>
         <p class="muted">Auto follows your device. Saved on this device.</p>
+      </div>
+      <div class="stack" id="calendarBox">
+        <h3>📅 Calendar</h3>
+        <p class="muted">See your notes that have a date in Google Calendar, or in the calendar on your iPhone, Mac or Android phone. Changes show up there by themselves.</p>
+        <button type="button" class="ghost" id="calendarShow">Connect a calendar</button>
+        <div id="calendarLink" class="stack" hidden>
+          <div class="cal-buttons">
+            <a class="btn ghost" id="calendarGoogle" target="_blank" rel="noopener">Add to Google Calendar</a>
+            <a class="btn ghost" id="calendarApple">Add to iPhone / Mac Calendar</a>
+            <button type="button" class="ghost" id="calendarCopy">Copy link</button>
+          </div>
+          <p class="muted">Android: add it in Google Calendar, then it shows on your phone. Calendars check for changes every few hours.</p>
+          <p class="muted">Keep this link to yourself: anyone who has it can see your dated notes. <button type="button" class="link-btn" id="calendarReset">Make a new link</button> (the old one stops working).</p>
+        </div>
       </div>
       <div id="myGroupsBox" class="stack" hidden>
         <h3>My groups</h3>
