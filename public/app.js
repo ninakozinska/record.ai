@@ -296,7 +296,7 @@ const editor = {
     $('#editorPriority').value = n.user_priority || '';
     $('#editorPriority').options[0].textContent = `Auto${n.ai_priority ? ` (${PRIORITY_LABEL[n.ai_priority]})` : ''}`;
     $('#editorDone').textContent = n.done ? 'Mark not done' : 'Mark done';
-    $('#groupList').innerHTML = withMyGroups(groupsOf(local.list())).map((g) => `<option value="${esc(g)}">`).join('');
+    $('#groupList').innerHTML = withMyGroups(ownGroups()).map((g) => `<option value="${esc(g)}">`).join('');
     const ai = [];
     if (n.summary) ai.push(`<p>${esc(n.summary)}</p>`);
     if (n.priority_reason) ai.push(`<p class="muted">Priority: ${esc(n.priority_reason)}</p>`);
@@ -305,25 +305,49 @@ const editor = {
     if (n.ai_status === 'error') ai.push(`<p class="error">AI error: ${esc(n.ai_error)}</p>`);
     $('#editorAi').innerHTML = ai.join('');
     $('#editorAi').hidden = !ai.length;
+    // Shared with me: the owner's groups and priorities stay theirs; view only changes nothing.
+    const shared = !!n.role;
+    this.readOnly = n.role === 'view';
+    $('#editorForm').classList.toggle('read-only', this.readOnly);
+    this.composer.text.readOnly = this.readOnly;
+    $('#editorForm .overrides').hidden = shared;
+    $('#editorReanalyze').hidden = shared;
+    $('#editorShare').hidden = shared;
+    $('#editorDone').hidden = $('#editorSave').hidden = this.readOnly;
+    $('#editorDelete').textContent = shared ? 'Leave' : 'Delete';
+    this.renderShared();
     $('#newItem').value = '';
     this.renderItems();
     this.dialog.showModal();
   },
+  /** Who this note is shared with, or who shared it with me. */
+  renderShared() {
+    const n = local.notes.get(this.id);
+    if (!n) return;
+    const people = sharesOf(effectiveNote(n));
+    $('#editorShared').hidden = !n.role && !people.length;
+    $('#editorShared').textContent = n.role
+      ? `👥 Shared by ${n.owner_name}${n.role === 'view' ? ' · view only' : ' · you can edit'}`
+      : `👥 Shared with ${people.map((p) => p.name || p.email).join(', ')}`;
+  },
   renderItems() {
     const items = local.items(this.id);
+    const off = this.readOnly ? 'disabled' : '';
+    $('.items-box').hidden = this.readOnly && !items.length;
     const open = items.filter((i) => !i.done).length;
     $('#itemsCount').textContent = items.length ? `${items.length - open}/${items.length} done` : '';
     $('#itemList').innerHTML = items.map((i) => `
       <li class="item p-${i.priority} ${i.done ? 'done' : ''}" data-item="${esc(i.id)}">
-        <button type="button" class="check" data-item-toggle title="${i.done ? 'Mark not done' : 'Mark done'}">${i.done ? '✓' : ''}</button>
-        <input class="item-text" data-item-text value="${esc(i.text)}" aria-label="Item">
-        <select class="item-priority" data-item-priority aria-label="Priority">
+        <button type="button" class="check" data-item-toggle title="${i.done ? 'Mark not done' : 'Mark done'}" ${off}>${i.done ? '✓' : ''}</button>
+        <input class="item-text" data-item-text value="${esc(i.text)}" aria-label="Item" ${off}>
+        <select class="item-priority" data-item-priority aria-label="Priority" ${off}>
           ${['urgent', 'high', 'normal', 'low'].map((p) => `<option value="${p}" ${i.priority === p ? 'selected' : ''}>${PRIORITY_LABEL[p]}</option>`).join('')}
         </select>
         <button type="button" class="icon-btn" data-item-delete title="Remove item">✕</button>
       </li>`).join('');
   },
   async save() {
+    if (this.readOnly) return;
     const n = local.notes.get(this.id);
     const { text, images } = this.composer.value;
     const patch = {};
@@ -389,9 +413,17 @@ editor.dialog.addEventListener('close', async () => {
   editor.dialog.returnValue = '';
 });
 $('#editorDelete').onclick = async () => {
+  const n = local.notes.get(editor.id);
+  if (n.role) return leaveShared(n);
   if (!confirm('Delete this note?')) return;
   await local.save(editor.id, { deleted: true });
   editor.dialog.close();
+};
+$('#editorShare').onclick = async () => {
+  await editor.save();
+  await local.flush();
+  const n = local.notes.get(editor.id);
+  openShare('note', n.id, n.title || n.text.split('\n')[0].slice(0, 60) || 'this note');
 };
 $('#editorDone').onclick = async () => {
   await editor.save();
@@ -442,6 +474,125 @@ async function saveMyGroups(names) {
 }
 const withMyGroups = (groups) => [...groups, ...myGroups.filter((g) => !groups.includes(g))];
 
+// ---------------------------------------------------------------------------
+// Sharing: notes and groups I share (mine), and what others share with me.
+// ---------------------------------------------------------------------------
+let shares = { mine: [], withMe: [] };
+async function loadShares() {
+  try {
+    shares = await local.api('shares');
+    await local.metaSet('shares', shares);
+  } catch {
+    shares = (await local.metaGet('shares')) || shares;
+  }
+  if ($('#share').open) renderSharePeople();
+  if (editor.dialog.open) editor.renderShared();
+  render();
+}
+const SHARED_GROUP = 'Shared with me';
+const effectiveNote = (n) => ({ ...n, group: n.user_group || n.ai_group || 'Inbox' });
+const canEdit = (n) => n.role !== 'view';
+/** Notes shared with me show in their own group: the owner's groups are theirs. */
+const forMe = (n) => (n.role ? { ...n, group: SHARED_GROUP } : n);
+const sameGroup = (a, b) => a.toLowerCase() === b.toLowerCase();
+/** My shares that cover a note of mine: the note itself, or its group. */
+const sharesOf = (n) => (n.role ? [] : shares.mine.filter((s) => (s.kind === 'note' ? s.target === n.id : sameGroup(s.target, n.group))));
+const ownGroups = () => groupsOf(local.list().filter((n) => !n.role));
+
+const share = { kind: null, target: null };
+function openShare(kind, target, label) {
+  Object.assign(share, { kind, target });
+  $('#shareTitle').textContent = `Share "${label}"`;
+  $('#shareIntro').textContent = (kind === 'group'
+    ? `Everything in ${label}, also what goes there later, with its lists.`
+    : 'This note, with its list.') +
+    ' Only the people below see it. They need a record.ai account with this email.';
+  $('#shareEmail').value = '';
+  $('#shareRole').value = 'edit';
+  $('#shareError').textContent = '';
+  renderSharePeople();
+  if (!$('#share').open) $('#share').showModal();
+  $('#shareEmail').focus();
+}
+function renderSharePeople() {
+  const people = shares.mine.filter((s) => s.kind === share.kind && (s.kind === 'note' ? s.target === share.target : sameGroup(s.target, share.target)));
+  $('#sharePeople').innerHTML = people.length
+    ? people.map((p) => `
+      <li data-share="${esc(p.id)}">
+        <span class="who"><strong>${esc(p.name || p.email)}</strong>
+          <small>${p.name ? esc(p.email) : 'No account yet: they see it once they sign up with this email.'}</small></span>
+        <select data-share-role aria-label="What ${esc(p.name || p.email)} can do">
+          <option value="edit" ${p.role === 'edit' ? 'selected' : ''}>Can edit</option>
+          <option value="view" ${p.role === 'view' ? 'selected' : ''}>View only</option>
+        </select>
+        <button type="button" class="icon-btn" data-share-remove title="Stop sharing with ${esc(p.name || p.email)}">✕</button>
+      </li>`).join('')
+    : '<li class="muted">Not shared with anyone yet.</li>';
+}
+$('#shareForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const email = $('#shareEmail').value.trim();
+  $('#shareSubmit').disabled = true;
+  try {
+    const r = await local.api('shares', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ kind: share.kind, target: share.target, email, role: $('#shareRole').value }),
+    });
+    $('#shareEmail').value = '';
+    $('#shareError').textContent = '';
+    toast(r.hasAccount ? `Shared with ${email}` : `Shared. ${email} sees it after signing up with this email.`);
+    await loadShares();
+  } catch (err) {
+    $('#shareError').textContent = err.status ? err.message : 'You need to be online to share.';
+  } finally {
+    $('#shareSubmit').disabled = false;
+  }
+});
+$('#sharePeople').addEventListener('change', async (e) => {
+  const li = e.target.closest('[data-share]');
+  if (!li || !e.target.matches('[data-share-role]')) return;
+  try {
+    await local.api(`shares/${li.dataset.share}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ role: e.target.value }),
+    });
+  } catch (err) {
+    toast(err.message);
+  }
+  loadShares();
+});
+$('#sharePeople').addEventListener('click', async (e) => {
+  const li = e.target.closest('[data-share]');
+  if (!li || !e.target.closest('[data-share-remove]')) return;
+  const p = shares.mine.find((x) => x.id === li.dataset.share);
+  if (!confirm(`Stop sharing with ${p?.name || p?.email}? It disappears from their devices.`)) return;
+  try {
+    await local.api(`shares/${li.dataset.share}`, { method: 'DELETE' });
+  } catch (err) {
+    toast(err.message);
+  }
+  loadShares();
+});
+$('#shareClose').onclick = () => $('#share').close();
+
+/** Stop seeing something shared with me (the share that gives me this note). */
+async function leaveShared(n) {
+  const group = effectiveNote(n).group;
+  const via = shares.withMe.filter((s) => s.owner.id === n.user_id && (s.kind === 'note' ? s.target === n.id : sameGroup(s.target, group)));
+  const what = via.some((s) => s.kind === 'group') ? `the group "${group}"` : `"${n.title || n.text.split('\n')[0]}"`;
+  if (!confirm(`Stop seeing ${what}, shared by ${n.owner_name}? Only ${n.owner_name} can share it with you again.`)) return;
+  try {
+    for (const s of via) await local.api(`shares/${s.id}`, { method: 'DELETE' });
+    editor.dialog.close();
+    await local.pull();
+    loadShares();
+  } catch (err) {
+    toast(err.message);
+  }
+}
+
 function sortNotes(a, b) {
   const p = PRIORITIES.indexOf(a.priority) - PRIORITIES.indexOf(b.priority);
   if (p) return p;
@@ -478,39 +629,43 @@ function dueLabel(date) {
 }
 
 /** A list's progress and its first open items, tickable from the card. */
-function listPreview(id) {
-  const items = local.items(id);
+function listPreview(n) {
+  const items = local.items(n.id);
+  const off = canEdit(n) ? '' : 'disabled';
   if (!items.length) return '';
   const done = items.filter((i) => i.done).length;
   const open = items.filter((i) => !i.done).slice(0, 4);
   return `<div class="list-preview">
     <div class="list-progress"><span style="width:${Math.round((done / items.length) * 100)}%"></span></div>
     <span class="list-count">☑ ${done}/${items.length}</span>
-    <ul>${open.map((i) => `<li class="p-${i.priority}"><button class="check small" data-item-check="${esc(i.id)}" title="Mark done"></button>${esc(i.text)}</li>`).join('')}
+    <ul>${open.map((i) => `<li class="p-${i.priority}"><button class="check small" data-item-check="${esc(i.id)}" title="Mark done" ${off}></button>${esc(i.text)}</li>`).join('')}
     ${items.length - done > open.length ? `<li class="more">+ ${items.length - done - open.length} more</li>` : ''}</ul>
   </div>`;
 }
 
 function card(n, { showGroup }) {
   const title = n.title || n.text.split('\n')[0].slice(0, 80) || (n.images.length ? 'Photo' : 'Untitled');
-  const body = n.title ? n.text : n.text.split('\n').slice(1).join('\n');
+  // The text under the title, unless it just repeats the title (a list called "Groceries").
+  const body = !n.title ? n.text.split('\n').slice(1).join('\n') : n.text.trim() === n.title.trim() ? '' : n.text;
   const due = n.due_date ? dueLabel(n.due_date) : null;
   const status =
     n.ai_status === 'pending' ? '<span class="ai-pending" title="AI is organizing this note">✨</span>' :
     n.ai_status === 'error' ? '<span class="ai-error" title="AI could not process this note">⚠️</span>' : '';
   return `
     <article class="note card p-${n.priority} ${n.done ? 'done' : ''}" data-id="${esc(n.id)}">
-      <button class="check" data-check title="${n.done ? 'Mark not done' : 'Mark done'}">${n.done ? '✓' : ''}</button>
+      <button class="check" data-check title="${n.done ? 'Mark not done' : 'Mark done'}" ${canEdit(n) ? '' : 'disabled'}>${n.done ? '✓' : ''}</button>
       <div class="note-main">
         <div class="note-head">
           <h3>${esc(title)}</h3>${status}
         </div>
         ${body.trim() ? `<p class="note-text">${esc(body.trim())}</p>` : ''}
-        ${listPreview(n.id)}
+        ${listPreview(n)}
         ${n.images.length ? `<div class="note-images">${n.images.map((i) => `<img data-img="${esc(i)}" alt="" loading="lazy">`).join('')}</div>` : ''}
         <div class="meta">
           <span class="badge p-${n.priority}">${PRIORITY_LABEL[n.priority]}${n.user_priority ? ' 📌' : ''}</span>
           ${showGroup ? `<span class="group-chip">${esc(n.group)}${n.user_group ? ' 📌' : ''}</span>` : ''}
+          ${n.role ? `<span class="shared-badge">👥 ${esc(n.owner_name)}${n.role === 'view' ? ' · view only' : ''}</span>`
+            : sharesOf(n).length ? '<span class="shared-badge" title="Shared">👥 Shared</span>' : ''}
           ${due ? `<span class="due ${due.cls}">${esc(due.text)}</span>` : ''}
           ${(n.tags || []).slice(0, 4).map((t) => `<span class="tag">#${esc(t)}</span>`).join('')}
           <span class="time">${relTime(n.created_at)}</span>
@@ -519,9 +674,16 @@ function card(n, { showGroup }) {
     </article>`;
 }
 
-function section(title, notes, opts, extraClass = '') {
+function section(title, notes, opts, extraClass = '', action = '') {
   if (!notes.length) return '';
-  return `<section class="group ${extraClass}"><h2>${esc(title)} <span class="count">${notes.length}</span></h2>${notes.map((n) => card(n, opts)).join('')}</section>`;
+  return `<section class="group ${extraClass}"><h2>${esc(title)} <span class="count">${notes.length}</span>${action}</h2>${notes.map((n) => card(n, opts)).join('')}</section>`;
+}
+
+/** "Share" on one of my groups (how many people, once shared). */
+function shareGroupButton(g) {
+  if (g === SHARED_GROUP) return '';
+  const people = shares.mine.filter((s) => s.kind === 'group' && sameGroup(s.target, g)).length;
+  return `<button class="ghost share-group" data-share-group="${esc(g)}">👥 ${people ? `Shared · ${people}` : 'Share'}</button>`;
 }
 
 let renderQueued = false;
@@ -535,7 +697,7 @@ function render() {
 }
 
 function renderNow() {
-  const all = local.list();
+  const all = local.list().map(forMe);
   const groups = withMyGroups(groupsOf(all));
   if (ui.group && !groups.includes(ui.group)) ui.group = null;
 
@@ -553,7 +715,7 @@ function renderNow() {
   if (ui.view === 'priority') {
     for (const p of PRIORITIES) html += section(PRIORITY_LABEL[p], open.filter((n) => n.priority === p), { showGroup: true }, `p-${p}`);
   } else {
-    for (const g of groupsOf(open)) html += section(g, open.filter((n) => n.group === g), { showGroup: false });
+    for (const g of groupsOf(open)) html += section(g, open.filter((n) => n.group === g), { showGroup: false }, '', shareGroupButton(g));
   }
   if (!open.length) {
     html += all.length
@@ -583,9 +745,12 @@ $('#list').addEventListener('click', async (e) => {
     $('#viewer').showModal();
     return;
   }
+  const shareGroup = e.target.closest('[data-share-group]');
+  if (shareGroup) return openShare('group', shareGroup.dataset.shareGroup, shareGroup.dataset.shareGroup);
   const article = e.target.closest('.note');
   if (!article) return;
   const id = article.dataset.id;
+  if (e.target.closest('button:disabled')) return;
   const itemCheck = e.target.closest('[data-item-check]');
   if (itemCheck) {
     await local.save(itemCheck.dataset.itemCheck, { done: true });
@@ -921,7 +1086,9 @@ await local.init();
 local.addEventListener('change', render);
 local.addEventListener('status', renderStatus);
 local.addEventListener('started', loadMyGroups);
-local.addEventListener('wiped', () => { myGroups = []; });
+local.addEventListener('started', loadShares);
+local.addEventListener('shares', loadShares);
+local.addEventListener('wiped', () => { myGroups = []; shares = { mine: [], withMe: [] }; });
 render();
 renderStatus();
 // Coming back from "Continue with …": show what happened, then tidy the address bar.

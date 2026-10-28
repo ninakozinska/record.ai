@@ -206,7 +206,68 @@ try {
   await phone.fill('#search', '');
   console.log('✓ lists: items ticked, added and sorted, synced');
 
-  // 8. Appearance: on a device in dark mode, choose Light; it sticks after a reload.
+  // 8. Sharing: Nina shares the list with Tom before he has an account; he
+  //    signs up with the invite code, ticks an item, then gets view only, then
+  //    Nina stops sharing and the list leaves his phone.
+  process.env.SIGNUP_CODE = 'family';
+  await desktop.click(`${list} h3`);
+  await desktop.click('#editorShare');
+  await desktop.waitForSelector('#share[open] #shareTitle:text("Share \\"Weekend shopping\\"")');
+  await desktop.waitForSelector('#sharePeople li:text("Not shared with anyone yet.")');
+  await desktop.fill('#shareEmail', 'tom@example.com');
+  await desktop.click('#shareSubmit');
+  await desktop.waitForSelector('#sharePeople li:has-text("tom@example.com"):has-text("No account yet")');
+  await desktop.click('#shareClose');
+  await desktop.waitForSelector('#editorShared:text("Shared with tom@example.com")');
+  await desktop.click('#editor [value=cancel]');
+  await desktop.waitForSelector(`${list} .shared-badge:text("Shared")`);
+
+  const tomCtx = await browser.newContext({ ...devices['iPhone 13'] });
+  const tom = (pages.tom = await tomCtx.newPage());
+  watch(tom, 'tom');
+  await tom.goto(url);
+  await tom.waitForSelector('#login[open]');
+  await tom.click('#loginSwitch [data-mode=signup]');
+  await tom.fill('#loginName', 'Tom');
+  await tom.fill('#loginEmail', 'tom@example.com');
+  await tom.fill('#loginPassword', 'correct horse');
+  await tom.fill('#loginCode', 'family');
+  await tom.click('#loginSubmit');
+  await tom.waitForSelector(`${list} .shared-badge:text("👥 Nina")`);
+  assert.equal(await tom.locator('.note').count(), 1, "Tom sees only what's shared with him");
+  await tom.click('.view-toggle [data-view=groups]');
+  await tom.waitForSelector('.group h2:has-text("Shared with me")');
+  await tom.click(`${list} li:has-text("bread") [data-item-check]`);
+  await desktop.waitForSelector(`${list} .list-count:text("☑ 2/4")`);
+  await tom.screenshot({ path: path.join(out, 'tom-shared-list.png') });
+
+  // Nina makes it view only: Tom can still read it but not tick anything.
+  await desktop.click(`${list} h3`);
+  await desktop.click('#editorShare');
+  await desktop.waitForSelector('#sharePeople li:has-text("Tom"):has-text("tom@example.com")');
+  await desktop.selectOption('#sharePeople li:has-text("Tom") [data-share-role]', 'view');
+  await tom.waitForSelector(`${list} .shared-badge:text("👥 Nina · view only")`);
+  assert.ok(await tom.isDisabled(`${list} li:has-text("milk") [data-item-check]`));
+  await tom.click(`${list} h3`);
+  await tom.waitForSelector('#editorShared:text("Shared by Nina · view only")');
+  assert.ok(await tom.isDisabled('#itemList [data-item-toggle] >> nth=0'));
+  assert.equal(await tom.isVisible('#editorSave'), false);
+  await tom.click('#editor [value=cancel]');
+  await desktop.screenshot({ path: path.join(out, 'desktop-share.png') });
+
+  // Nina stops sharing: the list disappears from Tom's phone.
+  desktop.once('dialog', (d) => d.accept());
+  await desktop.click('#sharePeople li:has-text("Tom") [data-share-remove]');
+  await tom.waitForSelector(list, { state: 'detached' });
+  await desktop.click('#shareClose');
+  await desktop.click('#editor [value=cancel]');
+  assert.equal(await desktop.locator(`${list} .shared-badge`).count(), 0);
+  delete process.env.SIGNUP_CODE;
+  await tomCtx.close();
+  delete pages.tom;
+  console.log('✓ sharing: shared before sign-up, ticked, view only, stopped');
+
+  // 9. Appearance: on a device in dark mode, choose Light; it sticks after a reload.
   const bg = () => desktop.evaluate(() => getComputedStyle(document.body).backgroundColor);
   await desktop.emulateMedia({ colorScheme: 'dark' });
   assert.equal(await bg(), 'rgb(17, 17, 24)', 'Auto follows the dark device');
