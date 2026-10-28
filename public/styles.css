@@ -293,3 +293,14 @@ dialog::backdrop { background: rgba(10, 10, 20, .5); }
 /* Shared with me, view only: nothing to change. */
 .read-only [data-role=mic], .read-only [data-role=camera], .read-only [data-role=photo], .read-only [data-remove],
 .read-only .add-item, .read-only [data-item-delete] { display: none; }
+
+/* Dates and calendars */
+.when-box { display: grid; gap: 8px; }
+.when-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.when-row input { padding: .5em .6em; border-radius: 10px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font: inherit; min-width: 0; }
+.when-row input[type=date] { flex: 1 1 9.5em; }
+.when-row input[type=time] { flex: 0 1 7em; }
+.cal-actions, .cal-buttons { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+a.btn { display: inline-flex; align-items: center; text-decoration: none; color: inherit; padding: .45em .8em; border-radius: 10px; border: 1px solid var(--border); font-size: .9rem; }
+.link-btn { padding: 0; color: var(--accent); text-decoration: underline; font: inherit; }
+.read-only #whenAuto, .read-only #whenClear { display: none; }

@@ -206,6 +206,45 @@ try {
   await phone.fill('#search', '');
   console.log('✓ lists: items ticked, added and sorted, synced');
 
+  // 7b. Dates: the AI found "tomorrow"; Nina picks a day and time herself,
+  //     the phone follows, and the note goes to a calendar.
+  const report = '.note:has(h3:text("Send the quarterly report tomorrow"))';
+  await desktop.click(`${report} h3`);
+  await desktop.waitForSelector('#whenHint:text("Found by AI")');
+  const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+  assert.equal(await desktop.inputValue('#editorDate'), tomorrow);
+  await desktop.fill('#editorDate', '2030-05-14');
+  await desktop.fill('#editorTime', '09:30');
+  await desktop.waitForSelector('#whenHint:text("📌 Your choice")');
+  const google = new URL(await desktop.getAttribute('#calGoogle', 'href'));
+  assert.equal(google.searchParams.get('dates'), '20300514T093000/20300514T103000');
+  assert.match(google.searchParams.get('text'), /^Send the quarterly report tomorrow/);
+  await desktop.screenshot({ path: path.join(out, 'desktop-date.png') });
+  const [download] = await Promise.all([desktop.waitForEvent('download'), desktop.click('#calFile')]);
+  const ics = fs.readFileSync(await download.path(), 'utf8');
+  assert.match(ics, /DTSTART:20300514T093000/);
+  assert.match(download.suggestedFilename(), /\.ics$/);
+  await desktop.click('#editorSave');
+  await phone.waitForSelector(`${report} .due:text("due 2030-05-14 · 09:30 📌")`);
+  // Back to Auto: the AI's date returns.
+  await desktop.click(`${report} h3`);
+  await desktop.click('#whenAuto');
+  assert.equal(await desktop.inputValue('#editorDate'), tomorrow);
+  await desktop.click('#editorSave');
+  await phone.waitForSelector(`${report} .due:text("due tomorrow")`);
+  // Connect a calendar: a private link that calendar apps read.
+  await desktop.click('#accountBtn');
+  await desktop.click('#calendarShow');
+  await desktop.waitForSelector('#calendarLink:visible');
+  const webcal = await desktop.getAttribute('#calendarApple', 'href');
+  assert.match(webcal, /^webcal:\/\/localhost:\d+\/api\/calendar\/[\w-]+\.ics$/);
+  assert.match(await desktop.getAttribute('#calendarGoogle', 'href'), /^https:\/\/calendar\.google\.com\/calendar\/render\?cid=webcal%3A/);
+  const feed = await (await fetch(webcal.replace('webcal:', 'http:'))).text();
+  assert.match(feed, /SUMMARY:Send the quarterly report tomorrow/);
+  await desktop.screenshot({ path: path.join(out, 'desktop-calendar.png') });
+  await desktop.click('#accountClose');
+  console.log('✓ dates: own date and time, Auto, calendar file, calendar link');
+
   // 8. Sharing: Nina shares the list with Tom before he has an account; he
   //    signs up with the invite code, ticks an item, then gets view only, then
   //    Nina stops sharing and the list leaves his phone.

@@ -50,7 +50,8 @@ const NoteAnalysis = z.object({
   priority: z.enum(PRIORITIES),
   priority_reason: z.string().describe('A few words explaining the priority'),
   tags: z.array(z.string()).describe('0-5 short lowercase tags'),
-  due_date: z.string().nullable().describe('ISO date YYYY-MM-DD if the note implies a deadline, else null'),
+  due_date: z.string().nullable().describe('ISO date YYYY-MM-DD of the deadline, appointment or event, else null'),
+  due_time: z.string().nullable().describe('Time HH:MM (24h) if the note states one, e.g. "3pm" -> "15:00", else null'),
 });
 
 const Reorganization = z.object({
@@ -73,6 +74,7 @@ Priorities:
 Groups are short topic names (1-3 words, Title Case) like "Work", "Shopping", "Health", "Ideas", "Travel".
 Prefer reusing an existing group. Create a new group only when none fits. Keep the total number of groups small (ideally under 12).
 Dictated notes may contain speech-recognition errors; infer the intended meaning.
+Dates: work out relative dates ("tomorrow", "next week", "on Tuesday") from the day the note was written (its created date), not from today. "On Tuesday" means the next Tuesday after that day; "next week on Wednesday" means the Wednesday of the following week.
 For photos, describe what matters (e.g. receipt total, whiteboard content, document type) in the summary.`;
 
 export class Organizer {
@@ -353,6 +355,10 @@ export class Organizer {
       parsed = JSON.parse(body.message?.content ?? '');
     } catch {
       throw new Error('Local AI returned an unreadable answer');
+    }
+    // Small models sometimes leave out a field that may be empty anyway (like the time).
+    if (parsed && typeof parsed === 'object' && schema.shape) {
+      for (const [key, field] of Object.entries(schema.shape)) if (!(key in parsed) && field.safeParse(null).success) parsed[key] = null;
     }
     const checked = schema.safeParse(parsed);
     if (!checked.success) throw new Error('Local AI returned an incomplete answer');

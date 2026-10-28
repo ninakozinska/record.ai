@@ -13,6 +13,7 @@ Notes you **type, dictate, or photograph**. They sync across your phone, your co
 - **Photos**: pick images 🖼️, paste or drag them in, or take pictures with the **camera** 📷. Claude looks at the photos too (receipts, whiteboards, documents).
 - **Lists**: start lines with `- ` and they become a checklist (shopping, a project's tasks, kids' activities). Tick items right from the card; open the note to add items or set each one's priority. Open items show first, most urgent on top.
 - **Sharing**: share a list or note, or a whole group, with the people you choose (your partner, a colleague, family), by email. They can edit, or only view. Changes show up live for everyone. You see who has access, and you can change it or stop sharing at any time.
+- **Dates and calendars**: the AI finds dates and times ("dentist Tuesday 3pm"), and you can pick your own with a date and time picker. Add a note to Google Calendar or your iPhone, Mac or Outlook calendar with one tap, or connect your calendar once so every dated note shows up there by itself.
 - **Automatic organization**: each new or edited note is sent to Claude, which assigns a title, summary, **priority**, **group**, tags and a due date. It reuses your existing groups so the list stays tidy.
 - **✨ Reorganize**: Claude reviews all open notes together, merges similar groups and re-ranks priorities against today's date. This also runs on its own after every 20 newly organized notes.
 - **Two views**: *Priority* (Urgent → Low) and *Groups*. There's also search, group filter chips, and a "done" checkbox.

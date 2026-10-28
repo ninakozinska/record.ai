@@ -317,10 +317,35 @@ const editor = {
     $('#editorDone').hidden = $('#editorSave').hidden = this.readOnly;
     $('#editorDelete').textContent = shared ? 'Leave' : 'Delete';
     this.renderShared();
+    this.due = n.user_due ?? null;
+    $('#editorDate').disabled = $('#editorTime').disabled = this.readOnly;
+    this.renderWhen();
     $('#newItem').value = '';
     this.renderItems();
     this.dialog.showModal();
   },
+  /** The note's date and time as shown in the editor: the person's choice, or the AI's. */
+  when() {
+    const n = local.notes.get(this.id);
+    if (this.due != null) return { date: this.due.slice(0, 10) || null, time: this.due.slice(11, 16) || null, own: true };
+    const e = effectiveDue({ ...n, user_due: null });
+    return { date: e.due_date, time: e.due_time, own: false };
+  },
+  renderWhen() {
+    const w = this.when();
+    $('#editorDate').value = w.date || '';
+    $('#editorTime').value = w.time || '';
+    $('#whenHint').textContent = w.own ? (w.date ? '📌 Your choice' : '📌 No date') : w.date ? 'Found by AI' : 'None yet: the AI adds one when the note mentions it';
+    $('#whenAuto').hidden = !w.own;
+    $('#whenClear').hidden = !w.date;
+    $('#calActions').hidden = !w.date;
+    if (w.date) $('#calGoogle').href = googleCalendarUrl(this.noteForCalendar(), w);
+  },
+  noteForCalendar() {
+    const n = local.notes.get(this.id);
+    return { title: n.title || n.text.split('\n')[0].slice(0, 80) || 'Note', text: [n.text, ...local.items(n.id).map((i) => `${i.done ? '☑' : '☐'} ${i.text}`)].join('\n') };
+  },
+
   /** Who this note is shared with, or who shared it with me. */
   renderShared() {
     const n = local.notes.get(this.id);
@@ -358,6 +383,7 @@ const editor = {
     if (g !== (n.user_group || null)) patch.user_group = g;
     const p = $('#editorPriority').value || null;
     if (p !== (n.user_priority || null)) patch.user_priority = p;
+    if (this.due !== (n.user_due ?? null)) patch.user_due = this.due;
     if (Object.keys(patch).length) await local.save(this.id, patch);
   },
 };
@@ -371,6 +397,37 @@ async function addEditorItem() {
   input.focus();
 }
 $('#addItem').onclick = addEditorItem;
+
+// Date and time: picking one makes it your choice (📌); Auto gives it back to the AI.
+for (const id of ['#editorDate', '#editorTime']) {
+  $(id).addEventListener('change', () => {
+    const date = $('#editorDate').value;
+    const time = $('#editorTime').value;
+    editor.due = date ? (time ? `${date}T${time}` : date) : '';
+    editor.renderWhen();
+  });
+}
+$('#whenAuto').onclick = () => {
+  editor.due = null;
+  editor.renderWhen();
+};
+$('#whenClear').onclick = () => {
+  editor.due = '';
+  editor.renderWhen();
+};
+// The calendar file comes from the server, so save the date there first.
+$('#calFile').onclick = async (e) => {
+  e.preventDefault();
+  await editor.save();
+  // Wait (up to about 5 seconds) until the server has the latest date.
+  for (let i = 0; i < 20 && local.pending.has(editor.id); i++) {
+    await local.flush();
+    if (local.pending.has(editor.id)) await new Promise((r) => setTimeout(r, 250));
+  }
+  if (local.pending.has(editor.id)) return toast('You need to be online to add it to a calendar.');
+  location.href = `api/notes/${encodeURIComponent(editor.id)}/calendar.ics`;
+};
+$('#calGoogle').addEventListener('click', () => editor.save());
 $('#newItem').addEventListener('keydown', (e) => {
   // Enter adds the item (instead of closing the editor).
   if (e.key === 'Enter') {
@@ -622,6 +679,24 @@ function relTime(ts) {
   return new Date(ts).toLocaleDateString();
 }
 
+/** A note's date and time: the person's own choice, or the AI's. */
+function effectiveDue(n) {
+  if (n.user_due != null) return { due_date: n.user_due.slice(0, 10) || null, due_time: n.user_due.slice(11, 16) || null };
+  return { due_date: n.ai_due_date !== undefined ? n.ai_due_date : n.due_date, due_time: n.ai_due_time !== undefined ? n.ai_due_time : n.due_time ?? null };
+}
+
+/** Google Calendar's "new event" page, filled in: all day, or one hour from the time. */
+function googleCalendarUrl({ title, text }, { date, time }) {
+  const day = (d) => d.toISOString().slice(0, 10).replaceAll('-', '');
+  const start = new Date(`${date}T${time || '00:00'}:00Z`);
+  const dates = time
+    ? [start, new Date(+start + 3600e3)].map((d) => `${day(d)}T${d.toISOString().slice(11, 16).replace(':', '')}00`).join('/')
+    : `${day(start)}/${day(new Date(+start + 86400e3))}`;
+  const q = new URLSearchParams({ action: 'TEMPLATE', text: title, dates, details: text });
+  if (time) q.set('ctz', Intl.DateTimeFormat().resolvedOptions().timeZone);
+  return `https://calendar.google.com/calendar/render?${q}`;
+}
+
 function dueLabel(date) {
   const days = Math.round((new Date(date + 'T00:00:00') - new Date(new Date().toDateString())) / 86400000);
   if (days < 0) return { text: `overdue ${-days}d`, cls: 'overdue' };
@@ -670,7 +745,7 @@ function card(n, { showGroup }) {
           ${showGroup ? `<span class="group-chip">${esc(n.group)}${n.user_group ? ' 📌' : ''}</span>` : ''}
           ${n.role ? `<span class="shared-badge">👥 ${esc(n.owner_name)}${n.role === 'view' ? ' · view only' : ''}</span>`
             : sharesOf(n).length ? '<span class="shared-badge" title="Shared">👥 Shared</span>' : ''}
-          ${due ? `<span class="due ${due.cls}">${esc(due.text)}</span>` : ''}
+          ${due ? `<span class="due ${due.cls}">${esc(due.text)}${n.due_time ? ` · ${esc(n.due_time)}` : ''}${n.user_due ? ' 📌' : ''}</span>` : ''}
           ${(n.tags || []).slice(0, 4).map((t) => `<span class="tag">#${esc(t)}</span>`).join('')}
           <span class="time">${relTime(n.created_at)}</span>
         </div>
@@ -975,6 +1050,8 @@ $('#accountBtn').onclick = async () => {
   $('#account').showModal();
   loadSigninOptions();
   loadAiUsage();
+  $('#calendarLink').hidden = true;
+  $('#calendarShow').hidden = false;
   renderMyGroups();
   applyTheme(currentTheme());
   try {
@@ -1050,6 +1127,38 @@ $('#identityList').addEventListener('click', async (e) => {
     toast(err.message);
   }
 });
+// Calendar link under your initials: dated notes in Google / Apple / Outlook calendars.
+function showCalendarLink({ url, webcal }) {
+  $('#calendarLink').hidden = false;
+  $('#calendarShow').hidden = true;
+  $('#calendarGoogle').href = `https://calendar.google.com/calendar/render?cid=${encodeURIComponent(webcal)}`;
+  $('#calendarApple').href = webcal;
+  $('#calendarCopy').onclick = async () => {
+    try {
+      await navigator.clipboard.writeText(url);
+      toast('Link copied');
+    } catch {
+      prompt('Copy this link:', url);
+    }
+  };
+}
+$('#calendarShow').onclick = async () => {
+  try {
+    showCalendarLink(await local.api(`calendar-link?tz=${encodeURIComponent(Intl.DateTimeFormat().resolvedOptions().timeZone)}`));
+  } catch (err) {
+    toast(err.status ? err.message : 'You need to be online for this.');
+  }
+};
+$('#calendarReset').onclick = async () => {
+  if (!confirm('Make a new link? Calendars that use the old one stop showing your notes until you add the new one.')) return;
+  try {
+    showCalendarLink(await local.api('calendar-link/reset', { method: 'POST' }));
+    toast('New link made');
+  } catch (err) {
+    toast(err.message);
+  }
+};
+
 /** "AI this month: 12 of 300" under your initials (nothing when there's no limit). */
 async function loadAiUsage() {
   try {
