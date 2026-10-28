@@ -306,6 +306,35 @@ try {
   desktop.once('dialog', (d) => d.accept());
   await desktop.click('.note:has(.list-count:text("☑ 0/2")) h3');
   await desktop.click('#editorDelete');
+  // Clear done: right-click (two-finger click) or the button; asks first, Undo brings
+  // everything back, lists with their items.
+  await desktop.waitForSelector('#editor', { state: 'hidden' });
+  await desktop.fill('#composer textarea', 'Old errands\n- post office\n- dry cleaning');
+  await desktop.click('#composer [data-role=save]');
+  const errands = '.note:has(h3:text("Old errands"))';
+  await desktop.waitForSelector(`${errands} .list-count:text("☑ 0/2")`);
+  await desktop.click(`${errands} [data-check]`);
+  await desktop.waitForSelector('[data-toggle-done]:text("Show done (2)")');
+  desktop.once('dialog', (d) => d.dismiss());
+  await desktop.click('[data-toggle-done]', { button: 'right' });
+  await desktop.waitForSelector('[data-toggle-done]:text("Show done (2)")');
+  desktop.once('dialog', (d) => { assert.match(d.message(), /^Delete 2 done notes\?/); d.accept(); });
+  await desktop.click('[data-clear-done]');
+  await desktop.waitForSelector('[data-toggle-done]', { state: 'detached' });
+  await phone.waitForSelector('[data-toggle-done]', { state: 'detached' });
+  await desktop.screenshot({ path: path.join(out, 'desktop-cleared.png') });
+  await desktop.click('.toast:has-text("2 done notes deleted") .toast-undo');
+  await desktop.waitForSelector('[data-toggle-done]:text("Show done (2)")');
+  await phone.waitForSelector('[data-toggle-done]:text("Show done (2)")');
+  await desktop.click('[data-toggle-done]');
+  await desktop.waitForSelector(`.done-section ${errands} .list-count:text("☑ 0/2")`);
+  await desktop.click(`${errands} [data-check]`);
+  desktop.once('dialog', (d) => d.accept());
+  await desktop.click(`${errands} h3`);
+  await desktop.click('#editorDelete');
+  await desktop.click('[data-toggle-done]');
+  await desktop.waitForSelector('[data-toggle-done]:text("Show done (1)")');
+  console.log('✓ clear done notes, with undo');
   console.log('✓ pasting several lines: a list, or one note / one item');
 
   // 8. Sharing: Nina shares the list with Tom before he has an account; he
