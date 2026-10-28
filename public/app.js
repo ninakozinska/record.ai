@@ -883,7 +883,11 @@ function renderNow() {
       : '<p class="empty">No notes yet. Type, dictate 🎤 or snap a photo 📷 above — AI will title, prioritize and group them for you.</p>';
   }
   if (done.length) {
-    html += `<button class="ghost done-toggle" data-toggle-done>${ui.showDone ? 'Hide' : 'Show'} done (${done.length})</button>`;
+    const clearable = done.filter((n) => !n.role).length;
+    html += `<div class="done-bar">
+      <button class="ghost" data-toggle-done title="Right-click (two-finger click) to clear them">${ui.showDone ? 'Hide' : 'Show'} done (${done.length})</button>
+      ${clearable ? '<button class="ghost danger" data-clear-done>🗑 Clear done</button>' : ''}
+    </div>`;
     if (ui.showDone) html += section('Done', done, { showGroup: true }, 'done-section');
   }
   $('#list').innerHTML = html;
@@ -897,7 +901,39 @@ function renderNow() {
   });
 }
 
+/**
+ * Deletes the done notes shown (yours; shared ones stay), lists with their
+ * items, after asking; Undo brings them all back.
+ */
+async function clearDone() {
+  // The same done notes the page shows (search and group filter apply).
+  const ids = local.list()
+    .filter((n) => n.done && !n.role && matches(n, ui.query.toLowerCase().trim()) && (!ui.group || forMe(n).group === ui.group))
+    .map((n) => n.id);
+  if (!ids.length) return;
+  if (!confirm(`Delete ${ids.length} done note${ids.length === 1 ? '' : 's'}? You can undo this for a few seconds.`)) return;
+  const removed = [];
+  for (const id of ids) {
+    for (const item of local.items(id)) removed.push(item.id);
+    removed.push(id);
+    await local.save(id, { deleted: true }, { send: false });
+  }
+  local.flush();
+  toast(`${ids.length} done note${ids.length === 1 ? '' : 's'} deleted`, async () => {
+    for (const id of removed) await local.save(id, { deleted: false }, { send: false });
+    local.flush();
+  });
+}
+
+$('#list').addEventListener('contextmenu', (e) => {
+  // Right-click / two-finger click on "Show done": offer to clear them.
+  if (!e.target.closest('[data-toggle-done]') || !document.querySelector('[data-clear-done]')) return;
+  e.preventDefault();
+  clearDone();
+});
+
 $('#list').addEventListener('click', async (e) => {
+  if (e.target.closest('[data-clear-done]')) return clearDone();
   if (e.target.closest('[data-toggle-done]')) {
     ui.showDone = !ui.showDone;
     return render();
