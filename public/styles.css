@@ -308,3 +308,21 @@ a.btn { display: inline-flex; align-items: center; text-decoration: none; color:
 /* Paste several lines */
 .paste-preview { margin: 0; padding-left: 1.2em; color: var(--muted); max-height: 9em; overflow: auto; }
 .paste-preview li { overflow-wrap: anywhere; }
+
+/* Done from the card: a labelled button next to the date (no circle to hit by accident). */
+.done-btn {
+  margin-left: .25rem; padding: .25em .7em; border-radius: 999px; border: 1px solid var(--border);
+  font-size: .8rem; font-weight: 600; color: var(--accent); background: var(--bg); white-space: nowrap;
+}
+.done-btn:hover { border-color: var(--accent); }
+.note.done .done-btn { color: var(--muted); }
+.list-preview .check { position: relative; }
+.list-preview .check:not(:disabled):hover::after {
+  content: '✓'; position: absolute; inset: 0; display: grid; place-items: center; color: var(--accent); font-size: .7rem;
+}
+@media (pointer: coarse) {
+  .done-btn { padding: .4em .9em; }
+  .check.small { width: 24px; height: 24px; min-width: 24px; }
+}
+.toast { display: flex; align-items: center; gap: .3rem; }
+.toast-undo { color: inherit; font-weight: 700; text-decoration: underline; padding: 0 .2rem; }

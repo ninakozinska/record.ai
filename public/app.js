@@ -792,7 +792,6 @@ function card(n, { showGroup }) {
     n.ai_status === 'limit' ? `<span class="ai-limit" title="${esc(n.ai_error)}">⏸️</span>` : '';
   return `
     <article class="note card p-${n.priority} ${n.done ? 'done' : ''}" data-id="${esc(n.id)}">
-      <button class="check" data-check title="${n.done ? 'Mark not done' : 'Mark done'}" ${canEdit(n) ? '' : 'disabled'}>${n.done ? '✓' : ''}</button>
       <div class="note-main">
         <div class="note-head">
           <h3>${esc(title)}</h3>${status}
@@ -808,6 +807,7 @@ function card(n, { showGroup }) {
           ${due ? `<span class="due ${due.cls}">${esc(due.text)}${n.due_time ? ` · ${esc(n.due_time)}` : ''}${n.user_due ? ' 📌' : ''}</span>` : ''}
           ${(n.tags || []).slice(0, 4).map((t) => `<span class="tag">#${esc(t)}</span>`).join('')}
           <span class="time">${relTime(n.created_at)}</span>
+          ${canEdit(n) ? `<button class="done-btn" data-check>${n.done ? '↩ Not done' : '✓ Done'}</button>` : ''}
         </div>
       </div>
     </article>`;
@@ -895,13 +895,18 @@ $('#list').addEventListener('click', async (e) => {
   const id = article.dataset.id;
   if (e.target.closest('button:disabled')) return;
   const itemCheck = e.target.closest('[data-item-check]');
+  // Done (or not done) right from the card, with Undo for a wrong tap.
+  const markDone = async (noteId, done, what) => {
+    await local.save(noteId, { done });
+    toast(`${done ? 'Marked done' : 'Marked not done'}: ${what}`, () => local.save(noteId, { done: !done }));
+  };
   if (itemCheck) {
-    await local.save(itemCheck.dataset.itemCheck, { done: true });
-    return;
+    const item = local.notes.get(itemCheck.dataset.itemCheck);
+    return markDone(item.id, true, item.text.slice(0, 40));
   }
   if (e.target.closest('[data-check]')) {
-    await local.save(id, { done: !local.notes.get(id).done });
-    return;
+    const n = local.notes.get(id);
+    return markDone(id, !n.done, (n.title || n.text.split('\n')[0]).slice(0, 40));
   }
   editor.open(id);
 });
@@ -958,12 +963,24 @@ $('#reorganizeBtn').onclick = async () => {
 // ---------------------------------------------------------------------------
 // Status, banner, login
 // ---------------------------------------------------------------------------
-function toast(msg) {
+/** A short message at the bottom; with `undo`, it has an Undo button and stays a little longer. */
+function toast(msg, undo) {
+  document.querySelector('.toast')?.remove(); // one message at a time
   const t = document.createElement('div');
   t.className = 'toast';
   t.textContent = msg;
+  if (undo) {
+    const b = document.createElement('button');
+    b.className = 'toast-undo';
+    b.textContent = 'Undo';
+    b.onclick = () => {
+      t.remove();
+      undo();
+    };
+    t.append(' · ', b);
+  }
   document.body.append(t);
-  setTimeout(() => t.remove(), 3500);
+  setTimeout(() => t.remove(), undo ? 6000 : 3500);
 }
 
 function renderStatus() {
