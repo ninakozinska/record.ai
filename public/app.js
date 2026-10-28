@@ -303,6 +303,7 @@ const editor = {
     if (n.due_date) ai.push(`<p class="muted">Due ${esc(n.due_date)}</p>`);
     if (n.tags?.length) ai.push(`<p>${n.tags.map((t) => `<span class="tag">#${esc(t)}</span>`).join(' ')}</p>`);
     if (n.ai_status === 'error') ai.push(`<p class="error">AI error: ${esc(n.ai_error)}</p>`);
+    if (n.ai_status === 'limit') ai.push(`<p class="muted">⏸️ ${esc(n.ai_error)}</p>`);
     $('#editorAi').innerHTML = ai.join('');
     $('#editorAi').hidden = !ai.length;
     // Shared with me: the owner's groups and priorities stay theirs; view only changes nothing.
@@ -532,6 +533,8 @@ function renderSharePeople() {
 $('#shareForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const email = $('#shareEmail').value.trim();
+  // Share pressed again after sharing, with the box empty: nothing to do.
+  if (!email) return $('#shareEmail').focus();
   $('#shareSubmit').disabled = true;
   try {
     const r = await local.api('shares', {
@@ -650,7 +653,8 @@ function card(n, { showGroup }) {
   const due = n.due_date ? dueLabel(n.due_date) : null;
   const status =
     n.ai_status === 'pending' ? '<span class="ai-pending" title="AI is organizing this note">✨</span>' :
-    n.ai_status === 'error' ? '<span class="ai-error" title="AI could not process this note">⚠️</span>' : '';
+    n.ai_status === 'error' ? '<span class="ai-error" title="AI could not process this note">⚠️</span>' :
+    n.ai_status === 'limit' ? `<span class="ai-limit" title="${esc(n.ai_error)}">⏸️</span>` : '';
   return `
     <article class="note card p-${n.priority} ${n.done ? 'done' : ''}" data-id="${esc(n.id)}">
       <button class="check" data-check title="${n.done ? 'Mark not done' : 'Mark done'}" ${canEdit(n) ? '' : 'disabled'}>${n.done ? '✓' : ''}</button>
@@ -727,6 +731,10 @@ function renderNow() {
     if (ui.showDone) html += section('Done', done, { showGroup: true }, 'done-section');
   }
   $('#list').innerHTML = html;
+  // This month's AI sortings are used up: say so once, above the notes.
+  const limited = all.find((n) => !n.role && n.ai_status === 'limit');
+  $('#limitBanner').hidden = !limited;
+  if (limited) $('#limitBanner').textContent = `⏸️ ${limited.ai_error}`;
 
   $('#list').querySelectorAll('img[data-img]').forEach(async (img) => {
     img.src = await local.imageUrl(img.dataset.img, { thumb: true });
@@ -966,6 +974,7 @@ $('#accountBtn').onclick = async () => {
   $('#pwCurrent').value = $('#pwNext').value = '';
   $('#account').showModal();
   loadSigninOptions();
+  loadAiUsage();
   renderMyGroups();
   applyTheme(currentTheme());
   try {
@@ -1041,6 +1050,19 @@ $('#identityList').addEventListener('click', async (e) => {
     toast(err.message);
   }
 });
+/** "AI this month: 12 of 300" under your initials (nothing when there's no limit). */
+async function loadAiUsage() {
+  try {
+    const { usage } = (await local.api('status')).ai;
+    $('#aiUsage').hidden = !usage?.limit;
+    if (usage?.limit) {
+      const resets = new Date(usage.resets + 'T00:00:00').toLocaleDateString(undefined, { day: 'numeric', month: 'long' });
+      $('#aiUsage').textContent = `AI sortings this month: ${usage.used} of ${usage.limit} (starts again on ${resets})`;
+    }
+  } catch {
+    $('#aiUsage').hidden = true;
+  }
+}
 $('#accountClose').onclick = () => $('#account').close();
 $('#passwordForm').addEventListener('submit', async (e) => {
   e.preventDefault();

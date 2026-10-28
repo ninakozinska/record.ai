@@ -113,6 +113,8 @@ Open your server's URL, log in, then:
 | `OLLAMA_MODEL` | `gemma3:4b` | Local model. It must handle images; `qwen2.5vl:7b` is smarter but needs 16 GB RAM. |
 | `OLLAMA_URL` | `http://127.0.0.1:11434` | Where Ollama runs. |
 | `REORGANIZE_EVERY` | `20` | Run a full reorganize after this many newly organized notes. |
+| `AI_MONTHLY_LIMIT` | `300` | AI uses per person per month with Claude (organizing a note = 1, a full reorganize = 5). After that, notes are still saved and synced, and the AI sorts them again next month. The first account (the owner) has no limit. `0` = no limit for anyone. |
+| `AI_UNLIMITED` | *(none)* | Comma-separated emails that have no monthly AI limit either. |
 | `PORT` | `3000` | HTTP port. |
 | `TRUST_PROXY` | `loopback` | Which proxy to believe about visitors' addresses. Behind a host's proxy (Fly.io, Render) set `1`, or one person's wrong passwords slow down everyone. |
 | `DATA_DIR` | `./data` | Where the SQLite database and photos are stored. **Back this up.** |

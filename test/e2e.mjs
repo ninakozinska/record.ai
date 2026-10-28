@@ -262,6 +262,26 @@ try {
   await desktop.click('#shareClose');
   await desktop.click('#editor [value=cancel]');
   assert.equal(await desktop.locator(`${list} .shared-badge`).count(), 0);
+  // Tom's AI sortings run on Nina's account: past his monthly limit, notes
+  // are still saved, and he's told when sorting starts again.
+  process.env.AI_MONTHLY_LIMIT = '1';
+  await tom.fill('#composer textarea', 'Call the plumber');
+  await tom.click('#composer [data-role=save]');
+  await tom.waitForSelector('.note:has(h3:text("Call the plumber")):not(:has(.ai-pending))');
+  await tom.fill('#composer textarea', 'Buy stamps');
+  await tom.click('#composer [data-role=save]');
+  await tom.waitForSelector('#limitBanner:visible:has-text("1 AI sortings are used up")');
+  await tom.waitForSelector('.note:has(h3:text("Buy stamps")) .ai-limit');
+  await tom.screenshot({ path: path.join(out, 'tom-ai-limit-banner.png') });
+  await tom.click('#accountBtn');
+  await tom.waitForSelector('#aiUsage:text("AI sortings this month: 1 of 1")');
+  await tom.screenshot({ path: path.join(out, 'tom-ai-limit.png') });
+  await tom.click('#accountClose');
+  await desktop.click('#accountBtn');
+  assert.equal(await desktop.isVisible('#aiUsage'), false, 'the owner has no limit');
+  await desktop.click('#accountClose');
+  delete process.env.AI_MONTHLY_LIMIT;
+  console.log('✓ monthly AI limit for invited people');
   delete process.env.SIGNUP_CODE;
   await tomCtx.close();
   delete pages.tom;

@@ -63,7 +63,7 @@ A note as the server sends it:
 ```
 
 - `user_group` / `user_priority` are the person's own choices. `null` means "let the AI decide". `group` / `priority` are the effective values: the person's choice if set, otherwise the AI's.
-- `ai_status` is one of `pending`, `done`, `error` (see `ai_error`), or `off` (no AI configured).
+- `ai_status` is one of `pending`, `done`, `error` (see `ai_error`), `off` (no AI configured), or `limit` (this month's AI uses are used up; `ai_error` says when it starts again).
 - `parent_id` is `null` for a note. A **list item** is a note with `parent_id` set to its list's id. Items go one level deep, skip the AI (`ai_status` is `done`), take their priority from `user_priority`, and are deleted with their list. Their parent can't change after creation.
 - `rev` increases with every change on the server. Clients must ignore a note whose `rev` is lower than the copy they already have, because replies and live updates can arrive out of order.
 
@@ -73,8 +73,8 @@ A note as the server sends it:
 | POST | `/api/sync` | `{since, items, changes: [{id, …same fields as PUT}]}` (at most 500; `items: true` to also receive list items) | `{rev, results: [{id, status}], notes}`: sends every waiting edit **and** catches up in one request. `status` is `ok`, `stale`, `forbidden` or `invalid`; `notes` = everything changed after `since`, including the results of your own edits |
 | PUT | `/api/notes/:id` | any of `text, images, done, deleted, user_group, user_priority, created_at, parent_id` + **`edited_at` (required)** | `{note, stale}`. `stale: true` = a newer edit already exists and yours was ignored; 403 = the id belongs to someone else |
 | POST | `/api/notes/:id/reanalyze` | | `{"ok":true}`: queues the AI again |
-| POST | `/api/reorganize` | | `{updated}` or `{skipped:true}`: the AI re-groups and re-ranks all your open notes |
-| GET | `/api/status` | | `{ai: {enabled, provider, model, pending, reorganizing}, rev, groups: [{name,count}]}` |
+| POST | `/api/reorganize` | | `{updated}` or `{skipped:true}`: the AI re-groups and re-ranks all your open notes. 429 when this month's AI uses are used up |
+| GET | `/api/status` | | `{ai: {enabled, provider, model, pending, reorganizing, usage: {used, limit, resets}}, rev, groups: [{name,count}]}`. `usage` is your AI use this month; `limit: null` = no limit |
 | GET / PUT | `/api/groups/mine` | `{names}` (PUT: up to 30 names of 1–40 characters) | "My groups": groups the person made. They always show, and the AI files matching notes into them and never renames or merges them. Also in `/api/status` as `myGroups` |
 | GET | `/api/server-info` | | `{port, addresses: ["http://192.168.1.20:3000", …]}`: where other devices on the network can reach this server |
 
