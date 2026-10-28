@@ -792,7 +792,6 @@ function card(n, { showGroup }) {
     n.ai_status === 'limit' ? `<span class="ai-limit" title="${esc(n.ai_error)}">⏸️</span>` : '';
   return `
     <article class="note card p-${n.priority} ${n.done ? 'done' : ''}" data-id="${esc(n.id)}">
-      <button class="check" data-check title="${n.done ? 'Mark not done' : 'Mark done'}" aria-label="${n.done ? 'Mark not done' : 'Mark done'}" ${canEdit(n) ? '' : 'disabled'}>${n.done ? '✓' : ''}</button>
       <div class="note-main">
         <div class="note-head">
           <h3>${esc(title)}</h3>${status}
@@ -808,6 +807,7 @@ function card(n, { showGroup }) {
           ${due ? `<span class="due ${due.cls}">${esc(due.text)}${n.due_time ? ` · ${esc(n.due_time)}` : ''}${n.user_due ? ' 📌' : ''}</span>` : ''}
           ${(n.tags || []).slice(0, 4).map((t) => `<span class="tag">#${esc(t)}</span>`).join('')}
           <span class="time">${relTime(n.created_at)}</span>
+          ${canEdit(n) ? `<button class="done-btn" data-check>${n.done ? '↩ Not done' : '✓ Done'}</button>` : ''}
         </div>
       </div>
     </article>`;
@@ -965,6 +965,7 @@ $('#reorganizeBtn').onclick = async () => {
 // ---------------------------------------------------------------------------
 /** A short message at the bottom; with `undo`, it has an Undo button and stays a little longer. */
 function toast(msg, undo) {
+  document.querySelector('.toast')?.remove(); // one message at a time
   const t = document.createElement('div');
   t.className = 'toast';
   t.textContent = msg;
