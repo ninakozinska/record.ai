@@ -164,20 +164,21 @@ export class Organizer {
     if (!note || note.deleted || note.ai_status !== 'pending') return;
 
     if (!this.enabled) {
-      this.onChange(this.store.applyAi(id, fallbackAnalysis(note)));
+      this.onChange(this.store.applyAi(id, fallbackAnalysis(note, this.store.items?.(id) || [])));
       return;
     }
 
     if (!this.charge(note.user_id, 1)) {
       const { limit, resets } = this.usage(note.user_id);
       this.onChange(this.store.applyAi(id, {
-        ...fallbackAnalysis(note),
+        ...fallbackAnalysis(note, this.store.items?.(id) || []),
         status: 'limit',
         error: `This month's ${limit} AI sortings are used up. Your notes are saved and synced; the AI sorts them again from ${resets}.`,
       }));
       return;
     }
 
+    const items = this.store.items?.(id) || [];
     const groups = this.store.groups(note.user_id).map((g) => `${g.name} (${g.count})`);
     const mine = this.store.myGroups(note.user_id);
     const images = note.images.map((name) => this.readImage(name)).filter(Boolean);
@@ -187,8 +188,8 @@ export class Organizer {
       myGroupsLine(mine) +
       `\n` +
       `<note created="${new Date(note.created_at).toISOString()}" images="${note.images.length}">\n` +
-      `${note.text || '(no text — photo only)'}\n</note>\n` +
-      listItemsBlock(this.store.items?.(id) || []) +
+      `${note.text || (items.length ? '(no text: a checklist, see its items)' : '(no text — photo only)')}\n</note>\n` +
+      listItemsBlock(items) +
       `\nAnalyze this note.`;
 
     try {
@@ -202,7 +203,7 @@ export class Organizer {
       this.maybeAutoReorganize(note.user_id);
     } catch (err) {
       this.log.error(`[organizer] note ${id}:`, err.message);
-      this.onChange(this.store.applyAi(id, { ...fallbackAnalysis(note), status: 'error', error: friendlyError(err, this.provider) }));
+      this.onChange(this.store.applyAi(id, { ...fallbackAnalysis(note, this.store.items?.(id) || []), status: 'error', error: friendlyError(err, this.provider) }));
     }
   }
 
@@ -416,8 +417,8 @@ function today() {
 }
 
 /** Used when no API key is configured or the call failed. */
-export function fallbackAnalysis(note) {
-  const firstLine = (note.text || '').split('\n').find((l) => l.trim()) || '';
+export function fallbackAnalysis(note, items = []) {
+  const firstLine = (note.text || '').split('\n').find((l) => l.trim()) || items[0]?.text || '';
   const title = firstLine.slice(0, 60) || (note.images.length ? 'Photo note' : 'Untitled');
   const urgent = /\b(urgent|asap|today|now|deadline|immediately)\b/i.test(note.text);
   return {

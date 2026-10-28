@@ -94,8 +94,11 @@ export class Local extends EventTarget {
 
   // ---- local edits -----------------------------------------------------------
 
-  /** Create or update a note. `patch` contains only user-owned fields. */
-  async save(id, patch) {
+  /**
+   * Create or update a note. `patch` contains only user-owned fields.
+   * `send: false` waits for a later flush(), to send several notes together.
+   */
+  async save(id, patch, { send = true } = {}) {
     const now = Date.now();
     const prev = this.notes.get(id);
     const note = {
@@ -125,7 +128,7 @@ export class Local extends EventTarget {
     await req(this.tx('outbox', 'readwrite').put({ key, kind: 'note', id, body }));
     this.pending.add(id);
     this.changed();
-    this.flush();
+    if (send) this.flush();
     return note;
   }
 

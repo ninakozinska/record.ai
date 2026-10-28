@@ -259,28 +259,53 @@ try {
   await desktop.fill('#composer textarea', 'Pasta night\n');
   await desktop.evaluate(() => document.querySelector('#composer textarea').setSelectionRange(12, 12));
   await paste(desktop, '#composer textarea', '1. pasta\n2. tomatoes\n\n• basil');
-  await desktop.waitForSelector('#pasteChoice[open] #pasteMany:text("Make a list (3 items)")');
+  await desktop.waitForSelector('#pasteChoice[open] #pasteA:text("One note with a checklist (3 items)")');
   await desktop.screenshot({ path: path.join(out, 'desktop-paste.png') });
-  await desktop.click('#pasteMany');
+  await desktop.click('#pasteA');
   await desktop.waitForFunction(() => document.querySelector('#composer textarea').value === 'Pasta night\n- pasta\n- tomatoes\n- basil');
   await desktop.keyboard.press('Control+Enter');
   const pasta = '.note:has(h3:text("Pasta night"))';
   await desktop.waitForSelector(`${pasta} .list-count:text("☑ 0/3")`);
   await desktop.click(`${pasta} h3`);
   await paste(desktop, '#newItem', 'salt\npepper');
-  await desktop.click('#pasteChoice #pasteOne:text("Add as one item")');
-  await desktop.waitForSelector('#itemList [data-item] >> nth=3');
+  assert.equal(await desktop.isVisible('#pastePlain'), false, 'no plain text choice for list items');
+  await desktop.click('#pasteChoice #pasteB:text("Add as one item")');
   await desktop.waitForSelector('#itemList [data-item-text][value="salt, pepper"]');
   await paste(desktop, '#newItem', '- olive oil\n- parmesan');
-  await desktop.click('#pasteChoice #pasteMany:text("Add 2 items")');
+  await desktop.click('#pasteChoice #pasteA:text("Add 2 items")');
   await desktop.waitForSelector('#itemsCount:text("0/6 done")');
-  // Keeping it as one note pastes the text as it is.
   desktop.once('dialog', (d) => d.accept());
   await desktop.click('#editorDelete');
+  // Separate notes: one note per line, each sorted by the AI.
+  await paste(desktop, '#composer textarea', 'Call the bank\nBook the car service');
+  await desktop.click('#pasteChoice #pasteB:text("2 separate notes")');
+  await desktop.waitForSelector('.note h3:text("Call the bank")');
+  await desktop.waitForSelector('.note h3:text("Book the car service")');
+  assert.equal(await desktop.inputValue('#composer textarea'), '', 'nothing left in the box');
+  // Plain text pastes it as it is; ✕ closes without pasting.
   await paste(desktop, '#composer textarea', 'line one\nline two');
-  await desktop.click('#pasteChoice #pasteOne:text("Keep as one note")');
+  await desktop.click('#pasteChoice #pastePlain');
   await desktop.waitForFunction(() => document.querySelector('#composer textarea').value === 'line one\nline two');
   await desktop.fill('#composer textarea', '');
+  await paste(desktop, '#composer textarea', 'line one\nline two');
+  await desktop.click('#pasteChoice [title=Close]');
+  await desktop.waitForSelector('#pasteChoice', { state: 'hidden' });
+  assert.equal(await desktop.inputValue('#composer textarea'), '');
+  // A checklist pasted without a title line gets one from the AI, not "List".
+  await paste(desktop, '#composer textarea', 'eggs\nflour');
+  await desktop.click('#pasteA');
+  await desktop.waitForFunction(() => document.querySelector('#composer textarea').value === '- eggs\n- flour');
+  await desktop.click('#composer [data-role=save]');
+  await desktop.waitForSelector('.note:has(.list-count:text("☑ 0/2")):not(:has(.ai-pending))');
+  assert.equal(await desktop.locator('.note h3:text-is("List")').count(), 0);
+  for (const t of ['Call the bank', 'Book the car service']) {
+    desktop.once('dialog', (d) => d.accept());
+    await desktop.click(`.note h3:text("${t}")`);
+    await desktop.click('#editorDelete');
+  }
+  desktop.once('dialog', (d) => d.accept());
+  await desktop.click('.note:has(.list-count:text("☑ 0/2")) h3');
+  await desktop.click('#editorDelete');
   console.log('✓ pasting several lines: a list, or one note / one item');
 
   // 8. Sharing: Nina shares the list with Tom before he has an account; he

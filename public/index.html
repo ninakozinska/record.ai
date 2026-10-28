@@ -152,13 +152,17 @@
   <!-- Pasting several lines: one item, or one per line? -->
   <dialog id="pasteChoice" class="sheet">
     <form method="dialog" class="sheet-inner">
-      <h2 id="pasteTitle">Paste</h2>
+      <div class="sheet-head">
+        <h2 id="pasteTitle">Paste</h2>
+        <button value="" class="icon-btn" title="Close">✕</button>
+      </div>
       <ul id="pastePreview" class="paste-preview"></ul>
       <div class="sheet-actions">
-        <button value="one" class="ghost" id="pasteOne">As one</button>
+        <button value="b" class="ghost" id="pasteB">As one</button>
         <span class="spacer"></span>
-        <button value="many" class="primary" id="pasteMany">One per line</button>
+        <button value="a" class="primary" id="pasteA">One per line</button>
       </div>
+      <button value="plain" class="link-btn" id="pastePlain">Paste as plain text</button>
     </form>
   </dialog>
 
