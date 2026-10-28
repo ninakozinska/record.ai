@@ -258,6 +258,66 @@ async function addItems(parentId, texts) {
   for (const t of texts) await local.save(uuid(), { parent_id: parentId, text: t });
 }
 
+// Pasting several lines (e.g. items copied from another note): ask whether
+// they become one item each, or stay together. Bullets and numbers go.
+const BULLET = /^\s*(?:[-*•·–]|\d+[.)]|\[[ xX]?\]|[☐☑✓✔])\s*/;
+function pastedLines(e) {
+  const text = e.clipboardData?.getData('text/plain') || '';
+  const lines = text.split(/\r?\n/).map((l) => l.replace(BULLET, '').trim()).filter(Boolean);
+  return lines.length > 1 ? { text, lines } : null;
+}
+/** Resolves to 'many', 'one', or '' (cancelled). */
+function askPaste(lines, { title, many, one }) {
+  const d = $('#pasteChoice');
+  $('#pasteTitle').textContent = title;
+  $('#pastePreview').innerHTML = lines.slice(0, 6).map((l) => `<li>${esc(l)}</li>`).join('') + (lines.length > 6 ? `<li>… ${lines.length - 6} more</li>` : '');
+  $('#pasteMany').textContent = many;
+  $('#pasteOne').textContent = one;
+  d.returnValue = '';
+  d.showModal();
+  return new Promise((resolve) => d.addEventListener('close', () => resolve(d.returnValue), { once: true }));
+}
+/** Puts text where the cursor was when pasting (the question window moves the focus). */
+function insertText(box, text, [start, end]) {
+  box.setRangeText(text, start, end, 'end');
+  box.dispatchEvent(new Event('input'));
+  box.focus();
+}
+composer.text.addEventListener('paste', async (e) => {
+  const pasted = pastedLines(e);
+  if (!pasted || e.clipboardData.files?.length) return;
+  e.preventDefault();
+  const box = composer.text;
+  const at = [box.selectionStart, box.selectionEnd];
+  const choice = await askPaste(pasted.lines, {
+    title: `Paste ${pasted.lines.length} lines`,
+    many: `Make a list (${pasted.lines.length} items)`,
+    one: 'Keep as one note',
+  });
+  if (choice === 'many') {
+    // Each item on a line of its own, also when pasting into the middle of a line.
+    const before = at[0] === 0 || box.value[at[0] - 1] === '\n' ? '' : '\n';
+    const after = at[1] === box.value.length || box.value[at[1]] === '\n' ? '' : '\n';
+    insertText(box, before + pasted.lines.map((l) => `- ${l}`).join('\n') + after, at);
+  } else if (choice === 'one') {
+    insertText(box, pasted.text, at);
+  }
+});
+$('#newItem').addEventListener('paste', async (e) => {
+  const pasted = pastedLines(e);
+  if (!pasted) return;
+  e.preventDefault();
+  const choice = await askPaste(pasted.lines, {
+    title: `Paste ${pasted.lines.length} lines`,
+    many: `Add ${pasted.lines.length} items`,
+    one: 'Add as one item',
+  });
+  if (!choice) return;
+  await addItems(editor.id, choice === 'many' ? pasted.lines : [pasted.lines.join(', ')]);
+  editor.renderItems();
+  $('#newItem').focus();
+});
+
 async function saveComposer() {
   composer.dictation.stop();
   if (composer.isEmpty()) return;
