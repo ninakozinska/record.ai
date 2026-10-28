@@ -245,6 +245,39 @@ try {
   await desktop.click('#accountClose');
   console.log('✓ dates: own date and time, Auto, calendar file, calendar link');
 
+  // 7c. Pasting several lines asks: a list (one item per line) or one note / one item.
+  const paste = (page, sel, text) => page.evaluate(([sel, text]) => {
+    const dt = new DataTransfer();
+    dt.setData('text/plain', text);
+    document.querySelector(sel).dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+  }, [sel, text]);
+  await desktop.fill('#composer textarea', 'Pasta night\n');
+  await desktop.evaluate(() => document.querySelector('#composer textarea').setSelectionRange(12, 12));
+  await paste(desktop, '#composer textarea', '1. pasta\n2. tomatoes\n\n• basil');
+  await desktop.waitForSelector('#pasteChoice[open] #pasteMany:text("Make a list (3 items)")');
+  await desktop.screenshot({ path: path.join(out, 'desktop-paste.png') });
+  await desktop.click('#pasteMany');
+  await desktop.waitForFunction(() => document.querySelector('#composer textarea').value === 'Pasta night\n- pasta\n- tomatoes\n- basil');
+  await desktop.keyboard.press('Control+Enter');
+  const pasta = '.note:has(h3:text("Pasta night"))';
+  await desktop.waitForSelector(`${pasta} .list-count:text("☑ 0/3")`);
+  await desktop.click(`${pasta} h3`);
+  await paste(desktop, '#newItem', 'salt\npepper');
+  await desktop.click('#pasteChoice #pasteOne:text("Add as one item")');
+  await desktop.waitForSelector('#itemList [data-item] >> nth=3');
+  await desktop.waitForSelector('#itemList [data-item-text][value="salt, pepper"]');
+  await paste(desktop, '#newItem', '- olive oil\n- parmesan');
+  await desktop.click('#pasteChoice #pasteMany:text("Add 2 items")');
+  await desktop.waitForSelector('#itemsCount:text("0/6 done")');
+  // Keeping it as one note pastes the text as it is.
+  desktop.once('dialog', (d) => d.accept());
+  await desktop.click('#editorDelete');
+  await paste(desktop, '#composer textarea', 'line one\nline two');
+  await desktop.click('#pasteChoice #pasteOne:text("Keep as one note")');
+  await desktop.waitForFunction(() => document.querySelector('#composer textarea').value === 'line one\nline two');
+  await desktop.fill('#composer textarea', '');
+  console.log('✓ pasting several lines: a list, or one note / one item');
+
   // 8. Sharing: Nina shares the list with Tom before he has an account; he
   //    signs up with the invite code, ticks an item, then gets view only, then
   //    Nina stops sharing and the list leaves his phone.

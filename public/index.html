@@ -149,6 +149,19 @@
     </form>
   </dialog>
 
+  <!-- Pasting several lines: one item, or one per line? -->
+  <dialog id="pasteChoice" class="sheet">
+    <form method="dialog" class="sheet-inner">
+      <h2 id="pasteTitle">Paste</h2>
+      <ul id="pastePreview" class="paste-preview"></ul>
+      <div class="sheet-actions">
+        <button value="one" class="ghost" id="pasteOne">As one</button>
+        <span class="spacer"></span>
+        <button value="many" class="primary" id="pasteMany">One per line</button>
+      </div>
+    </form>
+  </dialog>
+
   <!-- Camera -->
   <dialog id="camera" class="camera">
     <video id="cameraVideo" autoplay playsinline muted></video>
