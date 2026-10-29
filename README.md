@@ -106,6 +106,8 @@ Open your server's URL, log in, then:
 
 | Variable | Default | Meaning |
 |---|---|---|
+| `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_SOLO`, `STRIPE_PRICE_FAMILY` | *(none)* | Opens payments for Solo and Family through Stripe. Step by step: [docs/PAYMENTS.md](docs/PAYMENTS.md). |
+| `SENTRY_DSN` | *(none)* | Sends server errors to [Sentry](https://sentry.io) (free tier): make a Node.js project there and copy its DSN. Reports hold where the error happened and the account id, never note text or emails. |
 | `PUBLIC_URL` | *(the address in the browser)* | The HTTPS address people use, e.g. `https://notes.example.com`. Needed for "Continue with Google" etc. |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, … | *(none)* | Turn on "Continue with Google / Apple / Microsoft / Facebook / LinkedIn / X / GitHub". Step by step: [docs/SOCIAL_LOGIN.md](docs/SOCIAL_LOGIN.md). |
 | `ALLOW_SIGNUP` | `false` | `true` lets anyone who can reach the server create an account. |
@@ -120,6 +122,9 @@ Open your server's URL, log in, then:
 | `ADMIN_EMAILS` | *(none)* | Comma-separated emails that may open the dashboard (/admin.html) besides the owner (the first account). |
 | `OPTIMIZER` | *(on)* | `off` stops the hourly optimization loops and the daily backups. See [docs/OPTIMIZATION.md](docs/OPTIMIZATION.md). |
 | `AI_UNLIMITED` | *(none)* | Comma-separated emails that have no monthly AI limit either. |
+| `RESEND_API_KEY`, `MAIL_FROM` | *(none)* | Sends "Forgot your password?" emails through [Resend](https://resend.com) (`MAIL_FROM` like `record.ai <hello@your-domain>`, on a domain verified there). Without them the reset link is only written to the server log. |
+| `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_SOLO`, `STRIPE_PRICE_FAMILY` | *(none)* | Opens payments for Solo and Family through Stripe. Step by step: [docs/PAYMENTS.md](docs/PAYMENTS.md). |
+| `PUBLIC_URL` | *(the address used)* | The app's public address, used in emailed links (e.g. `https://record-ai-nina.fly.dev`). |
 | `PORT` | `3000` | HTTP port. |
 | `TRUST_PROXY` | `loopback` | Which proxy to believe about visitors' addresses. Behind a host's proxy (Fly.io, Render) set `1`, or one person's wrong passwords slow down everyone. |
 | `DATA_DIR` | `./data` | Where the SQLite database and photos are stored. **Back this up.** |

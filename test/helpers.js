@@ -15,6 +15,8 @@ export async function start(opts = {}) {
   const { app, store, organizer, insights, optimizer, backups } = createApp({
     dataDir,
     oauth: opts.oauth,
+    mail: opts.mail,
+    ...(opts.billing ? { billing: opts.billing } : {}),
     organizer: client
       ? (args) => new Organizer({ ...args, client, log: { error() {} } })
       : (args) => new Organizer({ ...args, log: { error() {} } }),

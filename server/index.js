@@ -17,7 +17,19 @@ if (local) await ensureOllamaModel();
 fs.mkdirSync(dataDir, { recursive: true });
 importArchive(dataDir);
 
-const { app, organizer, store } = createApp({ dataDir });
+const { app, organizer, store, errors } = createApp({ dataDir });
+
+// Errors outside a request (timers, the AI queue) are reported too. A failed
+// promise is only reported; a thrown error stops the server after reporting,
+// and Fly.io starts it again in a clean state.
+process.on('unhandledRejection', (err) => errors.report(err, { route: 'unhandled rejection' }));
+process.on('uncaughtException', (err) => {
+  const stop = setTimeout(() => process.exit(1), 3000);
+  errors.report(err, { route: 'uncaught exception' }).finally(() => {
+    clearTimeout(stop);
+    process.exit(1);
+  });
+});
 
 app.listen(port, () => {
   console.log(`record.ai listening on http://localhost:${port}`);

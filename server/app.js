@@ -14,6 +14,8 @@ import { Optimizer, costOf } from './optimizer.js';
 import { EXPERIMENTS } from './experiments.js';
 import { toIcs, noteTitle } from './calendar.js';
 import crypto from 'node:crypto';
+import { billing as makeBilling, PLANS } from './billing.js';
+import { errorReporter } from './errors.js';
 
 const PUBLIC_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'public');
 const IMAGE_NAME = /^[a-zA-Z0-9-]{8,64}\.(jpg|jpeg|png|webp|gif)$/;
@@ -59,7 +61,7 @@ export function trustProxy(value) {
   return value;
 }
 
-export function createApp({ dataDir, organizer: makeOrganizer, oauth } = {}) {
+export function createApp({ dataDir, organizer: makeOrganizer, oauth, mail, billing = makeBilling(), errors = errorReporter() } = {}) {
   const store = openDb(dataDir);
   const imagesDir = path.join(dataDir, 'images');
   fs.mkdirSync(imagesDir, { recursive: true });
@@ -143,11 +145,30 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth } = {}) {
       },
     }),
   );
+  // Stripe tells us about payments here. It signs the exact bytes it sends,
+  // so this route reads the body before it is turned into JSON.
+  app.post('/api/billing/webhook', express.raw({ type: '*/*', limit: '1mb' }), (req, res) => {
+    const event = billing.verify(req.body.toString('utf8'), req.get('stripe-signature'));
+    if (!event) return res.status(400).json({ error: 'Bad signature' });
+    const effect = billing.effect(event);
+    if (effect && store.getUser(effect.userId)) {
+      const before = store.planOf(effect.userId);
+      if (effect.customer) store.setMeta(`stripe:customer:${effect.userId}`, effect.customer);
+      if (store.firstUserId() !== effect.userId) store.setPlan(effect.userId, effect.plan);
+      if (before !== effect.plan) {
+        insights.track(effect.plan === 'free' ? 'subscription_ended' : 'subscription_started', {
+          userId: effect.userId, props: { plan: effect.plan, from: before },
+        });
+      }
+    }
+    res.json({ received: true });
+  });
+
   app.use(express.json({ limit: '25mb' }));
 
   app.get('/api/health', (req, res) => res.json({ ok: true, app: 'record.ai' }));
   app.use('/api/auth', authRoutes({
-    store, imagesDir, oauth,
+    store, imagesDir, oauth, mail,
     onSignup: (user, { method, anonId }) => {
       insights.track('signup', { userId: user.id, props: { method } });
       if (anonId && ANON_ID.test(anonId)) insights.identify(anonId, user.id);
@@ -168,7 +189,8 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth } = {}) {
     const platform = PLATFORMS.includes(req.query.platform) ? req.query.platform : 'web';
     const { subject } = subjectOf(req, anonId);
     if (!subject) return res.status(400).json({ error: 'anon id needed' });
-    res.json({ subject, variants: insights.assignmentsFor(subject, platform) });
+    const keys = req.query.keys ? String(req.query.keys).split(',').slice(0, 10) : null;
+    res.json({ subject, variants: insights.assignmentsFor(subject, platform, keys) });
   });
   // At most 600 events a minute from one address: enough for any real use, not for flooding.
   const eventBudget = new Map();
@@ -257,6 +279,25 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth } = {}) {
   // --- notes ----------------------------------------------------------------
   // "My groups": groups the person made, which the AI always keeps and uses.
   app.get('/api/groups/mine', (req, res) => res.json({ names: store.myGroups(req.user.id) }));
+
+  // Which world (Work or Family) each group belongs to, when the person moved it.
+  // {group name in lowercase: 'work' | 'family' | '' (both)}.
+  const worldsKey = (userId) => `worlds:${userId}`;
+  app.get('/api/groups/worlds', (req, res) => res.json({ chosen: JSON.parse(store.getMeta(worldsKey(req.user.id)) || '{}') }));
+  app.put('/api/groups/worlds', (req, res) => {
+    const chosen = req.body?.chosen;
+    if (!chosen || typeof chosen !== 'object' || Array.isArray(chosen) || Object.keys(chosen).length > 200) {
+      return res.status(400).json({ error: 'Send {chosen: {group: "work" | "family" | ""}}.' });
+    }
+    const clean = {};
+    for (const [group, world] of Object.entries(chosen)) {
+      const key = group.trim().toLowerCase().slice(0, 60);
+      if (key && ['work', 'family', ''].includes(world)) clean[key] = world;
+    }
+    store.setMeta(worldsKey(req.user.id), JSON.stringify(clean));
+    insights.track('worlds_changed', { userId: req.user.id, props: { groups: Object.keys(clean).length } });
+    res.json({ chosen: clean });
+  });
   app.put('/api/groups/mine', (req, res) => {
     const names = req.body?.names;
     if (!Array.isArray(names) || names.length > MAX_MY_GROUPS || !names.every((n) => typeof n === 'string')) {
@@ -428,7 +469,41 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth } = {}) {
   // --- plans, backups (premium), download all my notes ---------------------------
   app.get('/api/plan', (req, res) => {
     const plan = store.planOf(req.user.id);
-    res.json({ plan, premium: premium(plan), admin: isAdmin(req.user), features: { backups: premium(plan), backupDays: 30 } });
+    res.json({
+      plan, premium: premium(plan), admin: isAdmin(req.user),
+      features: { backups: premium(plan), backupDays: 30 },
+      // Payments are open (Stripe set up), and whether there is a subscription to manage.
+      billing: { open: billing.configured, manage: billing.configured && !!store.getMeta(`stripe:customer:${req.user.id}`) },
+    });
+  });
+
+  app.post('/api/billing/checkout', async (req, res) => {
+    const plan = req.body?.plan;
+    if (!PLANS.includes(plan)) return res.status(400).json({ error: 'Choose Solo or Family.' });
+    if (!billing.configured) return res.status(503).json({ error: "Payments aren't open yet.", notOpen: true });
+    if (premium(store.planOf(req.user.id)) && store.getMeta(`stripe:customer:${req.user.id}`)) {
+      return res.status(409).json({ error: 'You already have Premium. Use "Manage subscription" to change it.' });
+    }
+    try {
+      const url = await billing.checkout({
+        user: req.user, plan, customer: store.getMeta(`stripe:customer:${req.user.id}`), base: publicUrl(req),
+      });
+      insights.track('checkout_started', { userId: req.user.id, props: { plan } });
+      res.json({ url });
+    } catch (err) {
+      console.error('[billing]', err.message);
+      res.status(502).json({ error: 'The payment page could not be opened. Please try again.' });
+    }
+  });
+  app.post('/api/billing/portal', async (req, res) => {
+    const customer = store.getMeta(`stripe:customer:${req.user.id}`);
+    if (!billing.configured || !customer) return res.status(404).json({ error: 'No subscription to manage.' });
+    try {
+      res.json({ url: await billing.portal({ customer, base: publicUrl(req) }) });
+    } catch (err) {
+      console.error('[billing]', err.message);
+      res.status(502).json({ error: 'The subscription page could not be opened. Please try again.' });
+    }
   });
 
   app.get('/api/backups', (req, res) => {
@@ -481,6 +556,12 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth } = {}) {
     if (store.firstUserId() === req.user.id) {
       return res.status(400).json({ error: "This account owns the server, so it can't be deleted here." });
     }
+    // A deleted account is never charged again.
+    const customer = store.getMeta(`stripe:customer:${req.user.id}`);
+    if (customer && billing.configured) {
+      billing.cancelAll(customer).catch((err) => console.error('[billing] cancel after account deletion:', err.message));
+    }
+    store.deleteMeta(`stripe:customer:${req.user.id}`);
     const gone = store.deleteUser(req.user.id);
     for (const name of gone.images) {
       for (const f of [path.join(imagesDir, name), path.join(imagesDir, 'thumbs', name)]) fs.rmSync(f, { force: true });
@@ -616,6 +697,15 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth } = {}) {
     }),
   );
 
+  // Anything that went wrong while answering: reported (Sentry, if set up), and a plain answer.
+  app.use((err, req, res, next) => {
+    if (err?.type === 'entity.parse.failed') return res.status(400).json({ error: 'That request was not valid JSON.' });
+    if (err?.type === 'entity.too.large') return res.status(413).json({ error: 'That is too big to send.' });
+    errors.report(err, { route: `${req.method} ${req.route?.path || req.path}`, userId: req.user?.id });
+    if (res.headersSent) return next(err);
+    res.status(500).json({ error: 'Something went wrong on the server. Please try again.' });
+  });
+
   organizer.resumePending?.();
-  return { app, store, organizer, insights, optimizer, backups };
+  return { app, store, organizer, insights, optimizer, backups, errors };
 }

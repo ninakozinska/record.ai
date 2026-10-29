@@ -45,7 +45,7 @@ test('backups are premium: free accounts are told so; the owner backs up, restor
     assert.equal((await tom.api('backups')).body.premium, false);
 
     // The owner has everything.
-    assert.deepEqual((await s.api('plan')).body, { plan: 'family', premium: true, admin: true, features: { backups: true, backupDays: 30 } });
+    assert.deepEqual((await s.api('plan')).body, { plan: 'family', premium: true, admin: true, features: { backups: true, backupDays: 30 }, billing: { open: false, manage: false } });
     await put(s.api, 'list-groceries', { text: 'Groceries' });
     await put(s.api, 'item-milk0001', { text: 'milk', parent_id: 'list-groceries' });
     await put(s.api, 'note-keepme01', { text: 'Keep me', user_group: 'Home' });
@@ -138,6 +138,10 @@ test('A/B tests: sticky variants before and after signing up, events, results; t
     assert.ok(['backups', 'family'].includes(v));
     for (let i = 0; i < 3; i++) assert.equal((await pub(`public/experiments?anon=${anon}`)).body.variants.premium_pitch, v, 'sticky');
     assert.equal((await pub('public/experiments')).status, 400);
+    assert.equal(first.body.variants.landing_headline, undefined, "the app doesn't join the landing page's test");
+    const landing = await pub(`public/experiments?anon=${anon}&keys=landing_headline`);
+    assert.deepEqual(Object.keys(landing.body.variants), ['landing_headline']);
+    assert.ok(['two_in_one', 'mental_load'].includes(landing.body.variants.landing_headline));
     const ev = await pub('public/events', json('POST', { anon, platform: 'ios', events: [{ name: 'landing_view' }, { name: 'Bad Name!' }, { name: 'upgrade_click', props: { from: 'test' } }] }));
     assert.equal(ev.body.saved, 2);
 

@@ -8,15 +8,29 @@ struct NotesView: View {
     @AppStorage("view") private var viewMode = "priority"
     @State private var query = ""
     @State private var group: String?
+    @AppStorage("world") private var world = Worlds.all
+    @State private var chosenWorlds: [String: String] = [:]
     @State private var showDone = false
     @State private var editing: EditTarget?
     @State private var showAccount = false
     @State private var message: String?
+    @State private var undo: (() -> Void)?
+    @State private var confirmClear = false
 
     var body: some View {
         NavigationStack {
             List {
-                if !store.groupNames.isEmpty {
+                Section {
+                    Picker("World", selection: $world) {
+                        Text("All").tag(Worlds.all)
+                        Text("💼 Work").tag(Worlds.work)
+                        Text("🏡 Family").tag(Worlds.family)
+                    }
+                    .pickerStyle(.segmented)
+                    .onChange(of: world) { _, _ in group = nil }
+                }
+                .listRowBackground(Color.clear)
+                if !groupNames.isEmpty {
                     Section { groupChips }
                         .listRowInsets(EdgeInsets())
                         .listRowBackground(Color.clear)
@@ -31,18 +45,17 @@ struct NotesView: View {
                 ForEach(sections, id: \.title) { section in
                     Section {
                         ForEach(section.notes) { note in
-                            NoteRow(note: note, showGroup: viewMode == "priority")
+                            NoteRow(note: note, showGroup: viewMode == "priority") { markDone(note) }
                                 .contentShape(Rectangle())
                                 .onTapGesture { editing = EditTarget(id: note.id) }
-                                .swipeActions(edge: .leading) {
-                                    Button { store.save(id: note.id, patch: ["done": !note.done]) } label: {
-                                        Label(note.done ? "Not done" : "Done", systemImage: "checkmark")
-                                    }
-                                    .tint(.green)
-                                }
                                 .swipeActions(edge: .trailing) {
-                                    Button(role: .destructive) { store.save(id: note.id, patch: ["deleted": true]) } label: {
-                                        Label("Delete", systemImage: "trash")
+                                    if !note.isShared {
+                                        Button(role: .destructive) {
+                                            store.save(id: note.id, patch: ["deleted": true])
+                                            show("Note deleted") { store.save(id: note.id, patch: ["deleted": false]) }
+                                        } label: {
+                                            Label("Delete", systemImage: "trash")
+                                        }
                                     }
                                 }
                         }
@@ -64,10 +77,18 @@ struct NotesView: View {
                 }
                 if !done.isEmpty {
                     Section {
-                        Button(showDone ? "Hide done (\(done.count))" : "Show done (\(done.count))") { showDone.toggle() }
+                        HStack {
+                            Button(showDone ? "Hide done (\(done.count))" : "Show done (\(done.count))") { showDone.toggle() }
+                                .buttonStyle(.borderless)
+                            Spacer()
+                            if showDone && done.contains(where: { !$0.isShared }) {
+                                Button("Clear done", role: .destructive) { confirmClear = true }
+                                    .buttonStyle(.borderless)
+                            }
+                        }
                         if showDone {
                             ForEach(done) { note in
-                                NoteRow(note: note, showGroup: true)
+                                NoteRow(note: note, showGroup: true) { markDone(note) }
                                     .contentShape(Rectangle())
                                     .onTapGesture { editing = EditTarget(id: note.id) }
                             }
@@ -77,7 +98,9 @@ struct NotesView: View {
             }
             .listStyle(.insetGrouped)
             .searchable(text: $query, prompt: "Search notes")
+            .task(id: store.user?.id) { chosenWorlds = await store.worlds() }
             .refreshable {
+                chosenWorlds = await store.worlds()
                 await store.pull()
                 await store.flush()
             }
@@ -113,13 +136,29 @@ struct NotesView: View {
             .sheet(isPresented: $showAccount) { AccountView() }
             .overlay(alignment: .top) {
                 if let message {
-                    Text(message)
-                        .font(.footnote)
-                        .padding(.horizontal, 14).padding(.vertical, 8)
-                        .background(.thinMaterial, in: Capsule())
-                        .padding(.top, 8)
-                        .transition(.move(edge: .top).combined(with: .opacity))
+                    HStack(spacing: 12) {
+                        Text(message).font(.footnote)
+                        if let undo {
+                            Button("Undo") {
+                                undo()
+                                withAnimation { self.message = nil; self.undo = nil }
+                            }
+                            .font(.footnote.bold())
+                        }
+                    }
+                    .padding(.horizontal, 14).padding(.vertical, 8)
+                    .background(.thinMaterial, in: Capsule())
+                    .padding(.top, 8)
+                    .transition(.move(edge: .top).combined(with: .opacity))
                 }
+            }
+            .confirmationDialog(clearQuestion, isPresented: $confirmClear, titleVisibility: .visible) {
+                Button("Delete", role: .destructive) {
+                    let removed = store.clearDone(done.map(\.id))
+                    show("\(removed.count) done note\(removed.count == 1 ? "" : "s") deleted") { store.undelete(removed) }
+                }
+            } message: {
+                Text("You can undo this for a few seconds.")
             }
         }
     }
@@ -137,7 +176,7 @@ struct NotesView: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
                 chip("All", selected: group == nil) { group = nil }
-                ForEach(store.groupNames, id: \.self) { name in
+                ForEach(groupNames, id: \.self) { name in
                     chip(name, selected: group == name) { group = name }
                 }
             }
@@ -165,9 +204,14 @@ struct NotesView: View {
         var notes: [Note]
     }
 
+    private var groupNames: [String] {
+        store.groupNames.filter { Worlds.shows($0, in: world, chosen: chosenWorlds) }
+    }
+
     private var filtered: [Note] {
         let words = query.lowercased().split(separator: " ").map(String.init)
         return store.visibleNotes.filter { n in
+            if !Worlds.shows(n.group, in: world, chosen: chosenWorlds) { return false }
             if let group, n.group != group { return false }
             if words.isEmpty { return true }
             let hay = ([n.text, n.title ?? "", n.summary ?? "", n.group] + (n.tags ?? [])).joined(separator: " ").lowercased()
@@ -180,7 +224,7 @@ struct NotesView: View {
 
     private var sections: [NoteSection] {
         if viewMode == "groups" {
-            let names = store.groupNames.filter { name in open.contains { $0.group == name } }
+            let names = groupNames.filter { name in open.contains { $0.group == name } }
             return names.map { name in NoteSection(title: name, color: .secondary, notes: open.filter { $0.group == name }) }
         }
         return Priority.allCases.compactMap { p in
@@ -201,11 +245,25 @@ struct NotesView: View {
         }
     }
 
-    private func show(_ text: String) {
-        withAnimation { message = text }
+    private var clearQuestion: String {
+        let n = done.filter { !$0.isShared }.count
+        return "Delete \(n) done note\(n == 1 ? "" : "s")?"
+    }
+
+    private func markDone(_ note: Note) {
+        store.setDone(note.id, !note.done)
+        show(note.done ? "Back to open notes" : "Marked done") { store.setDone(note.id, note.done) }
+    }
+
+    /// A short message at the top; with `undo`, an Undo button for a few seconds.
+    private func show(_ text: String, undo: (() -> Void)? = nil) {
+        withAnimation {
+            message = text
+            self.undo = undo
+        }
         Task {
-            try? await Task.sleep(for: .seconds(3))
-            withAnimation { if message == text { message = nil } }
+            try? await Task.sleep(for: .seconds(undo == nil ? 3 : 5))
+            withAnimation { if message == text { message = nil; self.undo = nil } }
         }
     }
 }
@@ -215,18 +273,10 @@ struct NoteRow: View {
     @Environment(NoteStore.self) private var store
     var note: Note
     var showGroup: Bool
+    var onDone: () -> Void = {}
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            Button {
-                store.save(id: note.id, patch: ["done": !note.done])
-            } label: {
-                Image(systemName: note.done ? "checkmark.circle.fill" : "circle")
-                    .font(.title3)
-                    .foregroundStyle(note.done ? Color.indigo : Color.secondary)
-            }
-            .buttonStyle(.plain)
-
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 6) {
                     Text(note.displayTitle)
@@ -245,6 +295,15 @@ struct NoteRow: View {
                         .foregroundStyle(.secondary)
                         .lineLimit(3)
                 }
+                let items = store.items(of: note.id)
+                if !items.isEmpty {
+                    let open = items.filter { !$0.done }
+                    Text("☑ \(items.count - open.count)/\(items.count)").font(.caption).foregroundStyle(.secondary)
+                    ForEach(open.prefix(4)) { item in
+                        Text("☐ " + item.text).font(.subheadline).lineLimit(1)
+                    }
+                    if open.count > 4 { Text("+ \(open.count - 4) more").font(.caption).foregroundStyle(.secondary) }
+                }
                 if !note.images.isEmpty {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 6) {
@@ -262,20 +321,31 @@ struct NoteRow: View {
                         .foregroundStyle(note.priority.color)
                         .padding(.horizontal, 6).padding(.vertical, 2)
                         .background(note.priority.color.opacity(0.12), in: RoundedRectangle(cornerRadius: 5))
-                    if showGroup {
+                    if note.isShared {
+                        Text("Shared by \(note.ownerName ?? "someone")" + (note.canEdit ? "" : " · view only"))
+                            .font(.caption)
+                            .foregroundStyle(.indigo)
+                    } else if showGroup {
                         Text(note.group + (note.userGroup != nil ? " 📌" : ""))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
-                    if let due = note.due {
-                        Text(dueLabel(due))
-                            .font(.caption)
-                            .foregroundStyle(due < Date().addingTimeInterval(86400 * 2) ? Color.red : Color.orange)
+                    if let shown = dueText(note) {
+                        Text(shown.0)
+                            .font(.caption.bold())
+                            .foregroundStyle(shown.1 ? Color.red : Color.secondary)
                     }
                     Spacer()
-                    Text(note.createdDate, style: .relative)
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
+                    if note.canEdit {
+                        Button(action: onDone) {
+                            Text(note.done ? "↺ Reopen" : "✓ Done")
+                                .font(.caption.bold())
+                                .padding(.horizontal, 10).padding(.vertical, 5)
+                                .background(Capsule().stroke(Color.indigo.opacity(0.5)))
+                        }
+                        .buttonStyle(.borderless)
+                        .accessibilityLabel(note.done ? "Mark not done" : "Mark done")
+                    }
                 }
             }
         }
@@ -284,16 +354,5 @@ struct NoteRow: View {
             Rectangle().fill(note.priority.color).frame(width: 3).offset(x: -16)
         }
         .opacity(note.done ? 0.6 : 1)
-    }
-
-    private func dueLabel(_ date: Date) -> String {
-        let days = Calendar.current.dateComponents([.day], from: Calendar.current.startOfDay(for: Date()), to: date).day ?? 0
-        switch days {
-        case ..<0: return "overdue \(-days)d"
-        case 0: return "due today"
-        case 1: return "due tomorrow"
-        case 2..<7: return "due in \(days)d"
-        default: return "due \(note.dueDate ?? "")"
-        }
     }
 }

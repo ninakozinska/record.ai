@@ -32,7 +32,12 @@ data class UiState(
 ) {
     val loggedIn: Boolean get() = user != null
     val aiEnabled: Boolean get() = ai?.enabled ?: true
-    val visible: List<Note> get() = notes.values.filter { !it.deleted }
+    /** Notes and lists (not the items inside lists). */
+    val visible: List<Note> get() = notes.values.filter { !it.deleted && it.parentId == null }
+
+    /** A list's items: open ones first, most urgent first, then in the order they were added. */
+    fun items(listId: String): List<Note> = notes.values.filter { it.parentId == listId && !it.deleted }
+        .sortedWith(compareBy<Note> { it.done }.thenBy { it.priority.ordinal }.thenBy { it.createdAt })
 
     /** Groups of open notes, biggest first. */
     val groupNames: List<String>
@@ -42,7 +47,7 @@ data class UiState(
 
 /** Most urgent first; then by due date; then newest first. */
 val noteOrder: Comparator<Note> = compareBy<Note> { it.priority.ordinal }
-    .thenBy(nullsLast()) { it.dueDate }
+    .thenBy(nullsLast()) { it.due?.let { d -> d + (it.time ?: "") } }
     .thenByDescending { it.createdAt }
 
 /**
@@ -210,6 +215,8 @@ class NoteRepository(
         runCatching { refreshAuthState() }
     }
 
+    suspend fun forgotPassword(email: String) { (api ?: throw ApiException.offline()).forgotPassword(email.trim()) }
+
     suspend fun changePassword(current: String, next: String) { api?.changePassword(current, next) }
 
     suspend fun logoutOtherDevices() { api?.logoutOthers() }
@@ -272,6 +279,7 @@ class NoteRepository(
                 _state.update { it.copy(ai = ai) }
                 flush() // also brings back what changed while we were away
             }
+            "shares" -> flush() // something was shared with me, or stopped being shared
             "status" -> {
                 val ai = runCatching { json.decodeFromString(AiStatus.serializer(), data) }.getOrNull()
                 _state.update { it.copy(ai = ai) }
@@ -287,6 +295,13 @@ class NoteRepository(
         val pending = outbox.filter { it.kind == OutboxItem.NOTE }.map { it.id }.toSet()
         val notes = _state.value.notes.toMutableMap()
         for (s in incoming) {
+            if (s.revoked) {
+                // No longer shared with me: it (and its items) leave this device.
+                notes.remove(s.id)
+                notes.values.filter { it.parentId == s.id }.forEach { notes.remove(it.id) }
+                outbox = outbox.filterNot { it.kind == OutboxItem.NOTE && it.id == s.id }
+                continue
+            }
             val local = notes[s.id]
             // Replies and live updates can arrive out of order: never go backwards.
             if (local?.rev != null && s.rev != null && s.rev < local.rev) continue
@@ -294,7 +309,8 @@ class NoteRepository(
                 val contentDiffers = local.text != s.text || local.images != s.images
                 local.copy(
                     title = s.title, summary = s.summary, aiGroup = s.aiGroup, aiPriority = s.aiPriority,
-                    priorityReason = s.priorityReason, tags = s.tags, dueDate = s.dueDate,
+                    priorityReason = s.priorityReason, tags = s.tags, dueDate = s.dueDate, dueTime = s.dueTime,
+                    aiDueDate = s.aiDueDate, aiDueTime = s.aiDueTime, role = s.role, ownerName = s.ownerName, userId = s.userId,
                     aiStatus = if (contentDiffers) "pending" else s.aiStatus, aiError = s.aiError, rev = s.rev,
                 )
             } else s
@@ -348,7 +364,7 @@ class NoteRepository(
      * Creates or updates a note. `patch` uses the server's field names
      * (text, images, done, deleted, user_group, user_priority); a null value clears it.
      */
-    fun save(id: String, patch: Map<String, Any?>) {
+    fun save(id: String, patch: Map<String, Any?>, send: Boolean = true) {
         scope.launch(confined) {
             val before = _state.value.notes[id]
             val t = now()
@@ -360,10 +376,13 @@ class NoteRepository(
                 "deleted" -> note.copy(deleted = v as Boolean)
                 "user_group" -> note.copy(userGroup = (v as String?)?.takeIf { it.isNotBlank() })
                 "user_priority" -> note.copy(userPriority = v as String?)
+                "user_due" -> note.copy(userDue = v as String?)
+                "parent_id" -> note.copy(parentId = v as String?, aiStatus = "done")
                 else -> note
             }
             note = note.copy(editedAt = maxOf(t, (before?.editedAt ?: 0.0) + 1))
-            if (before == null || note.text != before.text || note.images != before.images) note = note.copy(aiStatus = "pending")
+            val changed = before == null || note.text != before.text || note.images != before.images
+            if (changed && note.parentId == null) note = note.copy(aiStatus = "pending")
             _state.update { it.copy(notes = it.notes + (id to note)) }
 
             // One outbox entry per note: merge with an unsent change for the same note.
@@ -373,11 +392,93 @@ class NoteRepository(
             body["edited_at"] = JsonPrimitive(note.editedAt)
             outbox = outbox.filterNot { it === old } + OutboxItem(OutboxItem.NOTE, id, JsonObject(body))
             persistSoon()
-            flush()
+            if (send) flush()
         }
     }
 
-    fun create(text: String, images: List<String>) = save(UUID.randomUUID().toString(), mapOf("text" to text, "images" to images))
+    /** Sends what is waiting (after several saves made with send = false, so they travel together). */
+    fun sendNow() { scope.launch(confined) { flush() } }
+
+    /**
+     * A new note. Lines starting with "- ", "* ", "• ", "[ ]" or "☐" become the
+     * items of a checklist; the other lines are its title and text. The list and
+     * its items reach the server together, so the AI sees the items.
+     */
+    fun create(text: String, images: List<String>): String {
+        val (rest, items) = splitList(text)
+        val id = UUID.randomUUID().toString()
+        save(id, mapOf("text" to (if (items.isEmpty()) text else rest), "images" to images), send = false)
+        items.forEach { addItem(id, it, send = false) }
+        sendNow()
+        return id
+    }
+
+    /** Adds an item to a list. */
+    fun addItem(listId: String, text: String, send: Boolean = true) =
+        save(UUID.randomUUID().toString(), mapOf("text" to text, "parent_id" to listId), send)
+
+    /**
+     * Pasted lines: one note with a checklist (a list and its items) or
+     * separate notes, each sorted by the AI on its own.
+     */
+    fun createMany(lines: List<String>, together: Boolean, title: String = "") {
+        val clean = lines.map { it.replace(BULLET, "").trim() }.filter { it.isNotEmpty() }
+        if (together) {
+            val listId = UUID.randomUUID().toString()
+            save(listId, mapOf("text" to title, "images" to emptyList<String>()), send = false)
+            clean.forEach { addItem(listId, it, send = false) }
+        } else clean.forEach { save(UUID.randomUUID().toString(), mapOf("text" to it, "images" to emptyList<String>()), send = false) }
+        sendNow()
+    }
+
+    /** Marks a note done (or open again). */
+    fun setDone(id: String, done: Boolean) = save(id, mapOf("done" to done))
+
+    /** Deletes my done notes (not ones shared with me). Returns their ids, for Undo. */
+    fun clearDone(ids: Collection<String>): List<String> {
+        val st = _state.value
+        val mine = ids.mapNotNull { st.notes[it] }.filter { it.done && !it.shared && it.parentId == null }
+        mine.forEach { save(it.id, mapOf("deleted" to true), send = false) }
+        sendNow()
+        return mine.map { it.id }
+    }
+
+    fun undelete(ids: List<String>) {
+        ids.forEach { save(it, mapOf("deleted" to false), send = false) }
+        sendNow()
+    }
+
+    /** Sets the date: "YYYY-MM-DD", "YYYY-MM-DDTHH:MM", "" for no date, or null to let the AI decide. */
+    fun setDue(id: String, due: String?) = save(id, mapOf("user_due" to due))
+
+    // --------------------------------------------------- sharing, premium, account
+
+    suspend fun shares(): Shares = api?.shares() ?: throw ApiException.offline()
+    suspend fun share(kind: String, target: String, email: String, role: String) { (api ?: throw ApiException.offline()).share(kind, target, email.trim(), role) }
+    suspend fun setShareRole(id: String, role: String) { api?.setShareRole(id, role) }
+    suspend fun unshare(id: String) { api?.unshare(id); flush() }
+    /** Groups moved between Work and Family; empty when offline (names decide then). */
+    suspend fun worlds(): Map<String, String> = runCatching { api?.worlds() }.getOrNull() ?: emptyMap()
+
+    suspend fun plan(): Plan = api?.plan() ?: throw ApiException.offline()
+    suspend fun backups(): List<Backup> = api?.backups() ?: throw ApiException.offline()
+    suspend fun backupNow() { api?.backupNow() }
+    suspend fun restore(id: String) { api?.restore(id); flush() }
+
+    /** Where the person downloads all their notes (a browser link; needs the web login). */
+    val exportUrl: String? get() = _state.value.serverUrl?.let { "$it/api/export" }
+
+    /** Deletes the account on the server, then everything on this device. */
+    suspend fun deleteAccount(email: String) {
+        (api ?: throw ApiException.offline()).deleteAccount(email.trim())
+        withContext(confined) {
+            stopLiveNow()
+            secrets.token = null
+            setUser(null)
+            wipe()
+            runCatching { refreshAuthState() }
+        }
+    }
 
     /** Keeps a photo (JPEG) and its small preview on the device and queues the upload. Returns its name. */
     suspend fun addImage(full: ByteArray, thumb: ByteArray?): String = withContext(confined) {
@@ -411,6 +512,26 @@ class NoteRepository(
     /** For tests and the background worker: wait until pending writes reach the disk. */
     suspend fun saveNow() = withContext(confined) { persistNow() }
 }
+
+private val ITEM_LINE = Regex("""^\s*(?:[-*•]|\[ ?]|☐)\s+(.+)$""")
+
+/** Bullets and numbers at the start of pasted lines. */
+private val BULLET = Regex("""^\s*(?:[-*•·–]|\d+[.)]|\[[ xX]?]|[☐☑✓✔])\s*""")
+
+/** Splits typed text into the note's own text and its checklist items (same rules as the web app). */
+fun splitList(text: String): Pair<String, List<String>> {
+    val rest = mutableListOf<String>()
+    val items = mutableListOf<String>()
+    for (line in text.split('\n')) {
+        val m = ITEM_LINE.find(line)
+        if (m != null) items += m.groupValues[1].trim() else rest += line
+    }
+    return rest.joinToString("\n").trim() to items
+}
+
+/** Lines of pasted text without bullets; null unless there are at least two. */
+fun pastedLines(text: String): List<String>? =
+    text.split(Regex("\r?\n")).map { it.replace(BULLET, "").trim() }.filter { it.isNotEmpty() }.takeIf { it.size > 1 }
 
 private fun Any?.toJson(): JsonElement = when (this) {
     null -> JsonNull

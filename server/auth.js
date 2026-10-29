@@ -6,6 +6,7 @@
 //  - after that only with ALLOW_SIGNUP=true, or with the invite code in
 //    SIGNUP_CODE.
 import crypto from 'node:crypto';
+import { mailer } from './mail.js';
 import { promisify } from 'node:util';
 import express from 'express';
 import { configuredProviders, oauthRoutes, OAuthError, PROVIDERS } from './oauth.js';
@@ -79,7 +80,10 @@ export function signupPolicy(store) {
 const NO_EMAIL = '@no-email.invalid';
 const publicUser = (u) => ({ id: u.id, name: u.name, email: u.email.endsWith(NO_EMAIL) ? '' : u.email });
 
-export function authRoutes({ store, imagesDir, throttle = new Throttle(), oauth = {}, onSignup = () => {} }) {
+const RESET_MS = 60 * 60e3;
+const resetKey = (token) => `reset:${crypto.createHash('sha256').update(token).digest('hex')}`;
+
+export function authRoutes({ store, imagesDir, throttle = new Throttle(), oauth = {}, onSignup = () => {}, mail = mailer() }) {
   const router = express.Router();
   const env = oauth.env || process.env;
 
@@ -160,6 +164,49 @@ export function authRoutes({ store, imagesDir, throttle = new Throttle(), oauth 
     }
     throttle.clear(`email:${email}`);
     startSession(req, res, found);
+  });
+
+  // "Forgot password?": a link valid for one hour, by email. The answer is the
+  // same whether the account exists or not, so nobody can test addresses.
+  const resetThrottle = new Throttle(5, 60 * 60e3);
+  router.post('/forgot', async (req, res) => {
+    const email = String(req.body?.email || '').trim().toLowerCase();
+    if (!EMAIL.test(email)) return res.status(400).json({ error: 'Please enter a valid email address.' });
+    const keys = [`ip:${req.ip}`, `email:${email}`];
+    if (resetThrottle.blocked(...keys)) return res.status(429).json({ error: 'Too many requests. Please try again in an hour.' });
+    resetThrottle.fail(...keys);
+    const user = store.findUserByEmail(email);
+    if (user && !user.email.endsWith(NO_EMAIL)) {
+      const token = crypto.randomBytes(24).toString('base64url');
+      store.setMeta(resetKey(token), JSON.stringify({ userId: user.id, expires: Date.now() + RESET_MS }));
+      const base = (env.PUBLIC_URL || `${req.protocol}://${req.get('host')}`).replace(/\/$/, '');
+      await mail.send({
+        to: user.email,
+        subject: 'Reset your record.ai password',
+        text: `Hi ${user.name},\n\nTo choose a new password, open this link within one hour:\n${base}/#reset=${token}\n\nIf you didn't ask for this, ignore this email: your password stays the same.\n\nrecord.ai`,
+      }).catch((err) => console.error('[mail]', err.message));
+    }
+    res.json({ ok: true });
+  });
+
+  router.post('/reset', async (req, res) => {
+    const token = String(req.body?.token || '');
+    const password = String(req.body?.password || '');
+    const saved = token && store.getMeta(resetKey(token));
+    const info = saved ? JSON.parse(saved) : null;
+    if (!info || info.expires < Date.now()) {
+      if (saved) store.deleteMeta(resetKey(token));
+      return res.status(400).json({ error: 'This link has expired. Ask for a new one.' });
+    }
+    if (password.length < MIN_PASSWORD) return res.status(400).json({ error: `The password needs at least ${MIN_PASSWORD} characters.` });
+    const user = store.getUser(info.userId);
+    if (!user) return res.status(400).json({ error: 'This link has expired. Ask for a new one.' });
+    store.deleteMeta(resetKey(token));
+    store.setPassword(user.id, await hashPassword(password));
+    // Everyone logged in with the old password is logged out.
+    store.deleteUserSessions(user.id, null);
+    throttle.clear(`email:${user.email.toLowerCase()}`);
+    startSession(req, res, user);
   });
 
   router.post('/logout', (req, res) => {

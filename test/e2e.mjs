@@ -48,8 +48,10 @@ const fakeGoogle = async (url) => {
 };
 
 const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'record-ai-e2e-'));
+const mails = [];
 const { app, store } = createApp({
   dataDir,
+  mail: { configured: true, send: async (m) => mails.push(m) },
   organizer: (args) => new Organizer({ ...args, client: fake }),
   oauth: {
     env: { GOOGLE_CLIENT_ID: 'e2e', GOOGLE_CLIENT_SECRET: 'e2e', GITHUB_CLIENT_ID: 'e2e', GITHUB_CLIENT_SECRET: 'e2e' },
@@ -465,6 +467,46 @@ try {
   await desktop.emulateMedia({ colorScheme: 'light' });
   console.log('✓ appearance: auto, light, dark');
 
+  // Work and Family worlds: Work hides the shopping, a group can be moved.
+  await desktop.fill('#composer textarea', 'Buy milk and eggs');
+  await desktop.click('#composer [data-role=save]');
+  await desktop.waitForSelector('.note:has(h3:text("Buy milk and eggs")):not(:has(.ai-pending))');
+  await desktop.click('.world-toggle [data-world=work]');
+  await desktop.waitForSelector('.note h3:text("Send the quarterly report tomorrow")');
+  await desktop.waitForSelector('.note h3:text("Buy milk and eggs")', { state: 'detached' }); // shopping is not work
+  await desktop.click('.world-toggle [data-world=family]');
+  await desktop.waitForSelector('.note h3:text("Buy milk and eggs")');
+  await desktop.waitForSelector('.note h3:text("Send the quarterly report tomorrow")', { state: 'detached' }); // work is not family
+  await desktop.screenshot({ path: path.join(out, 'desktop-family.png') });
+  await desktop.click('.world-toggle [data-world=all]');
+  await desktop.click('.view-toggle [data-view=groups]');
+  await desktop.click('[data-world-group="Shopping"]');
+  await desktop.waitForSelector('[data-world-group="Shopping"]:text("Both")');
+  await desktop.click('.world-toggle [data-world=work]');
+  await desktop.waitForSelector('.note h3:text("Buy milk and eggs")');
+  await desktop.click('.world-toggle [data-world=all]');
+  await desktop.click('[data-world-group="Shopping"]');
+  await desktop.click('[data-world-group="Shopping"]');
+  await desktop.waitForSelector('[data-world-group="Shopping"]:text("Family")');
+  await desktop.click('.view-toggle [data-view=priority]');
+  console.log('✓ work and family worlds, a group moved between them');
+
+  // Today: notes due today, with their time, at the top; a tap opens one.
+  await desktop.fill('#composer textarea', 'Pick up Mia at 16:00');
+  await desktop.click('#composer [data-role=save]');
+  await desktop.click('.note:has(h3:text("Pick up Mia at 16:00"))');
+  await desktop.waitForSelector('#editor[open]');
+  const todayIso = await desktop.evaluate(() => new Date().toLocaleDateString('en-CA'));
+  await desktop.fill('#editorDate', todayIso);
+  await desktop.fill('#editorTime', '16:00');
+  await desktop.click('#editorSave');
+  await desktop.waitForSelector('.today:has-text("16:00 Pick up Mia")');
+  await desktop.click('.today [data-open]:has-text("Pick up Mia")');
+  await desktop.waitForSelector('#editor[open]');
+  await desktop.click('#editorSave');
+  await desktop.screenshot({ path: path.join(out, 'desktop-today.png') });
+  console.log('✓ today at the top: what is due, with times');
+
   // Premium backups (the owner has Premium): back up, delete a note, restore it.
   await desktop.fill('#composer textarea', 'Passport renewal form');
   await desktop.click('#composer [data-role=save]');
@@ -559,6 +601,32 @@ try {
   await phone.screenshot({ path: path.join(out, 'phone-signin-options.png') });
   await phone.click('#accountClose');
   console.log('✓ continue with Google logs into the same account');
+
+  // 8. Forgot password: a link by email, a new password, logged in.
+  {
+    const ctx = await browser.newContext();
+    const page = await ctx.newPage();
+    watch(page, 'reset');
+    await page.goto(url);
+    await page.waitForSelector('#login[open]');
+    await page.fill('#loginEmail', 'nina@example.com');
+    await page.click('#forgotBtn');
+    await page.waitForSelector('#reset[open] #resetEmail');
+    assert.equal(await page.inputValue('#resetEmail'), 'nina@example.com', 'the email is carried over');
+    await page.click('#resetSubmit');
+    await page.waitForSelector('#resetMessage:has-text("a link is on its way")');
+    const link = mails.at(-1).text.match(/https?:\/\/\S+#reset=\S+/)[0];
+    await page.goto(link);
+    await page.reload(); // a link opened in a new tab loads the page fresh
+    await page.waitForSelector('#reset[open] #resetPassword');
+    await page.fill('#resetPassword', 'a brand new password');
+    await page.click('#resetSubmit');
+    await page.waitForSelector('.note h3:text("Send the quarterly report tomorrow")');
+    assert.ok(!(await page.locator('#reset[open], #login[open]').count()), 'no login window left');
+    assert.equal(new URL(page.url()).hash, '', 'the code leaves the address bar');
+    await ctx.close();
+  }
+  console.log('✓ forgot password: email link, new password, logged in');
 
   assert.deepEqual(errors, []);
   console.log('All e2e checks passed. Screenshots in', out);

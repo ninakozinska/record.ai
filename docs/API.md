@@ -22,6 +22,8 @@ Sessions expire after 400 days without use. The server stores only a SHA-256 has
 | GET | `/api/auth/me` | | `{user, devices}`: devices = number of active sessions |
 | POST | `/api/auth/logout-others` | | `{"ok":true, devices}`: ends every other session |
 | POST | `/api/auth/password` | `{current, next}` | `{"ok":true}`; 403 wrong current password; ends every other session |
+| POST | `/api/auth/forgot` | `{email}` | `{"ok":true}` whether or not the account exists. Emails a link `<server>/#reset=<code>`, valid one hour. At most 5 a hour per address and per IP |
+| POST | `/api/auth/reset` | `{token, password}` | `{token, user}` (logged in, like log in); ends every other session. 400 = expired or used link |
 
 **Who may sign up:** the first account always can. It becomes the owner and takes over notes and photos created before accounts existed. After that, sign-up needs `ALLOW_SIGNUP=true`, or the invite code set in `SIGNUP_CODE`. Passwords need at least 8 characters and are stored as scrypt hashes.
 
@@ -77,6 +79,7 @@ A note as the server sends it:
 | POST | `/api/reorganize` | | `{updated}` or `{skipped:true}`: the AI re-groups and re-ranks all your open notes. 429 when this month's AI uses are used up |
 | GET | `/api/status` | | `{ai: {enabled, provider, model, pending, reorganizing, usage: {used, limit, resets}}, rev, groups: [{name,count}]}`. `usage` is your AI use this month; `limit: null` = no limit |
 | GET / PUT | `/api/groups/mine` | `{names}` (PUT: up to 30 names of 1–40 characters) | "My groups": groups the person made. They always show, and the AI files matching notes into them and never renames or merges them. Also in `/api/status` as `myGroups` |
+| GET / PUT | `/api/groups/worlds` | `{chosen: {"<group in lowercase>": "work" \| "family" \| ""}}`: groups moved between Work and Family | ("" = both); others are guessed from the name (public/worlds.js) |
 | GET | `/api/server-info` | | `{port, addresses: ["http://192.168.1.20:3000", …]}`: where other devices on the network can reach this server |
 
 - **Use `/api/sync`** for normal syncing. The web, iPhone and Android apps send all waiting edits in one `POST /api/sync`, so a phone that was offline catches up with one round trip instead of one per note. `PUT /api/notes/:id` stays for single edits.
@@ -116,11 +119,14 @@ Details: [OPTIMIZATION.md](OPTIMIZATION.md).
 
 | Method | Path | Answer |
 |---|---|---|
-| GET | `/api/plan` | `{plan, premium, admin, features}` |
+| GET | `/api/plan` | `{plan, premium, admin, features, billing: {open, manage}}`: `open` = payments set up, `manage` = has a subscription |
 | GET / POST | `/api/backups` | list `{premium, keepDays, backups}` / make one now (Premium; 402 otherwise) |
 | POST | `/api/backups/:id/restore` | `{restored, rev}`: back to that backup (a backup of now is made first) |
 | GET | `/api/backups/:id/download` | the backup as JSON |
 | GET | `/api/export` | all my notes and photos, `.tar.gz` (everyone) |
+| POST | `/api/billing/checkout` | `{plan: 'solo' \| 'family'}` → `{url}`: Stripe's payment page. 503 `{notOpen: true}` until payments are set up; 409 when already subscribed |
+| POST | `/api/billing/portal` | `{url}`: Stripe's page to manage the subscription; 404 without one |
+| POST | `/api/billing/webhook` | for Stripe only (signed with `Stripe-Signature`, no login): changes the plan. See docs/PAYMENTS.md |
 | GET | `/api/public/experiments?anon=&platform=` | `{subject, variants}` (no login needed) |
 | POST | `/api/public/events` | `{anon, platform, events: [{name, props?, ts?}]}` → `{saved}` (no login needed) |
 | GET | `/api/admin/overview` | the dashboard's data (owner and `ADMIN_EMAILS` only) |

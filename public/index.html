@@ -27,6 +27,11 @@
       <span id="syncDot" class="sync-dot" title="Sync status"></span>
     </div>
     <input id="search" type="search" placeholder="Search notes…" autocomplete="off">
+    <div class="view-toggle world-toggle" role="tablist" aria-label="Work or family">
+      <button data-world="all" class="active" role="tab">All</button>
+      <button data-world="work" role="tab" title="Only work notes">💼 Work</button>
+      <button data-world="family" role="tab" title="Only family and home notes">🏡 Family</button>
+    </div>
     <div class="view-toggle" role="tablist">
       <button data-view="priority" class="active" role="tab">Priority</button>
       <button data-view="groups" role="tab">Groups</button>
@@ -204,7 +209,25 @@
       <p id="loginError" class="error" role="alert"></p>
       <button class="primary" id="loginSubmit">Log in</button>
       <p class="switch" id="loginSwitch"></p>
+      <p class="switch" id="forgotLine"><button type="button" id="forgotBtn">Forgot your password?</button></p>
       <p class="legal-links"><a href="legal/privacy.html" target="_blank" rel="noopener">Privacy</a> · <a href="legal/terms.html" target="_blank" rel="noopener">Terms</a> · <a href="legal/support.html" target="_blank" rel="noopener">Help</a></p>
+    </form>
+  </dialog>
+
+  <!-- Forgot password: ask for a link, or choose a new password from the link -->
+  <dialog id="reset" class="sheet">
+    <form class="sheet-inner" id="resetForm" novalidate>
+      <h2 id="resetTitle">Reset your password</h2>
+      <p id="resetIntro" class="muted"></p>
+      <label class="field" id="resetEmailField">Email
+        <input id="resetEmail" type="email" autocomplete="email" inputmode="email" autocapitalize="off">
+      </label>
+      <label class="field" id="resetPasswordField">New password (at least 8 characters)
+        <span class="pw-wrap"><input id="resetPassword" type="password" autocomplete="new-password"><button type="button" class="pw-toggle" data-pw-toggle aria-label="Show password" aria-pressed="false">Show</button></span>
+      </label>
+      <p id="resetMessage" role="alert"></p>
+      <button class="primary" id="resetSubmit">Send me a link</button>
+      <p class="switch"><button type="button" id="resetBack">Back to log in</button></p>
     </form>
   </dialog>
 
@@ -233,7 +256,12 @@
           <p id="pitchText"></p>
           <button type="button" class="primary" id="getPremium">Get Premium</button>
           <p class="muted" id="premiumThanks" hidden>Thank you! Premium launches soon, and you'll be the first to know.</p>
+          <div class="cal-buttons" id="planChoice" hidden>
+            <button type="button" class="primary" data-checkout="family">Family · €5.99 / month</button>
+            <button type="button" class="ghost" data-checkout="solo">Solo · €3.99 / month</button>
+          </div>
         </div>
+        <button type="button" class="ghost" id="manageBilling" hidden>Manage subscription</button>
         <div id="backupBox" class="stack" hidden>
           <p class="muted">Your notes are backed up every day and kept 30 days. Restore any day with one tap.</p>
           <ul id="backupList" class="identity-list backup-list"></ul>

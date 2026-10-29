@@ -10,6 +10,11 @@ struct AccountView: View {
     @State private var messageIsError = false
     @State private var confirmLogout = false
     @State private var info: AccountInfo?
+    @State private var plan: Plan?
+    @State private var backups: [Backup] = []
+    @State private var restoring: Backup?
+    @State private var deleting = false
+    @State private var deleteEmail = ""
 
     var body: some View {
         NavigationStack {
@@ -74,8 +79,84 @@ struct AccountView: View {
                 } footer: {
                     Text("Logging out removes your notes from this iPhone. They stay safe on your server.")
                 }
+                if let plan {
+                    Section {
+                        if plan.premium {
+                            Button("Back up now") {
+                                Task {
+                                    do {
+                                        try await store.backupNow()
+                                        show("Backup made.", error: false)
+                                        await loadInfo()
+                                    } catch {
+                                        show(error.localizedDescription, error: true)
+                                    }
+                                }
+                            }
+                            ForEach(backups.prefix(10)) { b in
+                                HStack {
+                                    VStack(alignment: .leading) {
+                                        Text(Date(timeIntervalSince1970: b.createdAt / 1000), format: .dateTime.day().month().year().hour().minute())
+                                        Text("\(b.notes) notes" + (b.kind == "manual" ? " · by hand" : b.kind == "before-restore" ? " · before a restore" : ""))
+                                            .font(.footnote).foregroundStyle(.secondary)
+                                    }
+                                    Spacer()
+                                    Button("Restore") { restoring = b }.buttonStyle(.borderless)
+                                }
+                            }
+                        } else {
+                            Text("Daily backups kept 30 days, and restoring them, are part of Premium.")
+                                .font(.footnote).foregroundStyle(.secondary)
+                        }
+                    } header: {
+                        Text("Premium")
+                    } footer: {
+                        if plan.premium { Text("A backup of your notes is made every day and kept 30 days.") }
+                    }
+                }
+                Section {
+                    Button("Delete my account", role: .destructive) { deleting = true }
+                } footer: {
+                    Text("Deletes your account, all your notes and photos, and your backups, for good.")
+                }
             }
             .task { await loadInfo() }
+            .alert("Restore this backup?", isPresented: Binding(get: { restoring != nil }, set: { if !$0 { restoring = nil } })) {
+                Button("Restore") {
+                    guard let b = restoring else { return }
+                    Task {
+                        do {
+                            try await store.restore(b.id)
+                            show("Restored.", error: false)
+                            await loadInfo()
+                        } catch {
+                            show(error.localizedDescription, error: true)
+                        }
+                    }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("Your notes go back to how they were then. Notes written since are deleted. A backup of how they are now is made first, so you can undo this.")
+            }
+            .alert("Delete your account?", isPresented: $deleting) {
+                TextField("Type your email to confirm", text: $deleteEmail)
+                    .textInputAutocapitalization(.never)
+                    .keyboardType(.emailAddress)
+                Button("Delete for good", role: .destructive) {
+                    Task {
+                        do {
+                            try await store.deleteAccount(email: deleteEmail)
+                            dismiss()
+                        } catch {
+                            deleteEmail = ""
+                            show(error.localizedDescription, error: true)
+                        }
+                    }
+                }
+                Button("Cancel", role: .cancel) { deleteEmail = "" }
+            } message: {
+                Text("This deletes your account, all your notes and photos, and your backups. People you shared with lose access to them.")
+            }
             .navigationTitle("Account")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -122,6 +203,8 @@ struct AccountView: View {
         } catch {
             info = nil
         }
+        plan = try? await store.plan()
+        if plan?.premium == true { backups = (try? await store.backups()) ?? [] }
     }
 
     private func disconnect(_ provider: String) {

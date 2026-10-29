@@ -71,6 +71,7 @@ export class Insights {
    *     metric: 'upgrade_click',       // the event that counts as a success
    *     guardrails: ['note_created'],   // events that must not get rarer
    *     platforms: ['web', 'ios', 'android'] (optional),
+   *     page: 'landing' (optional),      // shown on one page only: assigned when that page asks
    *     auto: true,                      // the optimizer may shift traffic and pick a winner
    *     winner: null, minSubjects: 200 }
    */
@@ -119,11 +120,16 @@ export class Insights {
     return chosen;
   }
 
-  /** Every experiment's variant for this subject (only those running on this platform). */
-  assignmentsFor(subject, platform) {
+  /**
+   * Every experiment's variant for this subject (only those running on this
+   * platform). Tests of one page (the landing page) only when that page asks
+   * for them by key, so people who never see it aren't counted in it.
+   */
+  assignmentsFor(subject, platform, keys = null) {
     const out = {};
     for (const exp of this.experiments()) {
       if (exp.platforms && platform && !exp.platforms.includes(platform)) continue;
+      if (keys ? !keys.includes(exp.key) : exp.page) continue;
       out[exp.key] = this.variant(exp, subject);
     }
     return out;
@@ -176,6 +182,7 @@ function validExperiment(exp) {
     metric: exp.metric,
     guardrails: (exp.guardrails || []).filter((g) => EVENT_NAME.test(g)).slice(0, 5),
     platforms: exp.platforms ? exp.platforms.filter((p) => ['web', 'ios', 'android'].includes(p)) : null,
+    page: typeof exp.page === 'string' && /^[a-z]{1,20}$/.test(exp.page) ? exp.page : null,
     auto: exp.auto !== false,
     winner: status === 'won' && variants.some((v) => v.key === exp.winner) ? exp.winner : null,
     minSubjects: Math.max(20, Number(exp.minSubjects) || 200),

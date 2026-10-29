@@ -1,5 +1,6 @@
 import { Local, uuid } from './local.js';
 import { loadVariants, variant, track } from './track.js';
+import { inWorld, worldOf } from './worlds.js';
 
 const PRIORITIES = ['urgent', 'high', 'normal', 'low'];
 const PRIORITY_LABEL = { urgent: 'Urgent', high: 'High', normal: 'Normal', low: 'Low' };
@@ -9,6 +10,7 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '
 const local = new Local();
 const ui = {
   view: localStorage.getItem('view') || 'priority',
+  world: ['work', 'family'].includes(localStorage.getItem('world')) ? localStorage.getItem('world') : 'all',
   group: null,
   query: '',
   showDone: false,
@@ -614,6 +616,44 @@ async function saveMyGroups(names) {
 }
 const withMyGroups = (groups) => [...groups, ...myGroups.filter((g) => !groups.includes(g))];
 
+// Work and Family worlds (worlds.js): which groups the person moved.
+let chosenWorlds = {};
+async function loadWorlds() {
+  try {
+    chosenWorlds = (await local.api('groups/worlds')).chosen;
+    await local.metaSet('worlds', chosenWorlds);
+  } catch {
+    chosenWorlds = (await local.metaGet('worlds')) || chosenWorlds;
+  }
+  render();
+}
+const WORLD_LABEL = { work: '💼 Work', family: '🏡 Family', null: '💼🏡 Both' };
+/** Work → Family → both → Work: moves one group, on every device. */
+async function cycleWorld(group) {
+  const now = worldOf(group, chosenWorlds);
+  const next = now === 'work' ? 'family' : now === 'family' ? '' : 'work';
+  const previous = chosenWorlds;
+  chosenWorlds = { ...chosenWorlds, [group.toLowerCase()]: next };
+  render();
+  try {
+    chosenWorlds = (await local.api('groups/worlds', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chosen: chosenWorlds }),
+    })).chosen;
+    await local.metaSet('worlds', chosenWorlds);
+    toast(`"${group}" is now in ${WORLD_LABEL[next || null]}`);
+  } catch (err) {
+    chosenWorlds = previous;
+    render();
+    toast(err.message);
+  }
+}
+const shownInWorld = (n) => inWorld(n.group, ui.world, chosenWorlds);
+function worldButton(g) {
+  return `<button class="ghost world-group" data-world-group="${esc(g)}" title="Which world this group is in. Tap to move it.">${WORLD_LABEL[worldOf(g, chosenWorlds)]}</button>`;
+}
+
 // ---------------------------------------------------------------------------
 // Sharing: notes and groups I share (mine), and what others share with me.
 // ---------------------------------------------------------------------------
@@ -847,6 +887,26 @@ const welcomeDone = () => {
     return false;
   }
 };
+/**
+ * The day at a glance, above the notes: what is due today (with times),
+ * what is overdue, and how many urgent notes are open. Taps open the note.
+ */
+function todayCard(notes) {
+  const today = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD, local time
+  const open = notes.filter((n) => !n.done);
+  const due = open.filter((n) => n.due_date === today)
+    .sort((a, b) => (a.due_time || '99').localeCompare(b.due_time || '99'));
+  const late = open.filter((n) => n.due_date && n.due_date < today);
+  const urgent = open.filter((n) => n.priority === 'urgent' && n.due_date !== today && !late.includes(n));
+  if (!due.length && !late.length && !urgent.length) return '';
+  const link = (n) => `<button class="link-btn" data-open="${esc(n.id)}">${n.due_time ? `<b>${esc(n.due_time)}</b> ` : ''}${esc(n.title || n.text.split('\n')[0] || 'Note')}</button>`;
+  const parts = [];
+  if (due.length) parts.push(`📅 <b>Today:</b> ${due.slice(0, 4).map(link).join(' · ')}${due.length > 4 ? ` · +${due.length - 4}` : ''}`);
+  if (late.length) parts.push(`⏰ <b>${late.length} overdue:</b> ${late.slice(0, 2).map(link).join(' · ')}${late.length > 2 ? ' …' : ''}`);
+  if (urgent.length) parts.push(`🔴 ${urgent.length} more urgent`);
+  return `<section class="today" aria-label="Today">${parts.map((p) => `<p>${p}</p>`).join('')}</section>`;
+}
+
 function welcomeCard(all) {
   if (welcomeDone() || all.filter((n) => !n.role).length >= 3) return '';
   return `<section class="card welcome" id="welcome">
@@ -921,8 +981,9 @@ function render() {
 }
 
 function renderNow() {
-  const all = local.list().map(forMe);
-  const groups = withMyGroups(groupsOf(all));
+  const everything = local.list().map(forMe);
+  const all = everything.filter(shownInWorld);
+  const groups = withMyGroups(groupsOf(all)).filter((g) => inWorld(g, ui.world, chosenWorlds));
   if (ui.group && !groups.includes(ui.group)) ui.group = null;
 
   $('#groupChips').innerHTML =
@@ -939,11 +1000,11 @@ function renderNow() {
   if (ui.view === 'priority') {
     for (const p of PRIORITIES) html += section(PRIORITY_LABEL[p], open.filter((n) => n.priority === p), { showGroup: true }, `p-${p}`);
   } else {
-    for (const g of groupsOf(open)) html += section(g, open.filter((n) => n.group === g), { showGroup: false }, '', shareGroupButton(g));
+    for (const g of groupsOf(open)) html += section(g, open.filter((n) => n.group === g), { showGroup: false }, '', worldButton(g) + shareGroupButton(g));
   }
   if (!open.length) {
-    html += all.length
-      ? '<p class="empty">Nothing here. 🎉</p>'
+    html += everything.length
+      ? `<p class="empty">Nothing here${ui.world === 'all' ? '' : ` in ${WORLD_LABEL[ui.world]}`}. 🎉</p>`
       : '<p class="empty">No notes yet. Type, dictate 🎤 or snap a photo 📷 above — AI will title, prioritize and group them for you.</p>';
   }
   if (done.length) {
@@ -954,9 +1015,9 @@ function renderNow() {
     </div>`;
     if (ui.showDone) html += section('Done', done, { showGroup: true }, 'done-section');
   }
-  $('#list').innerHTML = welcomeCard(all) + html;
+  $('#list').innerHTML = welcomeCard(everything) + (q || ui.group ? '' : todayCard(all)) + html;
   // This month's AI sortings are used up: say so once, above the notes.
-  const limited = all.find((n) => !n.role && n.ai_status === 'limit');
+  const limited = everything.find((n) => !n.role && n.ai_status === 'limit');
   $('#limitBanner').hidden = !limited;
   if (limited) $('#limitBanner').textContent = `⏸️ ${limited.ai_error}`;
 
@@ -972,7 +1033,7 @@ function renderNow() {
 async function clearDone() {
   // The same done notes the page shows (search and group filter apply).
   const ids = local.list()
-    .filter((n) => n.done && !n.role && matches(n, ui.query.toLowerCase().trim()) && (!ui.group || forMe(n).group === ui.group))
+    .filter((n) => n.done && !n.role && shownInWorld(forMe(n)) && matches(n, ui.query.toLowerCase().trim()) && (!ui.group || forMe(n).group === ui.group))
     .map((n) => n.id);
   if (!ids.length) return;
   if (!confirm(`Delete ${ids.length} done note${ids.length === 1 ? '' : 's'}? You can undo this for a few seconds.`)) return;
@@ -1011,6 +1072,8 @@ $('#list').addEventListener('click', async (e) => {
     $('#viewer').showModal();
     return;
   }
+  const fromToday = e.target.closest('[data-open]');
+  if (fromToday) return editor.open(fromToday.dataset.open);
   const shareGroup = e.target.closest('[data-share-group]');
   if (shareGroup) return openShare('group', shareGroup.dataset.shareGroup, shareGroup.dataset.shareGroup);
   const article = e.target.closest('.note');
@@ -1053,12 +1116,28 @@ $('#groupChips').addEventListener('click', async (e) => {
   render();
 });
 
-document.querySelectorAll('.view-toggle button').forEach((b) => {
+document.querySelectorAll('.world-toggle button').forEach((b) => {
+  b.classList.toggle('active', b.dataset.world === ui.world);
+  b.onclick = () => {
+    ui.world = b.dataset.world;
+    ui.group = null;
+    localStorage.setItem('world', ui.world);
+    document.querySelectorAll('.world-toggle button').forEach((x) => x.classList.toggle('active', x === b));
+    track('world_switch', { world: ui.world });
+    render();
+  };
+});
+$('#list').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-world-group]');
+  if (b) cycleWorld(b.dataset.worldGroup);
+});
+
+document.querySelectorAll('.view-toggle:not(.world-toggle) button').forEach((b) => {
   b.classList.toggle('active', b.dataset.view === ui.view);
   b.onclick = () => {
     ui.view = b.dataset.view;
     localStorage.setItem('view', ui.view);
-    document.querySelectorAll('.view-toggle button').forEach((x) => x.classList.toggle('active', x === b));
+    document.querySelectorAll('.view-toggle:not(.world-toggle) button').forEach((x) => x.classList.toggle('active', x === b));
     render();
   };
 });
@@ -1124,7 +1203,7 @@ function renderStatus() {
   if (local.ai?.reorganizing) $('#reorganizeBtn').textContent = '✨ Reorganizing…';
   $('#accountBtn').hidden = !local.user;
   if (local.user) $('#accountBtn').textContent = initials(local.user.name);
-  if (local.needsLogin && !$('#login').open && !auth.opening) {
+  if (local.needsLogin && !$('#login').open && !$('#reset').open && !auth.opening) {
     auth.opening = true;
     auth.open().finally(() => (auth.opening = false));
   }
@@ -1163,7 +1242,9 @@ const auth = {
     } catch {
       this.policy = this.policy || { open: false };
     }
-    this.show(this.policy.firstAccount ? 'signup' : 'login');
+    // From the landing page's "Start free": the sign-up form, when sign-ups are open.
+    const wantsSignup = location.hash === '#signup' && this.policy.open;
+    this.show(this.policy.firstAccount || wantsSignup ? 'signup' : 'login');
   },
   show(mode) {
     this.mode = mode;
@@ -1177,6 +1258,7 @@ const auth = {
     $('#codeField').hidden = !(signup && p.needsCode);
     $('#loginPassword').autocomplete = signup ? 'new-password' : 'current-password';
     $('#loginSubmit').textContent = signup ? 'Create account' : 'Log in';
+    $('#forgotLine').hidden = signup;
     $('#loginError').textContent = this.error;
     this.error = '';
     this.renderProviders();
@@ -1219,6 +1301,69 @@ $('#loginForm').addEventListener('submit', async (e) => {
   }
 });
 $('#login').addEventListener('cancel', (e) => e.preventDefault());
+
+// "Forgot your password?": an email with a link (valid one hour) that opens
+// this page at #reset=<code>, where a new password is chosen.
+const reset = {
+  token: null,
+  open(token = null) {
+    this.token = token;
+    const choosing = !!token;
+    $('#resetIntro').textContent = choosing
+      ? 'Choose a new password. Your other devices will be logged out.'
+      : "Enter your account's email. We'll send you a link to choose a new password.";
+    $('#resetEmailField').hidden = choosing;
+    $('#resetPasswordField').hidden = !choosing;
+    $('#resetSubmit').textContent = choosing ? 'Save new password' : 'Send me a link';
+    $('#resetSubmit').hidden = false;
+    $('#resetMessage').textContent = '';
+    $('#resetMessage').className = '';
+    if (!choosing) $('#resetEmail').value = $('#loginEmail').value.trim();
+    if (!$('#reset').open) $('#reset').showModal();
+    (choosing ? $('#resetPassword') : $('#resetEmail')).focus();
+  },
+  say(text, error = false) {
+    $('#resetMessage').textContent = text;
+    $('#resetMessage').className = error ? 'error' : 'muted';
+  },
+};
+$('#forgotBtn').onclick = () => reset.open();
+$('#resetBack').onclick = () => {
+  $('#reset').close();
+  if (!local.user) auth.open();
+};
+$('#resetForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  $('#resetSubmit').disabled = true;
+  try {
+    if (reset.token) {
+      await local.authenticate('reset', { token: reset.token, password: $('#resetPassword').value });
+      $('#resetPassword').value = '';
+      history.replaceState(null, '', location.pathname + location.search);
+      $('#reset').close();
+      if ($('#login').open) $('#login').close();
+      toast('New password saved');
+      render();
+    } else {
+      await local.api('auth/forgot', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: $('#resetEmail').value.trim() }),
+      });
+      reset.say('If an account uses this email, a link is on its way. Check your inbox (and spam) in a few minutes.');
+      $('#resetSubmit').hidden = true;
+    }
+  } catch (err) {
+    reset.say(err.status === 0 || !err.status ? 'Cannot reach the server. Is it running?' : err.message, true);
+  } finally {
+    $('#resetSubmit').disabled = false;
+  }
+});
+$('#reset').addEventListener('close', hidePasswords);
+{
+  const m = location.hash.match(/^#reset=([A-Za-z0-9_-]+)$/);
+  if (m) reset.open(m[1]);
+}
 
 // Show / Hide on password fields, so people can check what they typed.
 function showPassword(button, show) {
@@ -1375,6 +1520,8 @@ async function loadPremium() {
     $('#dashboardLink').hidden = !plan.admin;
     $('#premiumPitch').hidden = plan.premium;
     $('#backupBox').hidden = !plan.premium;
+    billingOpen = !!plan.billing?.open;
+    $('#manageBilling').hidden = !plan.billing?.manage;
     if (!plan.premium) {
       await loadVariants();
       const v = variant('premium_pitch', 'backups');
@@ -1396,11 +1543,43 @@ function renderBackups(list) {
         <button type="button" class="ghost" data-restore>Restore</button></li>`).join('')
     : '<li class="muted">The first backup is made today.</li>';
 }
+// With payments open (Stripe set up) "Get Premium" shows the plans and goes to
+// Stripe's payment page; before that it only counts who would buy.
+let billingOpen = false;
 $('#getPremium').onclick = () => {
   track('upgrade_click', { pitch: variant('premium_pitch', 'backups') });
   $('#getPremium').hidden = true;
-  $('#premiumThanks').hidden = false;
+  if (billingOpen) $('#planChoice').hidden = false;
+  else $('#premiumThanks').hidden = false;
 };
+async function goToStripe(path, body) {
+  try {
+    const { url } = await local.api(path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    location.href = url;
+  } catch (err) {
+    toast(err.message);
+  }
+}
+$('#planChoice').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-checkout]');
+  if (!b) return;
+  track('checkout_click', { plan: b.dataset.checkout, pitch: variant('premium_pitch', 'backups') });
+  goToStripe('billing/checkout', { plan: b.dataset.checkout });
+});
+$('#manageBilling').onclick = () => goToStripe('billing/portal', {});
+// Back from Stripe's payment page.
+{
+  const back = new URLSearchParams(location.search).get('upgraded');
+  if (back) {
+    history.replaceState(null, '', location.pathname + location.hash);
+    if (back === 'cancelled') toast('No payment made. Premium is there whenever you want it.');
+    else toast('Thank you! Premium is switching on: it can take a minute.');
+  }
+}
 $('#backupNow').onclick = async () => {
   try {
     await local.flush();
@@ -1527,10 +1706,11 @@ await local.init();
 local.addEventListener('change', render);
 local.addEventListener('status', renderStatus);
 local.addEventListener('started', loadMyGroups);
+local.addEventListener('started', loadWorlds);
 local.addEventListener('started', loadShares);
 local.addEventListener('started', () => track('app_open'));
 local.addEventListener('shares', loadShares);
-local.addEventListener('wiped', () => { myGroups = []; shares = { mine: [], withMe: [] }; });
+local.addEventListener('wiped', () => { myGroups = []; chosenWorlds = {}; shares = { mine: [], withMe: [] }; });
 render();
 renderStatus();
 // Coming back from "Continue with …": show what happened, then tidy the address bar.

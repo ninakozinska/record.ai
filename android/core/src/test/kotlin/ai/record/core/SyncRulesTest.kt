@@ -85,4 +85,15 @@ class SyncRulesTest {
         ).associateBy { it.id })
         assertEquals(listOf("Work", "Home"), s.groupNames)
     }
+
+    @Test fun `work and family worlds follow the same rules as the web app`() {
+        assertEquals(Worlds.WORK, Worlds.guess("Client projects"))
+        assertEquals(Worlds.FAMILY, Worlds.guess("Groceries"))
+        assertEquals(null, Worlds.guess("Ideas"))
+        assertEquals(null, Worlds.guess("Work from home"))
+        assertEquals(Worlds.WORK, Worlds.of("Ideas", mapOf("ideas" to "work")))
+        assertEquals(null, Worlds.of("Kids", mapOf("kids" to "")))
+        assertEquals(true, Worlds.shows("Ideas", Worlds.WORK, emptyMap()))
+        assertEquals(false, Worlds.shows("Kids", Worlds.WORK, emptyMap()))
+    }
 }

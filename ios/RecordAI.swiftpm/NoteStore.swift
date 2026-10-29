@@ -228,6 +228,12 @@ final class NoteStore {
         try? await refreshAuthState()
     }
 
+    /// Emails a link to choose a new password (opens in the browser). Same answer whether the account exists or not.
+    func forgotPassword(email: String) async throws {
+        guard let api else { throw APIError.offline }
+        _ = try await api.request("auth/forgot", method: "POST", json: ["email": email.trimmingCharacters(in: .whitespaces)])
+    }
+
     func changePassword(current: String, new: String) async throws {
         guard let api else { return }
         _ = try await api.request("auth/password", method: "POST", json: ["current": current, "next": new])
@@ -279,6 +285,9 @@ final class NoteStore {
                             self.ai = (try? JSONDecoder.server.decode(HelloEvent.self, from: data))?.ai
                             await self.pull()
                             await self.flush()
+                        case "shares":
+                            // Something was shared with me, or stopped being shared.
+                            await self.pull()
                         case "status":
                             self.ai = try? JSONDecoder.server.decode(AIStatus.self, from: data)
                         default:
@@ -300,7 +309,7 @@ final class NoteStore {
         pulling = true
         defer { pulling = false }
         do {
-            let page = try await api.get("notes?since=\(rev)", as: NotesPage.self)
+            let page = try await api.get("notes?since=\(rev)&items=1&shared=1", as: NotesPage.self)
             merge(page.notes)
             if page.rev < rev {
                 // The server's database was replaced: drop the cached copies and load everything again.
@@ -324,6 +333,13 @@ final class NoteStore {
     private func merge(_ incoming: [Note]) {
         let pendingIds = Set(outbox.filter { $0.kind == "note" }.map(\.id))
         for var s in incoming {
+            if s.revoked == true {
+                // No longer shared with me: it (and its items) leave this phone.
+                notes[s.id] = nil
+                for item in notes.values where item.parentId == s.id { notes[item.id] = nil }
+                outbox.removeAll { $0.kind == "note" && $0.id == s.id }
+                continue
+            }
             // Replies and live updates can arrive out of order; never let an older
             // server state (lower revision) overwrite a newer one.
             if let lr = notes[s.id]?.rev, let sr = s.rev, sr < lr { continue }
@@ -336,6 +352,12 @@ final class NoteStore {
                 next.priorityReason = s.priorityReason
                 next.tags = s.tags
                 next.dueDate = s.dueDate
+                next.dueTime = s.dueTime
+                next.aiDueDate = s.aiDueDate
+                next.aiDueTime = s.aiDueTime
+                next.role = s.role
+                next.ownerName = s.ownerName
+                next.userId = s.userId
                 // Only a change to the text or photos makes the AI work again.
                 let contentDiffers = local.text != s.text || local.images != s.images
                 next.aiStatus = contentDiffers ? "pending" : s.aiStatus
@@ -383,7 +405,7 @@ final class NoteStore {
                 return body
             }
             let since = rev
-            let data = try await api.request("sync", method: "POST", json: ["since": since, "changes": changes])
+            let data = try await api.request("sync", method: "POST", json: ["since": since, "items": true, "shared": true, "changes": changes])
             let result = try JSONDecoder.server.decode(SyncResult.self, from: data)
             for (k, item) in notesToSend.enumerated() where k < result.results.count {
                 // Sent (or refused for good): clear it, unless a newer edit was queued meanwhile.
@@ -406,8 +428,9 @@ final class NoteStore {
     // MARK: Editing
 
     /// Creates or updates a note. `patch` uses the server's field names
-    /// (text, images, done, deleted, user_group, user_priority); NSNull clears a value.
-    func save(id: String, patch: [String: Any]) {
+    /// (text, images, done, deleted, user_group, user_priority, user_due, parent_id); NSNull clears a value.
+    /// `send: false` waits, so several changes travel together (call `sendNow()` after).
+    func save(id: String, patch: [String: Any], send: Bool = true) {
         let now = (Date().timeIntervalSince1970 * 1000).rounded()
         var note = notes[id] ?? Note.new(text: "", images: [])
         note.id = id
@@ -418,9 +441,12 @@ final class NoteStore {
         if let deleted = patch["deleted"] as? Bool { note.deleted = deleted }
         if patch.keys.contains("user_group") { note.userGroup = patch["user_group"] as? String }
         if patch.keys.contains("user_priority") { note.userPriority = patch["user_priority"] as? String }
+        if patch.keys.contains("user_due") { note.userDue = patch["user_due"] as? String }
+        if let parent = patch["parent_id"] as? String { note.parentId = parent }
         note.editedAt = max(now, before.editedAt + 1)
         let isNew = notes[id] == nil
         if isNew || note.text != before.text || note.images != before.images { note.aiStatus = "pending" }
+        if note.parentId != nil { note.aiStatus = "done" } // list items skip the AI
         notes[id] = note
 
         // Merge with an unsent change for the same note.
@@ -435,11 +461,156 @@ final class NoteStore {
         let data = try? JSONSerialization.data(withJSONObject: body)
         outbox.append(OutboxItem(kind: "note", id: id, body: data))
         saveCache()
-        Task { await flush() }
+        if send { Task { await flush() } }
     }
 
-    func create(text: String, images: [String]) {
-        save(id: UUID().uuidString.lowercased(), patch: ["text": text, "images": images])
+    func sendNow() { Task { await flush() } }
+
+    private static func newId() -> String { UUID().uuidString.lowercased() }
+
+    /// A new note. Lines starting with "- ", "* ", "• ", "[ ]" or "☐" become the
+    /// items of a checklist; the list and its items reach the server together.
+    @discardableResult
+    func create(text: String, images: [String]) -> String {
+        let (rest, items) = Self.splitList(text)
+        let id = Self.newId()
+        save(id: id, patch: ["text": items.isEmpty ? text : rest, "images": images], send: false)
+        for item in items { addItem(to: id, text: item, send: false) }
+        sendNow()
+        return id
+    }
+
+    func addItem(to listId: String, text: String, send: Bool = true) {
+        save(id: Self.newId(), patch: ["text": text, "parent_id": listId], send: send)
+    }
+
+    /// Pasted lines: one note with a checklist, or separate notes (each sorted by the AI on its own).
+    func createMany(_ lines: [String], together: Bool) {
+        if together {
+            let listId = Self.newId()
+            save(id: listId, patch: ["text": "", "images": [String]()], send: false)
+            for line in lines { addItem(to: listId, text: line, send: false) }
+        } else {
+            for line in lines { save(id: Self.newId(), patch: ["text": line, "images": [String]()], send: false) }
+        }
+        sendNow()
+    }
+
+    func setDone(_ id: String, _ done: Bool) { save(id: id, patch: ["done": done]) }
+
+    /// Sets the date: "YYYY-MM-DD", "YYYY-MM-DDTHH:MM", "" for no date, or nil to let the AI decide.
+    func setDue(_ id: String, _ due: String?) { save(id: id, patch: ["user_due": due.map { $0 as Any } ?? NSNull()]) }
+
+    /// Deletes my done notes (not ones shared with me). Returns their ids, for Undo.
+    func clearDone(_ ids: [String]) -> [String] {
+        let mine = ids.compactMap { notes[$0] }.filter { $0.done && !$0.isShared && $0.parentId == nil }.map(\.id)
+        for id in mine { save(id: id, patch: ["deleted": true], send: false) }
+        sendNow()
+        return mine
+    }
+
+    func undelete(_ ids: [String]) {
+        for id in ids { save(id: id, patch: ["deleted": false], send: false) }
+        sendNow()
+    }
+
+    private static let itemLine = try! NSRegularExpression(pattern: #"^\s*(?:[-*•]|\[ ?\]|☐)\s+(.+)$"#)
+    private static let bullet = try! NSRegularExpression(pattern: #"^\s*(?:[-*•·–]|\d+[.)]|\[[ xX]?\]|[☐☑✓✔])\s*"#)
+
+    /// The note's own text and its checklist items (same rules as the web app).
+    static func splitList(_ text: String) -> (String, [String]) {
+        var rest: [String] = []
+        var items: [String] = []
+        for line in text.components(separatedBy: "\n") {
+            let range = NSRange(line.startIndex..., in: line)
+            if let m = itemLine.firstMatch(in: line, range: range), let r = Range(m.range(at: 1), in: line) {
+                items.append(line[r].trimmingCharacters(in: .whitespaces))
+            } else {
+                rest.append(line)
+            }
+        }
+        return (rest.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines), items)
+    }
+
+    /// Lines of pasted text without bullets; nil unless there are at least two.
+    static func pastedLines(_ text: String) -> [String]? {
+        let lines = text.components(separatedBy: .newlines).map { line in
+            bullet.stringByReplacingMatches(in: line, range: NSRange(line.startIndex..., in: line), withTemplate: "")
+                .trimmingCharacters(in: .whitespaces)
+        }.filter { !$0.isEmpty }
+        return lines.count > 1 ? lines : nil
+    }
+
+    // MARK: Sharing, Premium, account
+
+    func shares() async throws -> Shares {
+        guard let api else { throw APIError.offline }
+        return try await api.get("shares", as: Shares.self)
+    }
+
+    /// kind: "note" (by id) or "group" (by name); role: "edit" or "view".
+    func share(kind: String, target: String, email: String, role: String) async throws {
+        guard let api else { throw APIError.offline }
+        _ = try await api.request("shares", method: "POST", json: ["kind": kind, "target": target, "email": email, "role": role])
+    }
+
+    func setShareRole(_ id: String, role: String) async throws {
+        guard let api else { throw APIError.offline }
+        _ = try await api.request("shares/\(id)", method: "PATCH", json: ["role": role])
+    }
+
+    /// Stop sharing (the owner), or leave something shared with me.
+    func unshare(_ id: String) async throws {
+        guard let api else { throw APIError.offline }
+        _ = try await api.request("shares/\(id)", method: "DELETE")
+        await pull()
+    }
+
+    /// Leaves a note shared with me (it disappears from my devices).
+    func leave(_ note: Note) async throws {
+        let withMe = try await shares().withMe
+        let group = note.userGroup ?? note.aiGroup ?? ""
+        let share = withMe.first { $0.kind == "note" && $0.target == note.id }
+            ?? withMe.first { $0.kind == "group" && $0.owner?.id == note.userId && $0.target.lowercased() == group.lowercased() }
+        if let share { try await unshare(share.id) }
+    }
+
+    /// Groups moved between Work and Family; empty when offline (names decide then).
+    func worlds() async -> [String: String] {
+        guard let api else { return [:] }
+        return (try? await api.get("groups/worlds", as: WorldChoices.self).chosen) ?? [:]
+    }
+
+    func plan() async throws -> Plan {
+        guard let api else { throw APIError.offline }
+        return try await api.get("plan", as: Plan.self)
+    }
+
+    func backups() async throws -> [Backup] {
+        guard let api else { throw APIError.offline }
+        return try await api.get("backups", as: BackupList.self).backups
+    }
+
+    func backupNow() async throws {
+        guard let api else { throw APIError.offline }
+        _ = try await api.request("backups", method: "POST", json: [:])
+    }
+
+    func restore(_ id: String) async throws {
+        guard let api else { throw APIError.offline }
+        _ = try await api.request("backups/\(id)/restore", method: "POST", json: [:])
+        await pull()
+    }
+
+    /// Deletes the account on the server (typing its email confirms), then everything on the phone.
+    func deleteAccount(email: String) async throws {
+        guard let api else { throw APIError.offline }
+        _ = try await api.request("account/delete", method: "POST", json: ["email": email.trimmingCharacters(in: .whitespaces)])
+        stopLive()
+        setToken(nil)
+        setUser(nil)
+        wipeLocalData()
+        try? await refreshAuthState()
     }
 
     /// Stores a photo on the phone and queues its upload. Returns its file name.
@@ -496,7 +667,17 @@ final class NoteStore {
 
     // MARK: Lists
 
-    var visibleNotes: [Note] { notes.values.filter { !$0.deleted } }
+    /// Notes and lists (not the items inside lists).
+    var visibleNotes: [Note] { notes.values.filter { !$0.deleted && $0.parentId == nil } }
+
+    /// A list's items: open ones first, most urgent first, then in the order they were added.
+    func items(of listId: String) -> [Note] {
+        notes.values.filter { $0.parentId == listId && !$0.deleted }.sorted { a, b in
+            if a.done != b.done { return !a.done }
+            if a.priority.rank != b.priority.rank { return a.priority.rank < b.priority.rank }
+            return a.createdAt < b.createdAt
+        }
+    }
 
     var groupNames: [String] {
         var counts: [String: Int] = [:]
@@ -506,7 +687,7 @@ final class NoteStore {
 
     static func sort(_ a: Note, _ b: Note) -> Bool {
         if a.priority.rank != b.priority.rank { return a.priority.rank < b.priority.rank }
-        switch (a.dueDate, b.dueDate) {
+        switch (a.dueDay.map { $0 + (a.dueHour ?? "") }, b.dueDay.map { $0 + (b.dueHour ?? "") }) {
         case let (x?, y?) where x != y: return x < y
         case (_?, nil): return true
         case (nil, _?): return false

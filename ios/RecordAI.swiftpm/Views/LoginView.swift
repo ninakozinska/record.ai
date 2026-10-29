@@ -11,6 +11,7 @@ struct LoginView: View {
     @State private var password = ""
     @State private var code = ""
     @State private var error: String?
+    @State private var info: String?
     @State private var busy = false
 
     private var policy: SignupPolicy? { store.signupPolicy }
@@ -64,6 +65,10 @@ struct LoginView: View {
                         }
                     }
                     .disabled(busy || email.isEmpty || password.isEmpty)
+                    if !signingUp {
+                        Button("Forgot your password?") { forgot() }
+                    }
+                    if let info { Text(info).font(.footnote).foregroundStyle(.secondary) }
                     if canSwitch {
                         Button(signingUp ? "I already have an account" : "Create an account") {
                             signingUp.toggle()
@@ -134,6 +139,22 @@ struct LoginView: View {
                 self.error = error.localizedDescription
             }
             busy = false
+        }
+    }
+
+    private func forgot() {
+        error = nil
+        guard !email.trimmingCharacters(in: .whitespaces).isEmpty else {
+            error = "Type your email above, then tap this again."
+            return
+        }
+        Task {
+            do {
+                try await store.forgotPassword(email: email)
+                info = "If an account uses this email, a link to choose a new password is on its way. Then log in here with it."
+            } catch {
+                self.error = error.localizedDescription
+            }
         }
     }
 }
