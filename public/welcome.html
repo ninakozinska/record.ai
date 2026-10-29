@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>record.ai: notes that sort themselves</title>
+  <meta name="description" content="Write it down, record.ai sorts it: priorities, groups, dates. Shared family lists. For working parents juggling work and home.">
+  <meta property="og:title" content="record.ai: notes that sort themselves">
+  <meta property="og:description" content="Work and family in one place. Write it down; AI sorts it.">
+  <link rel="icon" href="icons/icon-192.png">
+  <style>
+    :root { --bg: #f6f6f9; --card: #fff; --text: #111118; --muted: #5b5b6b; --accent: #4f46e5; --line: #e4e4ec; --urgent: #dc2626; --high: #ea7a0c; }
+    @media (prefers-color-scheme: dark) { :root { --bg: #111118; --card: #1b1b24; --text: #ececf1; --muted: #a0a0b2; --accent: #a5b4fc; --line: #2c2c38; } }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 17px/1.55 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
+    a { color: var(--accent); }
+    .wrap { max-width: 1040px; margin: 0 auto; padding: 0 16px; }
+    header { display: flex; align-items: center; justify-content: space-between; padding: 18px 0; }
+    .logo { font-weight: 800; font-size: 1.2rem; color: var(--text); text-decoration: none; }
+    .btn { display: inline-block; background: var(--accent); color: #fff; padding: .75em 1.3em; border-radius: 999px; font-weight: 700; text-decoration: none; border: 0; cursor: pointer; font-size: 1rem; }
+    @media (prefers-color-scheme: dark) { .btn { color: #111118; } }
+    .btn.ghost { background: transparent; color: var(--accent); border: 1.5px solid var(--accent); }
+    .hero { display: grid; grid-template-columns: 1.1fr 1fr; gap: 40px; align-items: center; padding: 32px 0 56px; }
+    .hero h1 { font-size: clamp(2rem, 5vw, 3.1rem); line-height: 1.1; margin: 0 0 .4em; letter-spacing: -.02em; }
+    .hero p.lead { font-size: 1.15rem; color: var(--muted); margin: 0 0 1.4em; }
+    .cta { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+    .small { font-size: .9rem; color: var(--muted); }
+    .phone { background: var(--card); border: 1px solid var(--line); border-radius: 28px; padding: 18px 14px; box-shadow: 0 20px 50px rgba(30, 30, 60, .12); max-width: 380px; justify-self: center; width: 100%; }
+    .phone h4 { margin: 4px 6px 8px; font-size: .75rem; letter-spacing: .08em; color: var(--muted); }
+    .phone h4.u { color: var(--urgent); } .phone h4.h { color: var(--high); }
+    .note { border-left: 3px solid var(--line); padding: 8px 10px; margin: 0 0 10px; border-radius: 4px; background: var(--bg); }
+    .note.u { border-color: var(--urgent); } .note.h { border-color: var(--high); }
+    .note b { display: block; font-size: .95rem; }
+    .note .meta { display: flex; gap: 8px; font-size: .78rem; color: var(--muted); align-items: center; }
+    .note .meta .due { font-weight: 700; color: var(--urgent); }
+    .note .meta .done { margin-left: auto; color: var(--accent); font-weight: 700; }
+    .note ul { margin: 4px 0; padding: 0; list-style: none; font-size: .88rem; }
+    section { padding: 48px 0; border-top: 1px solid var(--line); }
+    section h2 { font-size: 1.7rem; margin: 0 0 .8em; letter-spacing: -.01em; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 18px; }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 20px; }
+    .card h3 { margin: .2em 0 .4em; font-size: 1.1rem; }
+    .card p { margin: 0; color: var(--muted); }
+    .emoji { font-size: 1.6rem; }
+    .price { font-size: 2rem; font-weight: 800; margin: .2em 0; }
+    .price span { font-size: 1rem; font-weight: 500; color: var(--muted); }
+    .card ul { padding-left: 1.1em; margin: .6em 0 1em; color: var(--muted); }
+    .card.featured { border: 2px solid var(--accent); }
+    .tag { display: inline-block; font-size: .75rem; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: .06em; }
+    footer { padding: 32px 0 48px; color: var(--muted); font-size: .9rem; border-top: 1px solid var(--line); }
+    footer a { color: var(--muted); }
+    @media (max-width: 760px) { .hero { grid-template-columns: 1fr; padding-top: 8px; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <a class="logo" href="welcome.html">record.ai</a>
+      <a href="./" data-cta="header">Log in</a>
+    </header>
+
+    <div class="hero">
+      <div>
+        <h1 id="headline">Work and family, in one place.</h1>
+        <p class="lead" id="lead">Write it down the way it comes: a meeting, the dentist, milk, the school trip. record.ai sorts it into priorities, groups and dates, on every device.</p>
+        <div class="cta">
+          <a class="btn" href="./#signup" data-cta="hero">Start free</a>
+          <a class="btn ghost" href="#how">See how it works</a>
+        </div>
+        <p class="small">Free to start. No card needed. Works on iPhone, Android and any browser.</p>
+      </div>
+      <div class="phone" aria-label="Example: notes sorted by priority">
+        <h4 class="u">URGENT</h4>
+        <div class="note u"><b>Send the quarterly report</b><div class="meta"><span>Work</span><span class="due">📅 Today 17:00</span><span class="done">✓ Done</span></div></div>
+        <div class="note u"><b>Dentist for Mia</b><div class="meta"><span>Shared by Alex</span><span class="due">📅 Tomorrow 09:30</span><span class="done">✓ Done</span></div></div>
+        <h4 class="h">HIGH</h4>
+        <div class="note h"><b>Groceries</b><ul><li>☐ milk</li><li>☐ eggs</li><li>☐ bread for the school trip</li></ul><div class="meta"><span>Home · shared</span><span>☑ 2/5</span><span class="done">✓ Done</span></div></div>
+        <div class="note h"><b>Sign the school trip form</b><div class="meta"><span>Kids</span><span>📅 Fri, 6 Nov</span><span class="done">✓ Done</span></div></div>
+      </div>
+    </div>
+
+    <section id="how">
+      <h2>Less to remember. More time for what matters.</h2>
+      <div class="grid">
+        <div class="card"><div class="emoji">✍️</div><h3>Just write, or say it</h3><p>Type, dictate, paste a list or snap a photo of the school letter. No folders to choose.</p></div>
+        <div class="card"><div class="emoji">✨</div><h3>AI sorts it for you</h3><p>Every note gets a clear title, a priority, a group and its date, so the urgent things are on top.</p></div>
+        <div class="card"><div class="emoji">👨‍👩‍👧</div><h3>Share with your partner</h3><p>Shared groceries, the kids' week, appointments. Both of you see changes at once, and tick things off.</p></div>
+        <div class="card"><div class="emoji">📅</div><h3>Dates in your calendar</h3><p>Notes with a date and time go to your iPhone, Android or Google calendar, if you want them there.</p></div>
+      </div>
+    </section>
+
+    <section id="pricing">
+      <h2>Simple plans</h2>
+      <div class="grid">
+        <div class="card">
+          <span class="tag">Free</span>
+          <div class="price">€0</div>
+          <ul><li>Unlimited notes, on every device</li><li>AI sorting (monthly allowance)</li><li>Lists, dates, sharing</li></ul>
+          <a class="btn ghost" href="./#signup" data-cta="free">Start free</a>
+        </div>
+        <div class="card">
+          <span class="tag">Solo</span>
+          <div class="price">€3.99 <span>/ month</span></div>
+          <ul><li>Everything in Free</li><li>More AI every month</li><li>Daily backups, kept 30 days</li></ul>
+          <a class="btn ghost" href="./#signup" data-cta="solo">Try it</a>
+        </div>
+        <div class="card featured">
+          <span class="tag">Family</span>
+          <div class="price">€5.99 <span>/ month</span></div>
+          <ul><li>Everything in Solo, for the whole household</li><li>Shared family groups</li><li>Coming soon: smart reminders, tasks for the kids</li></ul>
+          <a class="btn" href="./#signup" data-cta="family">Try it</a>
+        </div>
+      </div>
+      <p class="small">Paid plans are opening soon. Everyone who starts now can try them first.</p>
+    </section>
+
+    <section>
+      <h2>Your notes stay yours</h2>
+      <div class="grid">
+        <div class="card"><h3>Private by default</h3><p>Only you, and the people you share with, see your notes. No ads, no selling data.</p></div>
+        <div class="card"><h3>Download everything</h3><p>All your notes and photos in one file, any time. Delete your account in two taps.</p></div>
+        <div class="card"><h3>Made in Europe</h3><p>Hosted in Frankfurt, Germany. Made for working parents.</p></div>
+      </div>
+    </section>
+
+    <footer>
+      record.ai · <a href="legal/privacy.html">Privacy</a> · <a href="legal/terms.html">Terms</a> · <a href="legal/support.html">Help</a>
+    </footer>
+  </div>
+
+  <script type="module">
+    import { loadVariants, variant, track } from './track.js';
+    // A/B test: which promise brings more people to "Start free" (docs/OPTIMIZATION.md).
+    const HEADLINES = {
+      two_in_one: ['Work and family, in one place.', 'Write it down the way it comes: a meeting, the dentist, milk, the school trip. record.ai sorts it into priorities, groups and dates, on every device.'],
+      mental_load: ['Get it out of your head. AI sorts it.', 'All the things you carry around, for work and for the family, written down in seconds and sorted for you: what is urgent, what is when, what is shared.'],
+    };
+    await loadVariants(['landing_headline']);
+    const v = variant('landing_headline', 'two_in_one');
+    const [h, lead] = HEADLINES[v] || HEADLINES.two_in_one;
+    document.getElementById('headline').textContent = h;
+    document.getElementById('lead').textContent = lead;
+    track('landing_view', { variant: v, ref: document.referrer ? new URL(document.referrer).hostname.slice(0, 40) : '' });
+    for (const a of document.querySelectorAll('[data-cta]')) {
+      a.addEventListener('click', () => track('landing_cta', { where: a.dataset.cta, variant: v }));
+    }
+  </script>
+</body>
+</html>

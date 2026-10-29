@@ -168,7 +168,8 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth, mail } = {
     const platform = PLATFORMS.includes(req.query.platform) ? req.query.platform : 'web';
     const { subject } = subjectOf(req, anonId);
     if (!subject) return res.status(400).json({ error: 'anon id needed' });
-    res.json({ subject, variants: insights.assignmentsFor(subject, platform) });
+    const keys = req.query.keys ? String(req.query.keys).split(',').slice(0, 10) : null;
+    res.json({ subject, variants: insights.assignmentsFor(subject, platform, keys) });
   });
   // At most 600 events a minute from one address: enough for any real use, not for flooding.
   const eventBudget = new Map();

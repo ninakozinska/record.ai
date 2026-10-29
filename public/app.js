@@ -1163,7 +1163,9 @@ const auth = {
     } catch {
       this.policy = this.policy || { open: false };
     }
-    this.show(this.policy.firstAccount ? 'signup' : 'login');
+    // From the landing page's "Start free": the sign-up form, when sign-ups are open.
+    const wantsSignup = location.hash === '#signup' && this.policy.open;
+    this.show(this.policy.firstAccount || wantsSignup ? 'signup' : 'login');
   },
   show(mode) {
     this.mode = mode;

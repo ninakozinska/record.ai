@@ -45,6 +45,15 @@ An experiment (`server/experiments.js` for the ones a release starts with,
   "auto": true, "minSubjects": 200, "platforms": ["web", "ios", "android"] }
 ```
 
+A test with `"page": "landing"` belongs to one page: it is assigned only when
+that page asks for it (`&keys=landing_headline`), so app users who never see
+the page don't dilute it. Running now:
+
+| Test | Variants | Success | Where |
+|---|---|---|---|
+| `premium_pitch` | backups / family | `upgrade_click` (guardrail `note_created`) | Premium box in the account menu |
+| `landing_headline` | two_in_one ("Work and family, in one place") / mental_load ("Get it out of your head. AI sorts it.") | `landing_cta` (a click on Start free / Try it) | `/welcome.html` |
+
 Results (`/api/admin/overview`, the dashboard): per variant the people in it,
 how many reached the metric after being assigned, the rate, the change against
 the first variant, a two-sided p-value, and the chance it is the best

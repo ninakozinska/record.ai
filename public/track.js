@@ -17,9 +17,11 @@ export function anonId() {
 }
 
 let variants = {};
-export async function loadVariants() {
+/** `keys`: the tests of one page (e.g. the landing page's); without, the app's. */
+export async function loadVariants(keys = null) {
   try {
-    const res = await fetch(`api/public/experiments?anon=${anonId()}&platform=web`, { credentials: 'same-origin' });
+    const only = keys ? `&keys=${encodeURIComponent(keys.join(','))}` : '';
+    const res = await fetch(`api/public/experiments?anon=${anonId()}&platform=web${only}`, { credentials: 'same-origin' });
     if (res.ok) variants = (await res.json()).variants || {};
   } catch {
     // Offline: everyone sees the first variant, nothing breaks.
@@ -32,7 +34,7 @@ export const variant = (key, fallback) => variants[key] ?? fallback;
 const queue = [];
 // Events that decide a test (a click on "Get Premium") are sent at once;
 // the rest go in batches every 10 seconds.
-const URGENT = new Set(['upgrade_click', 'feature_interest', 'invite_sent', 'signup_start']);
+const URGENT = new Set(['upgrade_click', 'feature_interest', 'invite_sent', 'signup_start', 'landing_cta']);
 export function track(name, props = {}) {
   queue.push({ name, props, ts: Date.now() });
   if (queue.length >= 20 || URGENT.has(name)) flush();

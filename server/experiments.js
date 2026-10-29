@@ -14,4 +14,18 @@ export const EXPERIMENTS = [
     auto: true,
     minSubjects: 200,
   },
+  {
+    key: 'landing_headline',
+    description: 'The landing page promise: "work and family in one place" or "get it out of your head".',
+    variants: [
+      { key: 'two_in_one', weight: 50 },
+      { key: 'mental_load', weight: 50 },
+    ],
+    metric: 'landing_cta',
+    guardrails: [],
+    platforms: ['web'],
+    page: 'landing',
+    auto: true,
+    minSubjects: 300,
+  },
 ];

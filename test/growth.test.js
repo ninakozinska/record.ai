@@ -138,6 +138,10 @@ test('A/B tests: sticky variants before and after signing up, events, results; t
     assert.ok(['backups', 'family'].includes(v));
     for (let i = 0; i < 3; i++) assert.equal((await pub(`public/experiments?anon=${anon}`)).body.variants.premium_pitch, v, 'sticky');
     assert.equal((await pub('public/experiments')).status, 400);
+    assert.equal(first.body.variants.landing_headline, undefined, "the app doesn't join the landing page's test");
+    const landing = await pub(`public/experiments?anon=${anon}&keys=landing_headline`);
+    assert.deepEqual(Object.keys(landing.body.variants), ['landing_headline']);
+    assert.ok(['two_in_one', 'mental_load'].includes(landing.body.variants.landing_headline));
     const ev = await pub('public/events', json('POST', { anon, platform: 'ios', events: [{ name: 'landing_view' }, { name: 'Bad Name!' }, { name: 'upgrade_click', props: { from: 'test' } }] }));
     assert.equal(ev.body.saved, 2);
 
