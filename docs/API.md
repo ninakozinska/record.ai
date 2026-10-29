@@ -123,6 +123,9 @@ Details: [OPTIMIZATION.md](OPTIMIZATION.md).
 | POST | `/api/backups/:id/restore` | `{restored, rev}`: back to that backup (a backup of now is made first) |
 | GET | `/api/backups/:id/download` | the backup as JSON |
 | GET | `/api/export` | all my notes and photos, `.tar.gz` (everyone) |
+| POST | `/api/billing/checkout` | `{plan: 'solo' \| 'family'}` → `{url}`: Stripe's payment page. 503 `{notOpen: true}` until payments are set up; 409 when already subscribed |
+| POST | `/api/billing/portal` | `{url}`: Stripe's page to manage the subscription; 404 without one |
+| POST | `/api/billing/webhook` | for Stripe only (signed with `Stripe-Signature`, no login): changes the plan. See docs/PAYMENTS.md |
 | GET | `/api/public/experiments?anon=&platform=` | `{subject, variants}` (no login needed) |
 | POST | `/api/public/events` | `{anon, platform, events: [{name, props?, ts?}]}` → `{saved}` (no login needed) |
 | GET | `/api/admin/overview` | the dashboard's data (owner and `ADMIN_EMAILS` only) |
@@ -153,6 +156,3 @@ Details: [OPTIMIZATION.md](OPTIMIZATION.md).
 | `status` | the `ai` status | a reorganize started or finished |
 
 A comment line `: ping` arrives every 25 seconds to keep the connection open.
-| POST | `/api/billing/checkout` | `{plan: 'solo' \| 'family'}` | `{url}`: Stripe's payment page. 503 `{notOpen: true}` until payments are set up; 409 when already subscribed |
-| POST | `/api/billing/portal` | | `{url}`: Stripe's page to manage the subscription; 404 without one |
-| POST | `/api/billing/webhook` | Stripe's signed event | For Stripe only (checks `Stripe-Signature`). Changes the plan. See docs/PAYMENTS.md |
