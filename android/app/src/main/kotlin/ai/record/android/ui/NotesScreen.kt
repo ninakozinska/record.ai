@@ -75,6 +75,7 @@ import ai.record.core.Note
 import ai.record.core.NoteRepository
 import ai.record.core.Priority
 import ai.record.core.UiState
+import ai.record.core.Worlds
 import ai.record.core.noteOrder
 import ai.record.core.pastedLines
 import kotlinx.coroutines.launch
@@ -90,6 +91,9 @@ fun NotesScreen(repo: NoteRepository, state: UiState, sharedText: String?, onSha
     var query by rememberSaveable { mutableStateOf("") }
     var searching by rememberSaveable { mutableStateOf(false) }
     var group by rememberSaveable { mutableStateOf<String?>(null) }
+    var world by rememberSaveable { mutableStateOf(Worlds.ALL) }
+    var chosenWorlds by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
+    LaunchedEffect(state.user?.id) { chosenWorlds = repo.worlds() }
     var showDone by rememberSaveable { mutableStateOf(false) }
     var editing by rememberSaveable { mutableStateOf<String?>(null) }
     var menu by remember { mutableStateOf(false) }
@@ -127,15 +131,16 @@ fun NotesScreen(repo: NoteRepository, state: UiState, sharedText: String?, onSha
     }
 
     val words = query.lowercase().split(" ").filter { it.isNotBlank() }
+    val groupNames = state.groupNames.filter { Worlds.shows(it, world, chosenWorlds) }
     val filtered = state.visible.filter { n ->
-        (group == null || n.group == group) && (words.isEmpty() || words.all { w ->
+        Worlds.shows(n.group, world, chosenWorlds) && (group == null || n.group == group) && (words.isEmpty() || words.all { w ->
             listOf(n.text, n.title.orEmpty(), n.summary.orEmpty(), n.group, n.tags.orEmpty().joinToString(" ")).joinToString(" ").lowercase().contains(w)
         })
     }
     val open = filtered.filter { !it.done }.sortedWith(noteOrder)
     val done = filtered.filter { it.done }.sortedByDescending { it.editedAt }
     val sections = if (byGroup) {
-        state.groupNames.mapNotNull { g -> open.filter { it.group == g }.takeIf { it.isNotEmpty() }?.let { Section(g, null, it) } }
+        groupNames.mapNotNull { g -> open.filter { it.group == g }.takeIf { it.isNotEmpty() }?.let { Section(g, null, it) } }
     } else {
         Priority.entries.mapNotNull { p -> open.filter { it.priority == p }.takeIf { it.isNotEmpty() }?.let { Section(p.label, p.color, it) } }
     }
@@ -205,13 +210,19 @@ fun NotesScreen(repo: NoteRepository, state: UiState, sharedText: String?, onSha
                         OutlinedTextField(query, { query = it }, placeholder = { Text("Search notes") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                     }
                     SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                        listOf(Worlds.ALL to "All", Worlds.WORK to "💼 Work", Worlds.FAMILY to "🏡 Family").forEachIndexed { i, (key, label) ->
+                            SegmentedButton(selected = world == key, onClick = { world = key; group = null },
+                                shape = SegmentedButtonDefaults.itemShape(i, 3)) { Text(label) }
+                        }
+                    }
+                    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                         SegmentedButton(selected = !byGroup, onClick = { byGroup = false }, shape = SegmentedButtonDefaults.itemShape(0, 2)) { Text("Priority") }
                         SegmentedButton(selected = byGroup, onClick = { byGroup = true }, shape = SegmentedButtonDefaults.itemShape(1, 2)) { Text("Groups") }
                     }
-                    if (state.groupNames.isNotEmpty()) {
+                    if (groupNames.isNotEmpty()) {
                         Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             FilterChip(selected = group == null, onClick = { group = null }, label = { Text("All") })
-                            state.groupNames.forEach { g -> FilterChip(selected = group == g, onClick = { group = g }, label = { Text(g) }) }
+                            groupNames.forEach { g -> FilterChip(selected = group == g, onClick = { group = g }, label = { Text(g) }) }
                         }
                     }
                     if (!state.aiEnabled) {

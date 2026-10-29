@@ -575,6 +575,12 @@ final class NoteStore {
         if let share { try await unshare(share.id) }
     }
 
+    /// Groups moved between Work and Family; empty when offline (names decide then).
+    func worlds() async -> [String: String] {
+        guard let api else { return [:] }
+        return (try? await api.get("groups/worlds", as: WorldChoices.self).chosen) ?? [:]
+    }
+
     func plan() async throws -> Plan {
         guard let api else { throw APIError.offline }
         return try await api.get("plan", as: Plan.self)

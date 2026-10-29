@@ -170,6 +170,11 @@ class Api(val baseUrl: String, private val token: String?, private val client: O
     /** Stop sharing (the owner), or leave a note shared with me. */
     suspend fun unshare(id: String) { call("shares/$id", "DELETE") }
 
+    @kotlinx.serialization.Serializable private data class WorldChoices(val chosen: Map<String, String> = emptyMap())
+
+    /** Groups the person moved between Work and Family ("" = both). */
+    suspend fun worlds(): Map<String, String> = decode<WorldChoices>(call("groups/worlds")).chosen
+
     // --- plan, backups, account ---
 
     suspend fun plan(): Plan = decode(call("plan"))

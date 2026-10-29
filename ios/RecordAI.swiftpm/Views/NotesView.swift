@@ -8,6 +8,8 @@ struct NotesView: View {
     @AppStorage("view") private var viewMode = "priority"
     @State private var query = ""
     @State private var group: String?
+    @AppStorage("world") private var world = Worlds.all
+    @State private var chosenWorlds: [String: String] = [:]
     @State private var showDone = false
     @State private var editing: EditTarget?
     @State private var showAccount = false
@@ -18,7 +20,17 @@ struct NotesView: View {
     var body: some View {
         NavigationStack {
             List {
-                if !store.groupNames.isEmpty {
+                Section {
+                    Picker("World", selection: $world) {
+                        Text("All").tag(Worlds.all)
+                        Text("💼 Work").tag(Worlds.work)
+                        Text("🏡 Family").tag(Worlds.family)
+                    }
+                    .pickerStyle(.segmented)
+                    .onChange(of: world) { _, _ in group = nil }
+                }
+                .listRowBackground(Color.clear)
+                if !groupNames.isEmpty {
                     Section { groupChips }
                         .listRowInsets(EdgeInsets())
                         .listRowBackground(Color.clear)
@@ -86,7 +98,9 @@ struct NotesView: View {
             }
             .listStyle(.insetGrouped)
             .searchable(text: $query, prompt: "Search notes")
+            .task(id: store.user?.id) { chosenWorlds = await store.worlds() }
             .refreshable {
+                chosenWorlds = await store.worlds()
                 await store.pull()
                 await store.flush()
             }
@@ -162,7 +176,7 @@ struct NotesView: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
                 chip("All", selected: group == nil) { group = nil }
-                ForEach(store.groupNames, id: \.self) { name in
+                ForEach(groupNames, id: \.self) { name in
                     chip(name, selected: group == name) { group = name }
                 }
             }
@@ -190,9 +204,14 @@ struct NotesView: View {
         var notes: [Note]
     }
 
+    private var groupNames: [String] {
+        store.groupNames.filter { Worlds.shows($0, in: world, chosen: chosenWorlds) }
+    }
+
     private var filtered: [Note] {
         let words = query.lowercased().split(separator: " ").map(String.init)
         return store.visibleNotes.filter { n in
+            if !Worlds.shows(n.group, in: world, chosen: chosenWorlds) { return false }
             if let group, n.group != group { return false }
             if words.isEmpty { return true }
             let hay = ([n.text, n.title ?? "", n.summary ?? "", n.group] + (n.tags ?? [])).joined(separator: " ").lowercased()
@@ -205,7 +224,7 @@ struct NotesView: View {
 
     private var sections: [NoteSection] {
         if viewMode == "groups" {
-            let names = store.groupNames.filter { name in open.contains { $0.group == name } }
+            let names = groupNames.filter { name in open.contains { $0.group == name } }
             return names.map { name in NoteSection(title: name, color: .secondary, notes: open.filter { $0.group == name }) }
         }
         return Priority.allCases.compactMap { p in

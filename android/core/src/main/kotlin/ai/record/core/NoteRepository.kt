@@ -457,6 +457,9 @@ class NoteRepository(
     suspend fun share(kind: String, target: String, email: String, role: String) { (api ?: throw ApiException.offline()).share(kind, target, email.trim(), role) }
     suspend fun setShareRole(id: String, role: String) { api?.setShareRole(id, role) }
     suspend fun unshare(id: String) { api?.unshare(id); flush() }
+    /** Groups moved between Work and Family; empty when offline (names decide then). */
+    suspend fun worlds(): Map<String, String> = runCatching { api?.worlds() }.getOrNull() ?: emptyMap()
+
     suspend fun plan(): Plan = api?.plan() ?: throw ApiException.offline()
     suspend fun backups(): List<Backup> = api?.backups() ?: throw ApiException.offline()
     suspend fun backupNow() { api?.backupNow() }
