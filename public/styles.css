@@ -344,3 +344,5 @@ a.btn { display: inline-flex; align-items: center; text-decoration: none; color:
 .welcome h2 { margin: 0; font-size: 1.1rem; }
 .welcome ol { margin: 0; padding-left: 1.3em; display: grid; gap: 4px; }
 .interest [data-interest].chosen { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.legal-links { text-align: center; font-size: .8rem; margin: 0; }
+.legal-links a, .delete-account a { color: var(--muted); }
