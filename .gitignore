@@ -7,3 +7,4 @@ data-e2e/
 ios/**/.swiftpm/
 ios/**/.build/
 ios/**/xcuserdata/
+__pycache__/
