@@ -1409,6 +1409,27 @@ $('#logoutOthers').onclick = async () => {
     toast(err.message);
   }
 };
+// Delete my account: everything goes; typing the email confirms it.
+$('#deleteAccount').onclick = async () => {
+  const typed = prompt(
+    'Delete your account?\n\nAll your notes, lists, photos, backups and shares are deleted for good. ' +
+    'Download them first under ⭐ Premium if you want to keep a copy.\n\nType your email address to confirm:',
+  );
+  if (typed == null) return;
+  try {
+    await local.api('account/delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: typed.trim() }),
+    });
+    $('#account').close();
+    await local.wipe();
+    local.setStatus({ user: null, needsLogin: true, online: false });
+    toast('Your account is deleted.');
+  } catch (err) {
+    toast(err.message);
+  }
+};
 $('#logoutBtn').onclick = async () => {
   await local.flush();
   const unsent = await local.unsentCount();

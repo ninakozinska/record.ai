@@ -684,6 +684,46 @@ class Store {
     return this.db.prepare('DELETE FROM identities WHERE user_id = ? AND provider = ?').run(userId, provider).changes;
   }
 
+  /**
+   * Deletes an account and everything that is only theirs: notes, photos
+   * (returns their file names), shares, sign-in options, sessions, settings.
+   * Events stay for the statistics, without the person (user id removed).
+   */
+  deleteUser(userId) {
+    const own = this.db.prepare('SELECT * FROM notes WHERE user_id = ?').all(userId).map(rowToNote);
+    const images = this.db.prepare('SELECT name FROM images WHERE user_id = ?').all(userId).map((r) => r.name);
+    const shares = this.db.prepare('SELECT * FROM shares WHERE owner_id = ? OR user_id = ?').all(userId, userId).map(rowToShare);
+    this.db.exec('BEGIN');
+    try {
+      // Notes become empty markers (no contents left), so the devices of people
+      // they were shared with remove them at their next sync, even days later.
+      for (const n of own) {
+        this.db.prepare(
+          `UPDATE notes SET text = '', images = '[]', title = NULL, summary = NULL, ai_group = NULL, ai_priority = NULL,
+             priority_reason = NULL, tags = '[]', due_date = NULL, due_time = NULL, user_group = NULL, user_priority = NULL,
+             user_due = NULL, deleted = 1, edited_at = ?, rev = ? WHERE id = ?`,
+        ).run(Date.now(), this.nextRev(), n.id);
+      }
+      this.db.prepare('DELETE FROM images WHERE user_id = ?').run(userId);
+      this.db.prepare('DELETE FROM shares WHERE owner_id = ? OR user_id = ?').run(userId, userId);
+      this.db.prepare('DELETE FROM share_seen WHERE user_id = ?').run(userId);
+      this.db.prepare('DELETE FROM identities WHERE user_id = ?').run(userId);
+      this.db.prepare('DELETE FROM sessions WHERE user_id = ?').run(userId);
+      this.db.prepare("DELETE FROM assignments WHERE subject = ?").run(`u:${userId}`);
+      this.db.prepare('UPDATE events SET user_id = NULL, anon_id = NULL WHERE user_id = ?').run(userId);
+      this.db.prepare('UPDATE ai_calls SET user_id = NULL WHERE user_id = ?').run(userId);
+      const token = this.getMeta(`cal_token:${userId}`);
+      if (token) this.db.prepare('DELETE FROM meta WHERE key = ?').run(`cal_user:${token}`);
+      this.db.prepare("DELETE FROM meta WHERE key LIKE ?").run(`%:${userId}`);
+      this.db.prepare('DELETE FROM users WHERE id = ?').run(userId);
+      this.db.exec('COMMIT');
+    } catch (err) {
+      this.db.exec('ROLLBACK');
+      throw err;
+    }
+    return { notes: own.map((n) => this.get(n.id)), images, shares };
+  }
+
   // --- sessions ---------------------------------------------------------------
 
   /** Creates a session and returns its secret token (only the hash is stored). */

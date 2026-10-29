@@ -275,3 +275,37 @@ test('AI calls are recorded with their cost; statistics helpers', async () => {
   const [pa, pb] = probabilityBest([{ conversions: 5, subjects: 100 }, { conversions: 20, subjects: 100 }]);
   assert.ok(pb > 0.99 && pa < 0.01);
 });
+
+test('delete my account: everything of theirs goes, people they shared with are told, the owner is protected', async () => {
+  process.env.ALLOW_SIGNUP = 'true';
+  const s = await start();
+  try {
+    const tom = person(s);
+    await tom.signup('Tom', 'tom@example.com');
+    const tomId = s.store.findUserByEmail('tom@example.com').id;
+    await put(tom.api, 'note-tom-0001', { text: 'Tom private' });
+    await put(tom.api, 'list-tom-0001', { text: 'Tom shares this' });
+    await put(tom.api, 'item-tom-0001', { text: 'bread', parent_id: 'list-tom-0001' });
+    await tom.api('shares', json('POST', { kind: 'note', target: 'list-tom-0001', email: 'nina@example.com' }));
+    const seen = (await s.api('notes?since=0&items=1&shared=1')).body;
+    assert.ok(seen.notes.some((n) => n.id === 'list-tom-0001'));
+
+    assert.equal((await tom.api('account/delete', json('POST', { email: 'wrong@example.com' }))).status, 400);
+    assert.equal((await tom.api('account/delete', json('POST', { email: 'TOM@example.com' }))).status, 200);
+    assert.equal(s.store.getUser(tomId), null);
+    assert.equal((await tom.api('notes?since=0')).status, 401, 'logged out everywhere');
+    const left = s.store.db.prepare('SELECT text, deleted FROM notes WHERE user_id = ?').all(tomId);
+    assert.ok(left.every((n) => n.text === '' && n.deleted === 1), 'only empty markers left');
+    // Nina, even if she was offline, removes the shared list at her next sync.
+    const after = (await s.api(`notes?since=${seen.rev}&items=1&shared=1`)).body.notes;
+    assert.deepEqual(after.filter((n) => n.revoked).map((n) => n.id).sort(), ['item-tom-0001', 'list-tom-0001']);
+    assert.deepEqual((await s.api('shares')).body.withMe, []);
+    // Tom can sign up again with the same email.
+    assert.equal((await person(s).signup('Tom', 'tom@example.com')).status, 200);
+    // The owner's account owns the server.
+    assert.equal((await s.api('account/delete', json('POST', { email: 'nina@example.com' }))).status, 400);
+  } finally {
+    delete process.env.ALLOW_SIGNUP;
+    s.close();
+  }
+});

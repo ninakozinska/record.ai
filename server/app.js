@@ -473,6 +473,30 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth } = {}) {
     await backups.exportTo(req.user.id, res);
   });
 
+  // Delete my account (Apple requires it in the app). Typing the account's
+  // email confirms it; the owner can't delete the account that owns the server.
+  app.post('/api/account/delete', (req, res) => {
+    const confirm = String(req.body?.email || '').trim().toLowerCase();
+    if (confirm !== req.user.email.toLowerCase()) return res.status(400).json({ error: 'Type your email address to confirm.' });
+    if (store.firstUserId() === req.user.id) {
+      return res.status(400).json({ error: "This account owns the server, so it can't be deleted here." });
+    }
+    const gone = store.deleteUser(req.user.id);
+    for (const name of gone.images) {
+      for (const f of [path.join(imagesDir, name), path.join(imagesDir, 'thumbs', name)]) fs.rmSync(f, { force: true });
+    }
+    fs.rmSync(backups.userDir(req.user.id), { recursive: true, force: true });
+    // People who could see their shared notes are told to remove them (now, or at their next sync).
+    for (const note of gone.notes) onChange(note);
+    for (const share of gone.shares) {
+      for (const id of [share.user_id, share.owner_id]) if (id && id !== req.user.id) sendShares(id);
+    }
+    insights.track('account_deleted', {});
+    for (const r of clients.get(req.user.id) || []) r.end();
+    res.setHeader('Set-Cookie', 'notes_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0');
+    res.json({ ok: true });
+  });
+
   // --- the owner's dashboard: numbers, A/B tests, what the optimizer did ---------------
   const adminOnly = (req, res, next) => (isAdmin(req.user) ? next() : res.status(404).json({ error: 'Not found' }));
   app.get('/api/admin/overview', adminOnly, (req, res) => {

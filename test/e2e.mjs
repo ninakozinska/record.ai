@@ -421,6 +421,12 @@ try {
   await tom.click('#getPremium');
   await tom.waitForSelector('#premiumThanks:visible');
   await tom.click('#accountClose');
+  // Tom deletes his account (typing his email confirms it).
+  await tom.click('#accountBtn');
+  tom.once('dialog', (d) => d.accept('tom@example.com'));
+  await tom.click('#deleteAccount');
+  await tom.waitForSelector('#login[open]');
+  assert.equal(store.findUserByEmail('tom@example.com'), null);
   delete process.env.SIGNUP_CODE;
   await tomCtx.close();
   delete pages.tom;
@@ -473,7 +479,7 @@ try {
   await desktop.click('#dashboardLink');
   await desktop.waitForSelector('#tiles .tile');
   await desktop.waitForSelector('#experiments :text("premium_pitch")');
-  await desktop.waitForSelector('#users select[data-email="tom@example.com"]');
+  await desktop.waitForSelector('#users select[data-email="nina@example.com"]');
   await desktop.waitForSelector('#tiles .tile:has-text("Get Premium") .v:text("1")');
   await desktop.screenshot({ path: path.join(out, 'desktop-dashboard.png'), fullPage: true });
   await desktop.goBack();
