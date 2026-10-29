@@ -130,12 +130,14 @@ class Api(val baseUrl: String, private val token: String?, private val client: O
 
     suspend fun disconnect(provider: String) { call("auth/identities/$provider", "DELETE") }
 
-    suspend fun notes(since: Long): NotesPage = decode(call("notes?since=$since"))
+    suspend fun notes(since: Long): NotesPage = decode(call("notes?since=$since&items=1&shared=1"))
 
     /** One round trip: send every change, get back everything changed since `since`. */
     suspend fun sync(since: Long, changes: List<JsonObject>): SyncResponse =
         decode(post("sync", buildJsonObject {
             put("since", since)
+            put("items", true)
+            put("shared", true)
             put("changes", kotlinx.serialization.json.JsonArray(changes))
         }))
 
@@ -148,6 +150,37 @@ class Api(val baseUrl: String, private val token: String?, private val client: O
     suspend fun reanalyze(id: String) { post("notes/$id/reanalyze", JsonObject(emptyMap())) }
 
     suspend fun reorganize(): ReorganizeResult = decode(post("reorganize", JsonObject(emptyMap())))
+
+    // --- sharing ---
+
+    suspend fun shares(): Shares = decode(call("shares"))
+
+    /** kind: "note" (a note or list, by id) or "group" (by name); role: "edit" or "view". */
+    suspend fun share(kind: String, target: String, email: String, role: String) {
+        post("shares", buildJsonObject { put("kind", kind); put("target", target); put("email", email); put("role", role) })
+    }
+
+    suspend fun setShareRole(id: String, role: String) {
+        call("shares/$id", "PATCH", json.encodeToString(JsonElement.serializer(), buildJsonObject { put("role", role) }).toRequestBody(JSON_TYPE))
+    }
+
+    /** Stop sharing (the owner), or leave a note shared with me. */
+    suspend fun unshare(id: String) { call("shares/$id", "DELETE") }
+
+    // --- plan, backups, account ---
+
+    suspend fun plan(): Plan = decode(call("plan"))
+
+    @kotlinx.serialization.Serializable private data class BackupList(val backups: List<Backup> = emptyList())
+
+    suspend fun backups(): List<Backup> = decode<BackupList>(call("backups")).backups
+
+    suspend fun backupNow() { post("backups", JsonObject(emptyMap())) }
+
+    suspend fun restore(id: String) { post("backups/$id/restore", JsonObject(emptyMap())) }
+
+    /** Deletes the account and everything in it. `email` must be the account's, to confirm. */
+    suspend fun deleteAccount(email: String) { post("account/delete", buildJsonObject { put("email", email) }) }
 
     // --- A/B tests and events (see docs/OPTIMIZATION.md); work before logging in too ---
 
@@ -168,7 +201,7 @@ class Api(val baseUrl: String, private val token: String?, private val client: O
 
     /** Live updates (Server-Sent Events). Call `cancel()` on the result to stop. */
     fun events(onEvent: (type: String, data: String) -> Unit, onClosed: (Throwable?, Int?) -> Unit): EventSource {
-        val request = Request.Builder().url(url("events")).apply {
+        val request = Request.Builder().url(url("events?items=1&shared=1")).apply {
             token?.let { header("Authorization", "Bearer $it") }
         }.build()
         return EventSources.createFactory(liveClient).newEventSource(request, object : EventSourceListener() {

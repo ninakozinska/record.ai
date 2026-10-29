@@ -28,10 +28,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material.icons.outlined.Circle
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -41,7 +39,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
@@ -73,9 +76,8 @@ import ai.record.core.NoteRepository
 import ai.record.core.Priority
 import ai.record.core.UiState
 import ai.record.core.noteOrder
+import ai.record.core.pastedLines
 import kotlinx.coroutines.launch
-import java.time.LocalDate
-import java.time.temporal.ChronoUnit
 
 private data class Section(val title: String, val color: Color?, val notes: List<Note>)
 
@@ -92,12 +94,35 @@ fun NotesScreen(repo: NoteRepository, state: UiState, sharedText: String?, onSha
     var editing by rememberSaveable { mutableStateOf<String?>(null) }
     var menu by remember { mutableStateOf(false) }
     var account by remember { mutableStateOf(false) }
+    var confirmClear by remember { mutableStateOf(false) }
+    var paste by remember { mutableStateOf<Pair<String, List<String>>?>(null) }
+    val snackbar = remember { SnackbarHostState() }
+
+    /** A short message at the bottom; `undo` runs if they tap Undo. */
+    fun notify(text: String, undo: (() -> Unit)? = null) {
+        scope.launch {
+            snackbar.currentSnackbarData?.dismiss()
+            val r = snackbar.showSnackbar(text, actionLabel = if (undo != null) "Undo" else null, duration = SnackbarDuration.Short)
+            if (r == SnackbarResult.ActionPerformed) undo?.invoke()
+        }
+    }
+
+    /** Typing goes straight in; several pasted lines ask how to add them. */
+    fun onDraft(v: String) {
+        val prefix = v.commonPrefixWith(draft).length
+        val suffix = minOf(v.length - prefix, draft.length - prefix).let { max ->
+            v.reversed().commonPrefixWith(draft.reversed()).length.coerceAtMost(max)
+        }
+        val inserted = v.substring(prefix, v.length - suffix)
+        val lines = if (inserted.length > 1) pastedLines(inserted) else null
+        if (lines != null) paste = v to lines else draft = v
+    }
 
     // New-note box.
     var draft by rememberSaveable { mutableStateOf("") }
     val draftImages = remember { mutableStateListOf<String>() }
     LaunchedEffect(sharedText) {
-        if (sharedText != null) { draft = sharedText; onSharedUsed() }
+        if (sharedText != null) { onDraft(draft + sharedText); onSharedUsed() }
     }
 
     val words = query.lowercase().split(" ").filter { it.isNotBlank() }
@@ -115,6 +140,7 @@ fun NotesScreen(repo: NoteRepository, state: UiState, sharedText: String?, onSha
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             TopAppBar(
                 title = {
@@ -159,7 +185,7 @@ fun NotesScreen(repo: NoteRepository, state: UiState, sharedText: String?, onSha
             Surface(tonalElevation = 3.dp, modifier = Modifier.imePadding()) {
                 Row(Modifier.navigationBarsPadding().padding(horizontal = 8.dp, vertical = 4.dp), verticalAlignment = Alignment.Bottom) {
                     Box(Modifier.weight(1f)) {
-                        NoteInputs(repo, draft, { draft = it }, draftImages, { draftImages.clear(); draftImages.addAll(it) })
+                        NoteInputs(repo, draft, ::onDraft, draftImages, { draftImages.clear(); draftImages.addAll(it) })
                     }
                     val empty = draft.isBlank() && draftImages.isEmpty()
                     IconButton(enabled = !empty, onClick = {
@@ -203,7 +229,10 @@ fun NotesScreen(repo: NoteRepository, state: UiState, sharedText: String?, onSha
                     }
                 }
                 items(section.notes, key = { it.id }) { note ->
-                    NoteRow(repo, note, showGroup = !byGroup, onOpen = { editing = note.id })
+                    NoteRow(repo, state, note, showGroup = !byGroup, onOpen = { editing = note.id }, onDone = {
+                        repo.setDone(note.id, true)
+                        notify("Marked done") { repo.setDone(note.id, false) }
+                    })
                 }
             }
             if (open.isEmpty()) {
@@ -218,31 +247,70 @@ fun NotesScreen(repo: NoteRepository, state: UiState, sharedText: String?, onSha
             }
             if (done.isNotEmpty()) {
                 item(key = "done-toggle") {
-                    TextButton(onClick = { showDone = !showDone }, modifier = Modifier.padding(horizontal = 8.dp)) {
-                        Text(if (showDone) "Hide done (${done.size})" else "Show done (${done.size})")
+                    Row(Modifier.padding(horizontal = 8.dp)) {
+                        TextButton(onClick = { showDone = !showDone }) {
+                            Text(if (showDone) "Hide done (${done.size})" else "Show done (${done.size})")
+                        }
+                        if (showDone && done.any { !it.shared }) TextButton(onClick = { confirmClear = true }) {
+                            Text("Clear done", color = MaterialTheme.colorScheme.error)
+                        }
                     }
                 }
-                if (showDone) items(done, key = { "d-" + it.id }) { note -> NoteRow(repo, note, showGroup = true, onOpen = { editing = note.id }) }
+                if (showDone) items(done, key = { "d-" + it.id }) { note ->
+                    NoteRow(repo, state, note, showGroup = true, onOpen = { editing = note.id }, onDone = {
+                        repo.setDone(note.id, false)
+                        notify("Back to open notes") { repo.setDone(note.id, true) }
+                    })
+                }
             }
         }
     }
 
     editing?.let { id -> NoteEditor(repo, state, id, onClose = { editing = null }) }
     if (account) AccountDialog(repo, state, onClose = { account = false })
+
+    if (confirmClear) {
+        val mine = done.filter { !it.shared }
+        AlertDialog(
+            onDismissRequest = { confirmClear = false },
+            title = { Text("Delete ${mine.size} done note${if (mine.size == 1) "" else "s"}?") },
+            text = { Text("You can undo this for a few seconds.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmClear = false
+                    val removed = repo.clearDone(mine.map { it.id })
+                    notify("${removed.size} done note${if (removed.size == 1) "" else "s"} deleted") { repo.undelete(removed) }
+                }) { Text("Delete", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = { TextButton(onClick = { confirmClear = false }) { Text("Cancel") } },
+        )
+    }
+
+    paste?.let { (full, lines) ->
+        val n = lines.size
+        PasteChoice(lines, title = "Paste $n lines", a = "One note with a checklist ($n items)", b = "$n separate notes", plain = true) { choice ->
+            paste = null
+            when (choice) {
+                "a" -> {
+                    // The text typed so far stays (it becomes the title); each line becomes an item.
+                    val kept = draft.trimEnd()
+                    draft = (if (kept.isEmpty()) "" else kept + "\n") + lines.joinToString("\n") { "- $it" }
+                }
+                "b" -> { repo.createMany(lines, together = false); notify("$n notes added") }
+                "plain" -> draft = full
+            }
+        }
+    }
 }
 
 /** One note in the list. */
 @Composable
-private fun NoteRow(repo: NoteRepository, note: Note, showGroup: Boolean, onOpen: () -> Unit) {
+private fun NoteRow(repo: NoteRepository, state: UiState, note: Note, showGroup: Boolean, onOpen: () -> Unit, onDone: () -> Unit) {
     Row(
         Modifier.fillMaxWidth().clickable(onClick = onOpen).alpha(if (note.done) 0.6f else 1f).padding(horizontal = 12.dp, vertical = 6.dp),
     ) {
         Box(Modifier.width(3.dp).height(48.dp).background(note.priority.color, RoundedCornerShape(2.dp)))
-        IconButton(onClick = { repo.save(note.id, mapOf("done" to !note.done)) }) {
-            Icon(if (note.done) Icons.Filled.CheckCircle else Icons.Outlined.Circle,
-                contentDescription = if (note.done) "Mark not done" else "Mark done",
-                tint = if (note.done) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline)
-        }
+        Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f).padding(top = 10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(note.displayTitle, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis,
@@ -255,6 +323,16 @@ private fun NoteRow(repo: NoteRepository, note: Note, showGroup: Boolean, onOpen
             if (note.preview.isNotBlank()) {
                 Text(note.preview, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 3, overflow = TextOverflow.Ellipsis)
             }
+            val items = state.items(note.id)
+            if (items.isNotEmpty()) {
+                val open = items.filter { !it.done }
+                Text("☑ ${items.size - open.size}/${items.size}", style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                open.take(4).forEach { item ->
+                    Text("☐ " + item.text, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+                if (open.size > 4) Text("+ ${open.size - 4} more", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
             if (note.images.isNotEmpty()) {
                 Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     note.images.forEach { NoteImage(repo, it, thumb = true, modifier = Modifier.size(84.dp).clip(RoundedCornerShape(8.dp))) }
@@ -263,24 +341,20 @@ private fun NoteRow(repo: NoteRepository, note: Note, showGroup: Boolean, onOpen
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(note.priority.label + if (note.userPriority != null) " (pinned)" else "",
                     style = MaterialTheme.typography.labelMedium, color = note.priority.color, fontWeight = FontWeight.SemiBold)
-                if (showGroup) Text(note.group, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                dueLabel(note.dueDate)?.let { (label, soon) ->
-                    Text(label, style = MaterialTheme.typography.labelMedium, color = if (soon) Color(0xFFDC2626) else Color(0xFFEA7A0C))
+                if (note.shared) {
+                    Text("Shared by ${note.ownerName ?: "someone"}" + if (note.canEdit) "" else " · view only",
+                        style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                } else if (showGroup) Text(note.group, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                dueText(note)?.let { (label, soon) ->
+                    Text(label, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold,
+                        color = if (soon) Color(0xFFDC2626) else MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Spacer(Modifier.weight(1f))
+                if (note.canEdit) TextButton(onClick = onDone, contentPadding = PaddingValues(horizontal = 10.dp)) {
+                    Text(if (note.done) "↺ Reopen" else "✓ Done", style = MaterialTheme.typography.labelLarge)
                 }
             }
             HorizontalDivider(Modifier.padding(top = 6.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
         }
-    }
-}
-
-private fun dueLabel(date: String?): Pair<String, Boolean>? {
-    val due = date?.let { runCatching { LocalDate.parse(it) }.getOrNull() } ?: return null
-    val days = ChronoUnit.DAYS.between(LocalDate.now(), due)
-    return when {
-        days < 0 -> "overdue ${-days}d" to true
-        days == 0L -> "due today" to true
-        days == 1L -> "due tomorrow" to true
-        days < 7 -> "due in ${days}d" to false
-        else -> "due $date" to false
     }
 }

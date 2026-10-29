@@ -26,6 +26,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import ai.record.core.AccountInfo
+import ai.record.core.Backup
+import ai.record.core.Plan
+import java.text.DateFormat
+import java.util.Date
 import ai.record.core.NoteRepository
 import ai.record.core.UiState
 import kotlinx.coroutines.launch
@@ -40,7 +44,15 @@ fun AccountDialog(repo: NoteRepository, state: UiState, onClose: () -> Unit) {
     var confirmLogout by remember { mutableStateOf(false) }
     var info by remember { mutableStateOf<AccountInfo?>(null) }
     var reload by remember { mutableStateOf(0) }
-    LaunchedEffect(reload) { info = runCatching { repo.accountInfo() }.getOrNull() }
+    var plan by remember { mutableStateOf<Plan?>(null) }
+    var backups by remember { mutableStateOf<List<Backup>>(emptyList()) }
+    var restoring by remember { mutableStateOf<Backup?>(null) }
+    var deleting by remember { mutableStateOf(false) }
+    LaunchedEffect(reload) {
+        info = runCatching { repo.accountInfo() }.getOrNull()
+        plan = runCatching { repo.plan() }.getOrNull()
+        if (plan?.premium == true) backups = runCatching { repo.backups() }.getOrDefault(emptyList())
+    }
     // Accounts made with Google etc. have no password until they set one.
     val hasPassword = info?.hasPassword ?: true
 
@@ -97,6 +109,34 @@ fun AccountDialog(repo: NoteRepository, state: UiState, onClose: () -> Unit) {
                 }) { Text("Log out other devices") }
                 TextButton(onClick = { confirmLogout = true }) { Text("Log out", color = MaterialTheme.colorScheme.error) }
                 Text("Logging out removes your notes from this phone. They stay safe on your server.", style = MaterialTheme.typography.bodySmall)
+                plan?.let { p ->
+                    HorizontalDivider()
+                    Text("Premium", style = MaterialTheme.typography.titleSmall)
+                    if (!p.premium) {
+                        Text("Daily backups kept 30 days, and restoring them, are part of Premium.", style = MaterialTheme.typography.bodySmall)
+                    } else {
+                        Text("A backup of your notes is made every day and kept 30 days.", style = MaterialTheme.typography.bodySmall)
+                        OutlinedButton(onClick = {
+                            scope.launch {
+                                runCatching { repo.backupNow() }
+                                    .onSuccess { message = "Backup made." to false; reload++ }
+                                    .onFailure { message = (it.message ?: "Could not make a backup.") to true }
+                            }
+                        }) { Text("Back up now") }
+                        backups.take(10).forEach { b ->
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Column(Modifier.weight(1f)) {
+                                    Text(DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(b.createdAt.toLong())))
+                                    Text("${b.notes} notes" + when (b.kind) { "manual" -> " · by hand"; "before-restore" -> " · before a restore"; else -> "" },
+                                        style = MaterialTheme.typography.bodySmall)
+                                }
+                                TextButton(onClick = { restoring = b }) { Text("Restore") }
+                            }
+                        }
+                    }
+                }
+                HorizontalDivider()
+                TextButton(onClick = { deleting = true }) { Text("Delete my account", color = MaterialTheme.colorScheme.error) }
             }
         },
         confirmButton = { TextButton(onClick = onClose) { Text("Done") } },
@@ -120,6 +160,51 @@ fun AccountDialog(repo: NoteRepository, state: UiState, onClose: () -> Unit) {
                 }) { Text("Log out", color = MaterialTheme.colorScheme.error) }
             },
             dismissButton = { TextButton(onClick = { confirmLogout = false }) { Text("Cancel") } },
+        )
+    }
+
+    restoring?.let { b ->
+        AlertDialog(
+            onDismissRequest = { restoring = null },
+            title = { Text("Restore this backup?") },
+            text = { Text("Your notes go back to how they were then. Notes written since are deleted. A backup of how they are now is made first, so you can undo this.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    restoring = null
+                    scope.launch {
+                        runCatching { repo.restore(b.id) }
+                            .onSuccess { message = "Restored." to false; reload++ }
+                            .onFailure { message = (it.message ?: "Could not restore.") to true }
+                    }
+                }) { Text("Restore") }
+            },
+            dismissButton = { TextButton(onClick = { restoring = null }) { Text("Cancel") } },
+        )
+    }
+
+    if (deleting) {
+        var email by remember { mutableStateOf("") }
+        var error by remember { mutableStateOf<String?>(null) }
+        AlertDialog(
+            onDismissRequest = { deleting = false },
+            title = { Text("Delete your account?") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("This deletes your account, all your notes and photos, and your backups, for good. People you shared with lose access to them.")
+                    OutlinedTextField(email, { email = it }, label = { Text("Type your email to confirm") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                }
+            },
+            confirmButton = {
+                TextButton(enabled = email.trim().equals(state.user?.email, ignoreCase = true), onClick = {
+                    scope.launch {
+                        runCatching { repo.deleteAccount(email) }
+                            .onSuccess { deleting = false; onClose() }
+                            .onFailure { error = it.message }
+                    }
+                }) { Text("Delete for good", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = { TextButton(onClick = { deleting = false }) { Text("Cancel") } },
         )
     }
 }

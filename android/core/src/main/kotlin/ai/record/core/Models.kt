@@ -15,6 +15,9 @@ enum class Priority(val label: String) {
     }
 }
 
+/** Where notes shared with me appear (their groups are the owner's). */
+const val SHARED_GROUP = "Shared with me"
+
 /** A note as the server sends it (see docs/API.md). Times are milliseconds since 1970. */
 @Serializable
 data class Note(
@@ -34,14 +37,37 @@ data class Note(
     @SerialName("priority_reason") val priorityReason: String? = null,
     val tags: List<String>? = null,
     @SerialName("due_date") val dueDate: String? = null,
+    @SerialName("due_time") val dueTime: String? = null,
+    /** The person's date: null = the AI decides, "" = no date, "YYYY-MM-DD" or "YYYY-MM-DDTHH:MM". */
+    @SerialName("user_due") val userDue: String? = null,
+    @SerialName("ai_due_date") val aiDueDate: String? = null,
+    @SerialName("ai_due_time") val aiDueTime: String? = null,
+    /** A list item: the id of its list. Items go one level deep. */
+    @SerialName("parent_id") val parentId: String? = null,
+    @SerialName("user_id") val userId: String? = null,
+    /** Set on notes shared with me: "edit" or "view". */
+    val role: String? = null,
+    @SerialName("owner_name") val ownerName: String? = null,
+    /** I can no longer see this note: remove it from the device. */
+    val revoked: Boolean = false,
     @SerialName("ai_status") val aiStatus: String? = null,
     @SerialName("ai_error") val aiError: String? = null,
     val rev: Long? = null,
 ) {
     /** The person's group if they chose one, else the AI's, else "Inbox". */
-    val group: String get() = userGroup?.takeIf { it.isNotBlank() } ?: aiGroup?.takeIf { it.isNotBlank() } ?: "Inbox"
+    val group: String get() = if (role != null) SHARED_GROUP else userGroup?.takeIf { it.isNotBlank() } ?: aiGroup?.takeIf { it.isNotBlank() } ?: "Inbox"
 
     val priority: Priority get() = Priority.of(userPriority) ?: Priority.of(aiPriority) ?: Priority.NORMAL
+
+    /** Shared with me by someone else. */
+    val shared: Boolean get() = role != null
+    val canEdit: Boolean get() = role != "view"
+
+    /** The date shown: the person's if they chose one (or chose none), else the AI's. */
+    val due: String?
+        get() = if (userDue != null) userDue.take(10).ifBlank { null } else aiDueDate ?: dueDate
+    val time: String?
+        get() = if (userDue != null) userDue.drop(11).take(5).ifBlank { null } else aiDueTime ?: dueTime
 
     val displayTitle: String
         get() = title?.takeIf { it.isNotBlank() }
@@ -87,6 +113,23 @@ data class Note(
 @Serializable data class SyncResponse(val rev: Long, val results: List<SyncItemResult>, val notes: List<Note>)
 
 @Serializable data class NotesPage(val rev: Long, val notes: List<Note>)
+
+/** A share I made, or one made with me. */
+@Serializable data class Share(
+    val id: String,
+    val kind: String,
+    val target: String,
+    val role: String,
+    val email: String? = null,
+    val name: String? = null,
+    val owner: User? = null,
+)
+
+@Serializable data class Shares(val mine: List<Share> = emptyList(), val withMe: List<Share> = emptyList())
+
+@Serializable data class Plan(val plan: String = "free", val premium: Boolean = false)
+
+@Serializable data class Backup(val id: String, val kind: String, @SerialName("created_at") val createdAt: Double, val notes: Int = 0)
 
 @Serializable data class ReorganizeResult(val updated: Int? = null, val skipped: Boolean? = null)
 
