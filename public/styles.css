@@ -330,3 +330,9 @@ a.btn { display: inline-flex; align-items: center; text-decoration: none; color:
 .toast { display: flex; align-items: center; gap: .3rem; }
 .toast-undo { color: inherit; font-weight: 700; text-decoration: underline; padding: 0 .2rem; }
 #pastePlain { justify-self: center; font-size: .85rem; }
+
+/* Premium: backups */
+.plan-label { font-weight: 400; font-size: .85rem; }
+.backup-list li { justify-content: space-between; padding: 4px 0; border-bottom: 1px solid var(--border); }
+.backup-list li:last-child { border-bottom: 0; }
+.backup-list .who small { display: block; color: var(--muted); }

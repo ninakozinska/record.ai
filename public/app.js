@@ -1,4 +1,5 @@
 import { Local, uuid } from './local.js';
+import { loadVariants, variant, track } from './track.js';
 
 const PRIORITIES = ['urgent', 'high', 'normal', 'low'];
 const PRIORITY_LABEL = { urgent: 'Urgent', high: 'High', normal: 'Normal', low: 'Low' };
@@ -1187,6 +1188,7 @@ $('#accountBtn').onclick = async () => {
   $('#account').showModal();
   loadSigninOptions();
   loadAiUsage();
+  loadPremium();
   $('#calendarLink').hidden = true;
   $('#calendarShow').hidden = false;
   renderMyGroups();
@@ -1296,6 +1298,76 @@ $('#calendarReset').onclick = async () => {
   }
 };
 
+// ⭐ Premium under your initials: backups (premium), download all my notes (everyone).
+// The pitch is an A/B test (premium_pitch); "Get Premium" measures interest
+// until payments exist.
+const PITCH = {
+  backups: 'Never lose a note: daily backups, kept 30 days. Restore any day with one tap.',
+  family: "Your family's lists, safe every day: automatic backups for everyone in your Family plan.",
+};
+const PLAN_NAME = { free: 'Free', solo: 'Solo', family: 'Family' };
+async function loadPremium() {
+  try {
+    const plan = await local.api('plan');
+    $('#planLabel').textContent = `· ${PLAN_NAME[plan.plan] || plan.plan}`;
+    $('#dashboardLink').hidden = !plan.admin;
+    $('#premiumPitch').hidden = plan.premium;
+    $('#backupBox').hidden = !plan.premium;
+    if (!plan.premium) {
+      await loadVariants();
+      const v = variant('premium_pitch', 'backups');
+      $('#pitchText').textContent = PITCH[v] || PITCH.backups;
+      track('premium_seen', { pitch: v });
+    } else {
+      renderBackups((await local.api('backups')).backups);
+    }
+  } catch {
+    $('#premiumBox').hidden = false;
+  }
+}
+const day = (ts) => new Date(ts).toLocaleString(undefined, { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+function renderBackups(list) {
+  const label = { daily: 'Daily', manual: 'By hand', 'before-restore': 'Before a restore' };
+  $('#backupList').innerHTML = list.length
+    ? list.slice(0, 10).map((b) => `<li data-backup="${esc(b.id)}"><span class="who"><strong>${esc(day(b.created_at))}</strong>
+        <small>${esc(label[b.kind] || b.kind)} · ${b.notes} notes</small></span>
+        <button type="button" class="ghost" data-restore>Restore</button></li>`).join('')
+    : '<li class="muted">The first backup is made today.</li>';
+}
+$('#getPremium').onclick = () => {
+  track('upgrade_click', { pitch: variant('premium_pitch', 'backups') });
+  $('#getPremium').hidden = true;
+  $('#premiumThanks').hidden = false;
+};
+$('#backupNow').onclick = async () => {
+  try {
+    await local.flush();
+    await local.api('backups', { method: 'POST' });
+    renderBackups((await local.api('backups')).backups);
+    toast('Backup made');
+  } catch (err) {
+    toast(err.message);
+  }
+};
+$('#backupList').addEventListener('click', async (e) => {
+  const li = e.target.closest('[data-backup]');
+  if (!li || !e.target.closest('[data-restore]')) return;
+  const when = li.querySelector('strong').textContent;
+  if (!confirm(`Bring your notes back to how they were on ${when}?\n\nNotes written since then are removed. A backup of how they are now is made first, so you can undo this.`)) return;
+  try {
+    await local.flush();
+    const r = await local.api(`backups/${encodeURIComponent(li.dataset.backup)}/restore`, { method: 'POST' });
+    await local.pull();
+    renderBackups((await local.api('backups')).backups);
+    toast(`Restored: ${r.restored} notes`);
+  } catch (err) {
+    toast(err.message);
+  }
+});
+$('#exportNotes').onclick = () => {
+  location.href = 'api/export';
+};
+
 /** "AI this month: 12 of 300" under your initials (nothing when there's no limit). */
 async function loadAiUsage() {
   try {
@@ -1355,6 +1427,7 @@ local.addEventListener('change', render);
 local.addEventListener('status', renderStatus);
 local.addEventListener('started', loadMyGroups);
 local.addEventListener('started', loadShares);
+local.addEventListener('started', () => track('app_open'));
 local.addEventListener('shares', loadShares);
 local.addEventListener('wiped', () => { myGroups = []; shares = { mine: [], withMe: [] }; });
 render();

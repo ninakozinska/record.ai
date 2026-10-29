@@ -76,6 +76,20 @@ struct API {
         try JSONDecoder.server.decode(T.self, from: try await request(path, method: "POST", json: json))
     }
 
+    // MARK: A/B tests and events (see docs/OPTIMIZATION.md); work before logging in too
+
+    /// The variant of every running A/B test for this device or account.
+    func experiments(anonId: String) async throws -> [String: String] {
+        let data = try await request("public/experiments?anon=\(anonId)&platform=ios")
+        let answer = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        return answer?["variants"] as? [String: String] ?? [:]
+    }
+
+    /// Sends events (what people do, never what they write); at most 50 per call.
+    func sendEvents(anonId: String, events: [[String: Any]]) async throws {
+        _ = try await request("public/events", method: "POST", json: ["anon": anonId, "platform": "ios", "events": events])
+    }
+
     /// Checks that the address really is a record.ai server.
     func checkServer() async throws {
         let data = try await request("health")

@@ -110,6 +110,22 @@ A note (with its list items) or a whole group can be shared with other people by
 | POST | `/api/calendar-link/reset` | | `{url, webcal}`: a new link; the old one stops working |
 | GET | `/api/calendar/<secret>.ics` | | **No login** (calendar apps can't log in; the link is the secret). Your open notes with a date, and those shared with you |
 
+## Plans, backups, measuring
+
+Details: [OPTIMIZATION.md](OPTIMIZATION.md).
+
+| Method | Path | Answer |
+|---|---|---|
+| GET | `/api/plan` | `{plan, premium, admin, features}` |
+| GET / POST | `/api/backups` | list `{premium, keepDays, backups}` / make one now (Premium; 402 otherwise) |
+| POST | `/api/backups/:id/restore` | `{restored, rev}`: back to that backup (a backup of now is made first) |
+| GET | `/api/backups/:id/download` | the backup as JSON |
+| GET | `/api/export` | all my notes and photos, `.tar.gz` (everyone) |
+| GET | `/api/public/experiments?anon=&platform=` | `{subject, variants}` (no login needed) |
+| POST | `/api/public/events` | `{anon, platform, events: [{name, props?, ts?}]}` → `{saved}` (no login needed) |
+| GET | `/api/admin/overview` | the dashboard's data (owner and `ADMIN_EMAILS` only) |
+| POST | `/api/admin/experiments`, `/api/admin/plan`, `/api/admin/optimize` | save a test / give a plan / run the loops now |
+
 ## Photos
 
 | Method | Path | Body | Answer |

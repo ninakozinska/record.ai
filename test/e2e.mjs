@@ -413,6 +413,14 @@ try {
   await desktop.click('#accountClose');
   delete process.env.AI_MONTHLY_LIMIT;
   console.log('✓ monthly AI limit for invited people');
+  // A free account sees the Premium pitch (an A/B test) and can show interest.
+  await tom.click('#accountBtn');
+  await tom.waitForSelector('#pitchText:text-matches("backups|family", "i")');
+  assert.equal(await tom.isVisible('#backupBox'), false);
+  assert.equal(await tom.isVisible('#dashboardLink'), false, 'the dashboard is the owner\'s');
+  await tom.click('#getPremium');
+  await tom.waitForSelector('#premiumThanks:visible');
+  await tom.click('#accountClose');
   delete process.env.SIGNUP_CODE;
   await tomCtx.close();
   delete pages.tom;
@@ -436,11 +444,47 @@ try {
   await desktop.emulateMedia({ colorScheme: 'light' });
   console.log('✓ appearance: auto, light, dark');
 
+  // Premium backups (the owner has Premium): back up, delete a note, restore it.
+  await desktop.fill('#composer textarea', 'Passport renewal form');
+  await desktop.click('#composer [data-role=save]');
+  await desktop.waitForSelector('.note h3:text("Passport renewal form")');
+  await desktop.click('#accountBtn');
+  await desktop.waitForSelector('#backupBox:visible');
+  await desktop.click('#backupNow');
+  await desktop.waitForSelector('#backupList li:has-text("By hand")');
+  await desktop.screenshot({ path: path.join(out, 'desktop-backups.png') });
+  await desktop.click('#accountClose');
+  desktop.once('dialog', (d) => d.accept());
+  await desktop.click('.note h3:text("Passport renewal form")');
+  await desktop.click('#editorDelete');
+  await phone.waitForSelector('.note h3:text("Passport renewal form")', { state: 'detached' });
+  await desktop.click('#accountBtn');
+  desktop.once('dialog', (d) => d.accept());
+  await desktop.click('#backupList li:has-text("By hand") [data-restore]');
+  await desktop.waitForSelector('.toast:has-text("Restored")');
+  await desktop.click('#accountClose');
+  await desktop.waitForSelector('.note h3:text("Passport renewal form")');
+  await phone.waitForSelector('.note h3:text("Passport renewal form")');
+  // Download all my notes (everyone can).
+  await desktop.click('#accountBtn');
+  const [exp] = await Promise.all([desktop.waitForEvent('download'), desktop.click('#exportNotes')]);
+  assert.match(exp.suggestedFilename(), /^record-ai-notes-\d{4}-\d{2}-\d{2}\.tar\.gz$/);
+  // The owner's dashboard.
+  await desktop.click('#dashboardLink');
+  await desktop.waitForSelector('#tiles .tile');
+  await desktop.waitForSelector('#experiments :text("premium_pitch")');
+  await desktop.waitForSelector('#users select[data-email="tom@example.com"]');
+  await desktop.waitForSelector('#tiles .tile:has-text("Get Premium") .v:text("1")');
+  await desktop.screenshot({ path: path.join(out, 'desktop-dashboard.png'), fullPage: true });
+  await desktop.goBack();
+  await desktop.waitForSelector('.note h3');
+  console.log('✓ premium backups, restore, download, dashboard');
+
   // Every note finishes AI processing on both devices.
   for (const p of [desktop, phone]) {
     await p.waitForFunction(() => !document.querySelector('.ai-pending'), null, { timeout: 5000 }).catch(async (e) => {
       console.log(await p.evaluate(() => [...document.querySelectorAll('.note:has(.ai-pending) h3')].map((h) => h.textContent)));
-      console.log(JSON.stringify(store.changesSince(0).map((n) => [n.text, n.ai_status, n.edited_at])));
+      console.log(JSON.stringify(store.db.prepare('SELECT text, ai_status, edited_at FROM notes').all()));
       throw e;
     });
   }

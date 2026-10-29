@@ -226,6 +226,21 @@
         </div>
         <p class="muted">Auto follows your device. Saved on this device.</p>
       </div>
+      <div class="stack" id="premiumBox">
+        <h3>⭐ Premium <span class="muted plan-label" id="planLabel"></span></h3>
+        <div id="premiumPitch" class="stack">
+          <p id="pitchText"></p>
+          <button type="button" class="primary" id="getPremium">Get Premium</button>
+          <p class="muted" id="premiumThanks" hidden>Thank you! Premium launches soon, and you'll be the first to know.</p>
+        </div>
+        <div id="backupBox" class="stack" hidden>
+          <p class="muted">Your notes are backed up every day and kept 30 days. Restore any day with one tap.</p>
+          <ul id="backupList" class="identity-list backup-list"></ul>
+          <button type="button" class="ghost" id="backupNow">Back up now</button>
+        </div>
+        <button type="button" class="ghost" id="exportNotes">⬇ Download all my notes</button>
+        <a class="btn ghost" id="dashboardLink" href="admin.html" hidden>📊 Dashboard</a>
+      </div>
       <div class="stack" id="calendarBox">
         <h3>📅 Calendar</h3>
         <p class="muted">See your notes that have a date in Google Calendar, or in the calendar on your iPhone, Mac or Android phone. Changes show up there by themselves.</p>

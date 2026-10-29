@@ -7,7 +7,11 @@ import express from 'express';
 import compression from 'compression';
 import { openDb, PRIORITIES } from './db.js';
 import { Organizer } from './organizer.js';
-import { authRoutes, requireUser } from './auth.js';
+import { authRoutes, requireUser, getToken } from './auth.js';
+import { Insights, EVENT_NAME, ANON_ID } from './insights.js';
+import { Backups, premium } from './backups.js';
+import { Optimizer, costOf } from './optimizer.js';
+import { EXPERIMENTS } from './experiments.js';
 import { toIcs, noteTitle } from './calendar.js';
 import crypto from 'node:crypto';
 
@@ -98,9 +102,32 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth } = {}) {
     for (const set of clients.values()) for (const res of set) send(res, 'status', status);
   };
 
+  // Measuring and optimizing: events, A/B tests, AI cost per call.
+  const insights = new Insights(store.db);
+  insights.seed(EXPERIMENTS);
+  const onAiCall = (call) => {
+    const u = call.usage || {};
+    store.db.prepare(
+      `INSERT INTO ai_calls (ts, user_id, kind, model, input_tokens, output_tokens, cache_read, cache_write, cost_usd, ms, outcome)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).run(Date.now(), call.userId ?? null, call.kind, call.model ?? null, u.input_tokens || 0, u.output_tokens || 0,
+      u.cache_read_input_tokens || 0, u.cache_creation_input_tokens || 0, costOf(call.model, u), call.ms || 0, call.outcome);
+    if (call.kind === 'reorganize') insights.track('ai_reorganized', { userId: call.userId, props: { moved: call.moved, total: call.total } });
+  };
   const organizer = makeOrganizer
-    ? makeOrganizer({ store, imagesDir, onChange })
-    : new Organizer({ store, imagesDir, onChange });
+    ? makeOrganizer({ store, imagesDir, onChange, onAiCall })
+    : new Organizer({ store, imagesDir, onChange, onAiCall });
+  const optimizer = new Optimizer({ store, insights, organizer });
+  const backups = new Backups({ store, dataDir, imagesDir });
+  if (process.env.OPTIMIZER !== 'off') {
+    optimizer.start();
+    // Daily backups for premium accounts: checked every hour, made once a day.
+    setTimeout(() => backups.runDaily(), 30e3).unref();
+    setInterval(() => backups.runDaily(), 3600e3).unref();
+  }
+  const isAdmin = (user) =>
+    store.firstUserId() === user.id ||
+    (process.env.ADMIN_EMAILS || '').toLowerCase().split(',').map((e) => e.trim()).includes(user.email.toLowerCase());
 
   const app = express();
   app.disable('x-powered-by');
@@ -119,7 +146,52 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth } = {}) {
   app.use(express.json({ limit: '25mb' }));
 
   app.get('/api/health', (req, res) => res.json({ ok: true, app: 'record.ai' }));
-  app.use('/api/auth', authRoutes({ store, imagesDir, oauth }));
+  app.use('/api/auth', authRoutes({
+    store, imagesDir, oauth,
+    onSignup: (user, { method, anonId }) => {
+      insights.track('signup', { userId: user.id, props: { method } });
+      if (anonId && ANON_ID.test(anonId)) insights.identify(anonId, user.id);
+    },
+  }));
+
+  // --- A/B tests and events, also before logging in -----------------------------
+  // The landing page and the sign-up screen are tested too, so these work with
+  // an anonymous device id; once logged in, the account is used.
+  const subjectOf = (req, anonId) => {
+    const user = store.sessionUser(getToken(req));
+    if (user && anonId) insights.identify(anonId, user.id);
+    return { user, subject: user ? `u:${user.id}` : anonId ? `a:${anonId}` : null };
+  };
+  const PLATFORMS = ['web', 'ios', 'android'];
+  app.get('/api/public/experiments', (req, res) => {
+    const anonId = ANON_ID.test(String(req.query.anon || '')) ? String(req.query.anon) : null;
+    const platform = PLATFORMS.includes(req.query.platform) ? req.query.platform : 'web';
+    const { subject } = subjectOf(req, anonId);
+    if (!subject) return res.status(400).json({ error: 'anon id needed' });
+    res.json({ subject, variants: insights.assignmentsFor(subject, platform) });
+  });
+  // At most 600 events a minute from one address: enough for any real use, not for flooding.
+  const eventBudget = new Map();
+  setInterval(() => eventBudget.clear(), 60e3).unref();
+  app.post('/api/public/events', (req, res) => {
+    const { anon, platform = 'web', events = [] } = req.body || {};
+    const spent = (eventBudget.get(req.ip) || 0) + (Array.isArray(events) ? events.length : 1);
+    eventBudget.set(req.ip, spent);
+    if (spent > 600) return res.status(429).json({ error: 'Too many events. Try again in a minute.' });
+    const anonId = ANON_ID.test(String(anon || '')) ? String(anon) : null;
+    if (!Array.isArray(events) || events.length > 50) return res.status(400).json({ error: 'Send up to 50 events' });
+    const { user } = subjectOf(req, anonId);
+    if (!user && !anonId) return res.status(400).json({ error: 'anon id needed' });
+    let saved = 0;
+    const week = Date.now() - 7 * 864e5;
+    for (const e of events) {
+      if (!EVENT_NAME.test(String(e?.name || ''))) continue;
+      const ts = Number(e.ts) > week && Number(e.ts) <= Date.now() + 60e3 ? Number(e.ts) : Date.now();
+      const props = e.props && typeof e.props === 'object' && !Array.isArray(e.props) ? e.props : {};
+      if (insights.track(e.name, { userId: user?.id ?? null, anonId, platform: PLATFORMS.includes(platform) ? platform : 'web', props, ts })) saved++;
+    }
+    res.json({ saved });
+  });
 
   // --- calendar ---------------------------------------------------------------
   // Dated notes as a calendar that Google Calendar, iPhone, Mac or Outlook can
@@ -232,6 +304,7 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth } = {}) {
     if (error) return { status: 'invalid', error };
     const input = { id };
     for (const k of NOTE_FIELDS) if (k in body) input[k] = body[k];
+    const before = store.get(id);
     if ('text' in input) input.text = String(input.text);
     if (input.user_group != null) input.user_group = String(input.user_group).trim().slice(0, 60) || null;
     const { note, stale, contentChanged, forbidden } = store.upsertFromClient(userId, input);
@@ -239,6 +312,12 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth } = {}) {
     const mine = note.user_id === userId;
     if (!stale) {
       onChange(note);
+      // What people do (never what they write), for the dashboard and the A/B tests.
+      if (!before && !note.parent_id) insights.track('note_created', { userId, props: { list: false } });
+      if (before && mine && !note.parent_id && before.ai_status === 'done') {
+        if (input.user_group && before.ai_group && input.user_group !== before.ai_group && !before.user_group) insights.track('ai_corrected', { userId, props: { field: 'group' } });
+        if (input.user_priority && before.ai_priority && input.user_priority !== before.ai_priority && !before.user_priority) insights.track('ai_corrected', { userId, props: { field: 'priority' } });
+      }
       if (contentChanged && !note.deleted) organizer.enqueue(id);
       // Deleting a list deletes its items.
       if (note.deleted && !note.parent_id) for (const item of store.deleteItems(id)) onChange(item);
@@ -322,6 +401,7 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth } = {}) {
     if (store.shareCount(req.user.id) >= 200) return res.status(400).json({ error: 'You can share up to 200 things.' });
     const share = store.addShare(req.user.id, { kind, target, email, role });
     shareChanged(share);
+    insights.track('share_created', { userId: req.user.id, props: { kind, role, hasAccount: !!share.user_id } });
     res.json({ share, hasAccount: !!share.user_id });
   });
 
@@ -344,6 +424,85 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth } = {}) {
     shareChanged(share);
     res.json({ ok: true });
   });
+
+  // --- plans, backups (premium), download all my notes ---------------------------
+  app.get('/api/plan', (req, res) => {
+    const plan = store.planOf(req.user.id);
+    res.json({ plan, premium: premium(plan), admin: isAdmin(req.user), features: { backups: premium(plan), backupDays: 30 } });
+  });
+
+  app.get('/api/backups', (req, res) => {
+    res.json({ premium: premium(store.planOf(req.user.id)), keepDays: 30, backups: backups.list(req.user.id) });
+  });
+  const needPremium = (req, res) => {
+    if (premium(store.planOf(req.user.id))) return false;
+    res.status(402).json({ error: 'Backups are part of Premium.' });
+    return true;
+  };
+  app.post('/api/backups', (req, res) => {
+    if (needPremium(req, res)) return;
+    const recent = backups.list(req.user.id).find((b) => b.kind === 'manual' && Date.now() - b.created_at < 60e3);
+    if (recent) return res.status(429).json({ error: 'A backup was just made. Try again in a minute.' });
+    res.json({ backup: backups.create(req.user.id, 'manual') });
+  });
+  app.post('/api/backups/:id/restore', (req, res) => {
+    if (needPremium(req, res)) return;
+    const changed = backups.restore(req.user.id, req.params.id);
+    if (!changed) return res.status(404).json({ error: 'Backup not found' });
+    for (const note of changed) {
+      onChange(note);
+      // Saved before the AI had sorted it: sort it now.
+      if (note.ai_status === 'pending' && !note.deleted) organizer.enqueue(note.id);
+    }
+    insights.track('backup_restored', { userId: req.user.id, props: { notes: changed.length } });
+    res.json({ restored: changed.length, rev: store.rev });
+  });
+  app.get('/api/backups/:id/download', (req, res) => {
+    if (needPremium(req, res)) return;
+    const data = backups.read(req.user.id, req.params.id);
+    if (!data) return res.status(404).json({ error: 'Backup not found' });
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename="record-ai-backup-${req.params.id}.json"`);
+    res.send(JSON.stringify(data, null, 2));
+  });
+  // For everyone (GDPR): all my notes and photos in one file.
+  app.get('/api/export', async (req, res) => {
+    res.setHeader('Content-Type', 'application/gzip');
+    res.setHeader('Content-Disposition', `attachment; filename="record-ai-notes-${new Date().toISOString().slice(0, 10)}.tar.gz"`);
+    insights.track('export_downloaded', { userId: req.user.id });
+    await backups.exportTo(req.user.id, res);
+  });
+
+  // --- the owner's dashboard: numbers, A/B tests, what the optimizer did ---------------
+  const adminOnly = (req, res, next) => (isAdmin(req.user) ? next() : res.status(404).json({ error: 'Not found' }));
+  app.get('/api/admin/overview', adminOnly, (req, res) => {
+    optimizer.dailyReport();
+    res.json({
+      kpis: optimizer.history(30),
+      experiments: insights.experiments().map((e) => ({ ...insights.results(e), description: e.description, guardrails: e.guardrails, auto: e.auto })),
+      optimizer: { debounceMs: organizer.debounceMs ?? 0, quality: optimizer.correctionRate(Date.now() - 7 * 864e5) },
+      log: optimizer.logEntries(50),
+      users: store.allUsers().map((u) => ({ email: u.email, name: u.name, plan: store.planOf(u.id), created_at: u.created_at })),
+    });
+  });
+  app.post('/api/admin/experiments', adminOnly, (req, res) => {
+    try {
+      res.json({ experiment: insights.saveExperiment(req.body || {}) });
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+  // Until payments exist, the owner gives plans by hand (beta testers, family).
+  app.post('/api/admin/plan', adminOnly, (req, res) => {
+    const { email, plan } = req.body || {};
+    if (!['free', 'solo', 'family'].includes(plan)) return res.status(400).json({ error: 'plan: free, solo or family' });
+    const user = store.findUserByEmail(String(email || ''));
+    if (!user) return res.status(404).json({ error: 'No account with this email' });
+    store.setPlan(user.id, plan);
+    insights.track('plan_changed', { userId: user.id, props: { plan, by: 'admin' } });
+    res.json({ email: user.email, plan });
+  });
+  app.post('/api/admin/optimize', adminOnly, (req, res) => res.json(optimizer.runAll()));
 
   // --- images ---------------------------------------------------------------
   // Photos. `?variant=thumb` is a small preview (about 320 px) made by the
@@ -418,5 +577,5 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth } = {}) {
   );
 
   organizer.resumePending?.();
-  return { app, store, organizer };
+  return { app, store, organizer, insights, optimizer, backups };
 }

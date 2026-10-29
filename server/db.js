@@ -123,7 +123,58 @@ function migrate(db) {
       visible INTEGER NOT NULL DEFAULT 1,
       PRIMARY KEY (user_id, note_id)
     ) WITHOUT ROWID;
+    -- Growth and optimization: what people do (no note contents), what the AI
+    -- costs, A/B experiments, and the decisions the optimization loops take.
+    CREATE TABLE IF NOT EXISTS events (
+      id       INTEGER PRIMARY KEY,
+      ts       INTEGER NOT NULL,
+      user_id  TEXT,
+      anon_id  TEXT,
+      name     TEXT NOT NULL,
+      platform TEXT,
+      props    TEXT NOT NULL DEFAULT '{}'
+    );
+    CREATE INDEX IF NOT EXISTS events_name_ts ON events(name, ts);
+    CREATE INDEX IF NOT EXISTS events_user ON events(user_id, name);
+    CREATE INDEX IF NOT EXISTS events_anon ON events(anon_id, name);
+    CREATE TABLE IF NOT EXISTS ai_calls (
+      id            INTEGER PRIMARY KEY,
+      ts            INTEGER NOT NULL,
+      user_id       TEXT,
+      kind          TEXT NOT NULL,      -- 'note' or 'reorganize'
+      model         TEXT,
+      input_tokens  INTEGER NOT NULL DEFAULT 0,
+      output_tokens INTEGER NOT NULL DEFAULT 0,
+      cache_read    INTEGER NOT NULL DEFAULT 0,
+      cache_write   INTEGER NOT NULL DEFAULT 0,
+      cost_usd      REAL NOT NULL DEFAULT 0,
+      ms            INTEGER NOT NULL DEFAULT 0,
+      outcome       TEXT NOT NULL       -- 'used', 'stale' (content changed meanwhile), 'error'
+    );
+    CREATE INDEX IF NOT EXISTS ai_calls_ts ON ai_calls(ts);
+    CREATE TABLE IF NOT EXISTS experiments (
+      key        TEXT PRIMARY KEY,
+      config     TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    );
+    -- Who saw which variant: sticky, so changing the traffic split later moves only new people.
+    CREATE TABLE IF NOT EXISTS assignments (
+      experiment TEXT NOT NULL,
+      subject    TEXT NOT NULL,         -- 'u:<user id>' or 'a:<anonymous device id>'
+      variant    TEXT NOT NULL,
+      ts         INTEGER NOT NULL,
+      PRIMARY KEY (experiment, subject)
+    ) WITHOUT ROWID;
+    CREATE TABLE IF NOT EXISTS optimizer_log (
+      id       INTEGER PRIMARY KEY,
+      ts       INTEGER NOT NULL,
+      loop     TEXT NOT NULL,
+      decision TEXT NOT NULL,
+      detail   TEXT NOT NULL DEFAULT '{}'
+    );
   `);
+  // Plans: 'free', 'solo' or 'family' (the first account, the owner, always has everything).
+  if (!columns(db, 'users').includes('plan')) db.exec("ALTER TABLE users ADD COLUMN plan TEXT NOT NULL DEFAULT 'free'");
 }
 
 // The group a note counts in for sharing: an item counts in its list's group.
@@ -176,7 +227,7 @@ function rowToNote(r) {
 }
 
 function rowToUser(r) {
-  return r ? { id: r.id, email: r.email, name: r.name, created_at: r.created_at } : null;
+  return r ? { id: r.id, email: r.email, name: r.name, created_at: r.created_at, plan: r.plan || 'free' } : null;
 }
 
 class Store {
@@ -549,6 +600,20 @@ class Store {
   /** The first account: the server's owner. */
   firstUserId() {
     return this.db.prepare('SELECT id FROM users ORDER BY created_at, rowid LIMIT 1').get()?.id ?? null;
+  }
+
+  /** 'free', 'solo' or 'family'; the owner counts as 'family'. */
+  planOf(userId) {
+    if (this.firstUserId() === userId) return 'family';
+    return this.getUser(userId)?.plan || 'free';
+  }
+
+  setPlan(userId, plan) {
+    this.db.prepare('UPDATE users SET plan = ? WHERE id = ?').run(plan, userId);
+  }
+
+  allUsers() {
+    return this.db.prepare('SELECT * FROM users ORDER BY created_at').all().map(rowToUser);
   }
 
   userCount() {
