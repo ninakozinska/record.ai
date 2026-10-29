@@ -144,14 +144,17 @@ class ServerIntegrationTest {
 
         // A checklist typed in one go: the title line plus its items.
         val listId = nina.create("Groceries\n- milk\n- eggs", emptyList())
-        eventually("list and items sent") { nina.state.value.unsent == 0 && nina.state.value.items(listId).all { it.rev != null } }
+        eventually("list and items sent") {
+            val st = nina.state.value
+            st.unsent == 0 && st.notes[listId]?.rev != null && st.items(listId).size == 2 && st.items(listId).all { it.rev != null }
+        }
         assertEquals("Groceries", nina.state.value.notes[listId]?.text)
         assertEquals(listOf("milk", "eggs"), nina.state.value.items(listId).map { it.text })
         assertEquals(listOf(listId), nina.state.value.visible.map { it.id }, "items aren't notes of their own")
 
         // Pasted lines as separate notes.
         nina.createMany(listOf("1. call school", "2. book dentist"), together = false)
-        eventually("two more notes") { nina.state.value.visible.size == 3 && nina.state.value.unsent == 0 }
+        eventually("two more notes") { nina.state.value.visible.size == 3 && nina.state.value.visible.all { it.rev != null } && nina.state.value.unsent == 0 }
 
         // A date and time chosen by hand, then back to the AI's choice.
         nina.setDue(listId, "2026-11-03T09:30")
