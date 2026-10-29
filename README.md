@@ -107,6 +107,7 @@ Open your server's URL, log in, then:
 | Variable | Default | Meaning |
 |---|---|---|
 | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_SOLO`, `STRIPE_PRICE_FAMILY` | *(none)* | Opens payments for Solo and Family through Stripe. Step by step: [docs/PAYMENTS.md](docs/PAYMENTS.md). |
+| `SENTRY_DSN` | *(none)* | Sends server errors to [Sentry](https://sentry.io) (free tier): make a Node.js project there and copy its DSN. Reports hold where the error happened and the account id, never note text or emails. |
 | `PUBLIC_URL` | *(the address in the browser)* | The HTTPS address people use, e.g. `https://notes.example.com`. Needed for "Continue with Google" etc. |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, … | *(none)* | Turn on "Continue with Google / Apple / Microsoft / Facebook / LinkedIn / X / GitHub". Step by step: [docs/SOCIAL_LOGIN.md](docs/SOCIAL_LOGIN.md). |
 | `ALLOW_SIGNUP` | `false` | `true` lets anyone who can reach the server create an account. |

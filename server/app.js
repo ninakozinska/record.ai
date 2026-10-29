@@ -15,6 +15,7 @@ import { EXPERIMENTS } from './experiments.js';
 import { toIcs, noteTitle } from './calendar.js';
 import crypto from 'node:crypto';
 import { billing as makeBilling, PLANS } from './billing.js';
+import { errorReporter } from './errors.js';
 
 const PUBLIC_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'public');
 const IMAGE_NAME = /^[a-zA-Z0-9-]{8,64}\.(jpg|jpeg|png|webp|gif)$/;
@@ -60,7 +61,7 @@ export function trustProxy(value) {
   return value;
 }
 
-export function createApp({ dataDir, organizer: makeOrganizer, oauth, mail, billing = makeBilling() } = {}) {
+export function createApp({ dataDir, organizer: makeOrganizer, oauth, mail, billing = makeBilling(), errors = errorReporter() } = {}) {
   const store = openDb(dataDir);
   const imagesDir = path.join(dataDir, 'images');
   fs.mkdirSync(imagesDir, { recursive: true });
@@ -696,6 +697,15 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth, mail, bill
     }),
   );
 
+  // Anything that went wrong while answering: reported (Sentry, if set up), and a plain answer.
+  app.use((err, req, res, next) => {
+    if (err?.type === 'entity.parse.failed') return res.status(400).json({ error: 'That request was not valid JSON.' });
+    if (err?.type === 'entity.too.large') return res.status(413).json({ error: 'That is too big to send.' });
+    errors.report(err, { route: `${req.method} ${req.route?.path || req.path}`, userId: req.user?.id });
+    if (res.headersSent) return next(err);
+    res.status(500).json({ error: 'Something went wrong on the server. Please try again.' });
+  });
+
   organizer.resumePending?.();
-  return { app, store, organizer, insights, optimizer, backups };
+  return { app, store, organizer, insights, optimizer, backups, errors };
 }
