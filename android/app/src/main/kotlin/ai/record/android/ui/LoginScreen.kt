@@ -48,6 +48,7 @@ fun LoginScreen(repo: NoteRepository, state: UiState) {
     var password by remember { mutableStateOf("") }
     var code by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
+    var info by remember { mutableStateOf<String?>(null) }
     var busy by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -125,6 +126,18 @@ fun LoginScreen(repo: NoteRepository, state: UiState) {
             enabled = !busy && email.isNotBlank() && password.isNotBlank(),
             modifier = Modifier.fillMaxWidth(),
         ) { Text(if (signingUp) "Create account" else "Log in") }
+        info?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+        if (!signingUp) {
+            TextButton(onClick = {
+                error = null
+                if (email.isBlank()) { error = "Type your email above, then tap this again."; return@TextButton }
+                scope.launch {
+                    runCatching { repo.forgotPassword(email) }
+                        .onSuccess { info = "If an account uses this email, a link to choose a new password is on its way. Then log in here with it." }
+                        .onFailure { error = it.message }
+                }
+            }) { Text("Forgot your password?") }
+        }
         if (policy == null || (policy.open && !policy.firstAccount)) {
             TextButton(onClick = { signingUp = !signingUp; error = null }) {
                 Text(if (signingUp) "I already have an account" else "Create an account")

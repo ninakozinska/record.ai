@@ -228,6 +228,12 @@ final class NoteStore {
         try? await refreshAuthState()
     }
 
+    /// Emails a link to choose a new password (opens in the browser). Same answer whether the account exists or not.
+    func forgotPassword(email: String) async throws {
+        guard let api else { throw APIError.offline }
+        _ = try await api.request("auth/forgot", method: "POST", json: ["email": email.trimmingCharacters(in: .whitespaces)])
+    }
+
     func changePassword(current: String, new: String) async throws {
         guard let api else { return }
         _ = try await api.request("auth/password", method: "POST", json: ["current": current, "next": new])

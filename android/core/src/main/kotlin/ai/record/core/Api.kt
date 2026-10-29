@@ -116,6 +116,9 @@ class Api(val baseUrl: String, private val token: String?, private val client: O
 
     suspend fun logout() { post("auth/logout", JsonObject(emptyMap())) }
 
+    /** Emails a link to choose a new password (opens in the browser). Same answer whether the account exists or not. */
+    suspend fun forgotPassword(email: String) { post("auth/forgot", buildJsonObject { put("email", email) }) }
+
     suspend fun changePassword(current: String, next: String) {
         post("auth/password", buildJsonObject { put("current", current); put("next", next) })
     }

@@ -215,6 +215,8 @@ class NoteRepository(
         runCatching { refreshAuthState() }
     }
 
+    suspend fun forgotPassword(email: String) { (api ?: throw ApiException.offline()).forgotPassword(email.trim()) }
+
     suspend fun changePassword(current: String, next: String) { api?.changePassword(current, next) }
 
     suspend fun logoutOtherDevices() { api?.logoutOthers() }
