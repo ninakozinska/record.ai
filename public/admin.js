@@ -39,6 +39,13 @@ function render(o) {
     : '<tr><td class="muted">Nothing yet: the loops act once there is enough data.</td></tr>';
   $('#users').innerHTML = `<tr><th>Person</th><th>Email</th><th>Since</th><th>Plan</th></tr>` + o.users.map((u) => `<tr><td>${esc(u.name)}</td><td>${esc(u.email)}</td><td>${esc(new Date(u.created_at).toLocaleDateString())}</td>
     <td><select data-email="${esc(u.email)}">${['free', 'solo', 'family'].map((p) => `<option ${p === u.plan ? 'selected' : ''}>${p}</option>`).join('')}</select></td></tr>`).join('');
+  const FEATURE = { reminders: '⏰ Smart reminders', family_hub: '👨‍👩‍👧 Give tasks to family', letter_to_tasks: '📸 School letter → tasks' };
+  $('#interest').innerHTML = o.featureInterest.length
+    ? `<tr><th>Feature</th><th>People who want it</th></tr>` + o.featureInterest.map((f) => `<tr><td>${esc(FEATURE[f.feature] || f.feature)}</td><td>${f.people}</td></tr>`).join('')
+    : '<tr><td class="muted">No votes yet.</td></tr>';
+  $('#feedback').innerHTML = o.feedback.length
+    ? o.feedback.map((f) => `<p><strong>${esc(f.email)}</strong> <span class="muted">· ${esc(new Date(f.ts).toLocaleString())} · ${esc(f.platform)}</span><br>${esc(f.text)}</p>`).join('')
+    : '<p class="muted">No feedback yet.</p>';
   $('#status').textContent = `Updated ${new Date().toLocaleTimeString()}.`;
 }
 

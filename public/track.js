@@ -32,7 +32,7 @@ export const variant = (key, fallback) => variants[key] ?? fallback;
 const queue = [];
 // Events that decide a test (a click on "Get Premium") are sent at once;
 // the rest go in batches every 10 seconds.
-const URGENT = new Set(['upgrade_click', 'signup_start']);
+const URGENT = new Set(['upgrade_click', 'feature_interest', 'invite_sent', 'signup_start']);
 export function track(name, props = {}) {
   queue.push({ name, props, ts: Date.now() });
   if (queue.length >= 20 || URGENT.has(name)) flush();

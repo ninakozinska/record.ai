@@ -204,6 +204,7 @@
       <p id="loginError" class="error" role="alert"></p>
       <button class="primary" id="loginSubmit">Log in</button>
       <p class="switch" id="loginSwitch"></p>
+      <p class="legal-links"><a href="legal/privacy.html" target="_blank" rel="noopener">Privacy</a> · <a href="legal/terms.html" target="_blank" rel="noopener">Terms</a> · <a href="legal/support.html" target="_blank" rel="noopener">Help</a></p>
     </form>
   </dialog>
 
@@ -237,6 +238,14 @@
           <p class="muted">Your notes are backed up every day and kept 30 days. Restore any day with one tap.</p>
           <ul id="backupList" class="identity-list backup-list"></ul>
           <button type="button" class="ghost" id="backupNow">Back up now</button>
+        </div>
+        <div class="stack interest" id="interestBox">
+          <p class="muted">Coming to Premium. Which would you use most?</p>
+          <div class="cal-buttons">
+            <button type="button" class="ghost" data-interest="reminders">⏰ Smart reminders</button>
+            <button type="button" class="ghost" data-interest="family_hub">👨‍👩‍👧 Give tasks to family</button>
+            <button type="button" class="ghost" data-interest="letter_to_tasks">📸 School letter → tasks</button>
+          </div>
         </div>
         <button type="button" class="ghost" id="exportNotes">⬇ Download all my notes</button>
         <a class="btn ghost" id="dashboardLink" href="admin.html" hidden>📊 Dashboard</a>
@@ -281,6 +290,7 @@
         <span class="spacer"></span>
         <button class="danger ghost" id="logoutBtn">Log out</button>
       </div>
+      <p class="delete-account"><a href="legal/support.html" target="_blank" rel="noopener">Help</a> · <a href="legal/privacy.html" target="_blank" rel="noopener">Privacy</a> · <button type="button" class="link-btn" id="sendFeedback">💬 Send feedback</button> · <button type="button" class="link-btn danger-link" id="deleteAccount">Delete my account</button></p>
     </div>
   </dialog>
 

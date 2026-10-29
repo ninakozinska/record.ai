@@ -61,9 +61,17 @@ const Reorganization = z.object({
       group: z.string(),
       priority: z.enum(PRIORITIES),
       priority_reason: z.string(),
+      title: z.string().nullable().describe('A better title, only when the current one is just a group name or too vague to recognize the note; else null'),
     }),
   ),
 });
+
+/** A title that says nothing about the note: empty, generic, or just a group's name ("Travel"). */
+export function vagueTitle(title, groups) {
+  const t = String(title || '').trim().toLowerCase();
+  if (!t || ['note', 'untitled', 'list', 'photo', 'photo note', 'inbox', 'todo', 'to do', 'task'].includes(t)) return true;
+  return groups.some((g) => g.toLowerCase() === t);
+}
 
 const SYSTEM = `You organize a person's personal notes (typed, dictated, or photos).
 Priorities:
@@ -258,10 +266,13 @@ export class Organizer {
     try {
       const notes = this.store.active(userId).filter((n) => !n.done);
       if (!notes.length) return { updated: 0 };
+      const groupNames = [...new Set([...notes.map((n) => n.group), ...this.store.myGroups(userId)])];
+      const vague = new Set(notes.filter((n) => vagueTitle(n.title, groupNames)).map((n) => n.id));
       const lines = notes.map((n) =>
         JSON.stringify({
           id: n.id,
           title: n.title,
+          ...(vague.has(n.id) ? { vague_title: true, text: n.text.slice(0, 300) } : {}),
           summary: n.summary || n.text.slice(0, 300),
           group: n.group,
           priority: n.priority,
@@ -277,7 +288,8 @@ export class Organizer {
           lines.join('\n') +
           `\n\nReorganize the whole collection: produce a clean, consistent set of groups ` +
           `(merge near-duplicates, split groups that mix unrelated topics) and re-rank ` +
-          `priorities relative to each other and to today's date. Return every note id.` +
+          `priorities relative to each other and to today's date. Return every note id. ` +
+          `For notes marked vague_title, also give a short real title from their text; for all others, title is null.` +
           (this.store.myGroups(userId).length
             ? `\n\n` + myGroupsLine(this.store.myGroups(userId)) +
               `Never rename, merge or split these groups; move notes into them whenever they fit.`
@@ -293,12 +305,15 @@ export class Organizer {
       for (const r of result.notes) {
         if (!ids.has(r.id)) continue;
         const n = this.store.get(r.id);
-        if (n.ai_group === r.group && n.ai_priority === r.priority) continue;
+        // A title that is just a group name ("Travel") is replaced by a real one.
+        const betterTitle = r.title && r.title.trim() && vague.has(r.id) ? r.title.trim().slice(0, 80) : null;
+        if (n.ai_group === r.group && n.ai_priority === r.priority && !betterTitle) continue;
         this.onChange(
           this.store.applyAi(r.id, {
             group: r.group,
             priority: r.priority,
             priority_reason: r.priority_reason,
+            ...(betterTitle ? { title: betterTitle } : {}),
             status: n.ai_status === 'pending' ? 'pending' : 'done',
           }),
         );
