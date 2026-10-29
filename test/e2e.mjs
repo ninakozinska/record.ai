@@ -491,6 +491,22 @@ try {
   await desktop.click('.view-toggle [data-view=priority]');
   console.log('✓ work and family worlds, a group moved between them');
 
+  // Today: notes due today, with their time, at the top; a tap opens one.
+  await desktop.fill('#composer textarea', 'Pick up Mia at 16:00');
+  await desktop.click('#composer [data-role=save]');
+  await desktop.click('.note:has(h3:text("Pick up Mia at 16:00"))');
+  await desktop.waitForSelector('#editor[open]');
+  const todayIso = await desktop.evaluate(() => new Date().toLocaleDateString('en-CA'));
+  await desktop.fill('#editorDate', todayIso);
+  await desktop.fill('#editorTime', '16:00');
+  await desktop.click('#editorSave');
+  await desktop.waitForSelector('.today:has-text("16:00 Pick up Mia")');
+  await desktop.click('.today [data-open]:has-text("Pick up Mia")');
+  await desktop.waitForSelector('#editor[open]');
+  await desktop.click('#editorSave');
+  await desktop.screenshot({ path: path.join(out, 'desktop-today.png') });
+  console.log('✓ today at the top: what is due, with times');
+
   // Premium backups (the owner has Premium): back up, delete a note, restore it.
   await desktop.fill('#composer textarea', 'Passport renewal form');
   await desktop.click('#composer [data-role=save]');

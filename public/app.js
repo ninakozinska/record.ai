@@ -887,6 +887,26 @@ const welcomeDone = () => {
     return false;
   }
 };
+/**
+ * The day at a glance, above the notes: what is due today (with times),
+ * what is overdue, and how many urgent notes are open. Taps open the note.
+ */
+function todayCard(notes) {
+  const today = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD, local time
+  const open = notes.filter((n) => !n.done);
+  const due = open.filter((n) => n.due_date === today)
+    .sort((a, b) => (a.due_time || '99').localeCompare(b.due_time || '99'));
+  const late = open.filter((n) => n.due_date && n.due_date < today);
+  const urgent = open.filter((n) => n.priority === 'urgent' && n.due_date !== today && !late.includes(n));
+  if (!due.length && !late.length && !urgent.length) return '';
+  const link = (n) => `<button class="link-btn" data-open="${esc(n.id)}">${n.due_time ? `<b>${esc(n.due_time)}</b> ` : ''}${esc(n.title || n.text.split('\n')[0] || 'Note')}</button>`;
+  const parts = [];
+  if (due.length) parts.push(`📅 <b>Today:</b> ${due.slice(0, 4).map(link).join(' · ')}${due.length > 4 ? ` · +${due.length - 4}` : ''}`);
+  if (late.length) parts.push(`⏰ <b>${late.length} overdue:</b> ${late.slice(0, 2).map(link).join(' · ')}${late.length > 2 ? ' …' : ''}`);
+  if (urgent.length) parts.push(`🔴 ${urgent.length} more urgent`);
+  return `<section class="today" aria-label="Today">${parts.map((p) => `<p>${p}</p>`).join('')}</section>`;
+}
+
 function welcomeCard(all) {
   if (welcomeDone() || all.filter((n) => !n.role).length >= 3) return '';
   return `<section class="card welcome" id="welcome">
@@ -995,7 +1015,7 @@ function renderNow() {
     </div>`;
     if (ui.showDone) html += section('Done', done, { showGroup: true }, 'done-section');
   }
-  $('#list').innerHTML = welcomeCard(everything) + html;
+  $('#list').innerHTML = welcomeCard(everything) + (q || ui.group ? '' : todayCard(all)) + html;
   // This month's AI sortings are used up: say so once, above the notes.
   const limited = everything.find((n) => !n.role && n.ai_status === 'limit');
   $('#limitBanner').hidden = !limited;
@@ -1052,6 +1072,8 @@ $('#list').addEventListener('click', async (e) => {
     $('#viewer').showModal();
     return;
   }
+  const fromToday = e.target.closest('[data-open]');
+  if (fromToday) return editor.open(fromToday.dataset.open);
   const shareGroup = e.target.closest('[data-share-group]');
   if (shareGroup) return openShare('group', shareGroup.dataset.shareGroup, shareGroup.dataset.shareGroup);
   const article = e.target.closest('.note');
