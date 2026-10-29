@@ -107,6 +107,11 @@ fun NotesScreen(repo: NoteRepository, state: UiState, sharedText: String?, onSha
         }
     }
 
+
+    // New-note box.
+    var draft by rememberSaveable { mutableStateOf("") }
+    val draftImages = remember { mutableStateListOf<String>() }
+
     /** Typing goes straight in; several pasted lines ask how to add them. */
     fun onDraft(v: String) {
         val prefix = v.commonPrefixWith(draft).length
@@ -117,10 +122,6 @@ fun NotesScreen(repo: NoteRepository, state: UiState, sharedText: String?, onSha
         val lines = if (inserted.length > 1) pastedLines(inserted) else null
         if (lines != null) paste = v to lines else draft = v
     }
-
-    // New-note box.
-    var draft by rememberSaveable { mutableStateOf("") }
-    val draftImages = remember { mutableStateListOf<String>() }
     LaunchedEffect(sharedText) {
         if (sharedText != null) { onDraft(draft + sharedText); onSharedUsed() }
     }
