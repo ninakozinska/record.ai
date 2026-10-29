@@ -780,6 +780,10 @@ class Store {
     return this.db.prepare('SELECT value FROM meta WHERE key = ?').get(key)?.value ?? null;
   }
 
+  deleteMeta(key) {
+    this.db.prepare('DELETE FROM meta WHERE key = ?').run(key);
+  }
+
   setMeta(key, value) {
     this.db
       .prepare('INSERT INTO meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value')

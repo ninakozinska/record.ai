@@ -1124,7 +1124,7 @@ function renderStatus() {
   if (local.ai?.reorganizing) $('#reorganizeBtn').textContent = '✨ Reorganizing…';
   $('#accountBtn').hidden = !local.user;
   if (local.user) $('#accountBtn').textContent = initials(local.user.name);
-  if (local.needsLogin && !$('#login').open && !auth.opening) {
+  if (local.needsLogin && !$('#login').open && !$('#reset').open && !auth.opening) {
     auth.opening = true;
     auth.open().finally(() => (auth.opening = false));
   }
@@ -1177,6 +1177,7 @@ const auth = {
     $('#codeField').hidden = !(signup && p.needsCode);
     $('#loginPassword').autocomplete = signup ? 'new-password' : 'current-password';
     $('#loginSubmit').textContent = signup ? 'Create account' : 'Log in';
+    $('#forgotLine').hidden = signup;
     $('#loginError').textContent = this.error;
     this.error = '';
     this.renderProviders();
@@ -1219,6 +1220,69 @@ $('#loginForm').addEventListener('submit', async (e) => {
   }
 });
 $('#login').addEventListener('cancel', (e) => e.preventDefault());
+
+// "Forgot your password?": an email with a link (valid one hour) that opens
+// this page at #reset=<code>, where a new password is chosen.
+const reset = {
+  token: null,
+  open(token = null) {
+    this.token = token;
+    const choosing = !!token;
+    $('#resetIntro').textContent = choosing
+      ? 'Choose a new password. Your other devices will be logged out.'
+      : "Enter your account's email. We'll send you a link to choose a new password.";
+    $('#resetEmailField').hidden = choosing;
+    $('#resetPasswordField').hidden = !choosing;
+    $('#resetSubmit').textContent = choosing ? 'Save new password' : 'Send me a link';
+    $('#resetSubmit').hidden = false;
+    $('#resetMessage').textContent = '';
+    $('#resetMessage').className = '';
+    if (!choosing) $('#resetEmail').value = $('#loginEmail').value.trim();
+    if (!$('#reset').open) $('#reset').showModal();
+    (choosing ? $('#resetPassword') : $('#resetEmail')).focus();
+  },
+  say(text, error = false) {
+    $('#resetMessage').textContent = text;
+    $('#resetMessage').className = error ? 'error' : 'muted';
+  },
+};
+$('#forgotBtn').onclick = () => reset.open();
+$('#resetBack').onclick = () => {
+  $('#reset').close();
+  if (!local.user) auth.open();
+};
+$('#resetForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  $('#resetSubmit').disabled = true;
+  try {
+    if (reset.token) {
+      await local.authenticate('reset', { token: reset.token, password: $('#resetPassword').value });
+      $('#resetPassword').value = '';
+      history.replaceState(null, '', location.pathname + location.search);
+      $('#reset').close();
+      if ($('#login').open) $('#login').close();
+      toast('New password saved');
+      render();
+    } else {
+      await local.api('auth/forgot', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: $('#resetEmail').value.trim() }),
+      });
+      reset.say('If an account uses this email, a link is on its way. Check your inbox (and spam) in a few minutes.');
+      $('#resetSubmit').hidden = true;
+    }
+  } catch (err) {
+    reset.say(err.status === 0 || !err.status ? 'Cannot reach the server. Is it running?' : err.message, true);
+  } finally {
+    $('#resetSubmit').disabled = false;
+  }
+});
+$('#reset').addEventListener('close', hidePasswords);
+{
+  const m = location.hash.match(/^#reset=([A-Za-z0-9_-]+)$/);
+  if (m) reset.open(m[1]);
+}
 
 // Show / Hide on password fields, so people can check what they typed.
 function showPassword(button, show) {

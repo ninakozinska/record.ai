@@ -59,7 +59,7 @@ export function trustProxy(value) {
   return value;
 }
 
-export function createApp({ dataDir, organizer: makeOrganizer, oauth } = {}) {
+export function createApp({ dataDir, organizer: makeOrganizer, oauth, mail } = {}) {
   const store = openDb(dataDir);
   const imagesDir = path.join(dataDir, 'images');
   fs.mkdirSync(imagesDir, { recursive: true });
@@ -147,7 +147,7 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth } = {}) {
 
   app.get('/api/health', (req, res) => res.json({ ok: true, app: 'record.ai' }));
   app.use('/api/auth', authRoutes({
-    store, imagesDir, oauth,
+    store, imagesDir, oauth, mail,
     onSignup: (user, { method, anonId }) => {
       insights.track('signup', { userId: user.id, props: { method } });
       if (anonId && ANON_ID.test(anonId)) insights.identify(anonId, user.id);

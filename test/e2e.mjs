@@ -48,8 +48,10 @@ const fakeGoogle = async (url) => {
 };
 
 const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'record-ai-e2e-'));
+const mails = [];
 const { app, store } = createApp({
   dataDir,
+  mail: { configured: true, send: async (m) => mails.push(m) },
   organizer: (args) => new Organizer({ ...args, client: fake }),
   oauth: {
     env: { GOOGLE_CLIENT_ID: 'e2e', GOOGLE_CLIENT_SECRET: 'e2e', GITHUB_CLIENT_ID: 'e2e', GITHUB_CLIENT_SECRET: 'e2e' },
@@ -559,6 +561,32 @@ try {
   await phone.screenshot({ path: path.join(out, 'phone-signin-options.png') });
   await phone.click('#accountClose');
   console.log('✓ continue with Google logs into the same account');
+
+  // 8. Forgot password: a link by email, a new password, logged in.
+  {
+    const ctx = await browser.newContext();
+    const page = await ctx.newPage();
+    watch(page, 'reset');
+    await page.goto(url);
+    await page.waitForSelector('#login[open]');
+    await page.fill('#loginEmail', 'nina@example.com');
+    await page.click('#forgotBtn');
+    await page.waitForSelector('#reset[open] #resetEmail');
+    assert.equal(await page.inputValue('#resetEmail'), 'nina@example.com', 'the email is carried over');
+    await page.click('#resetSubmit');
+    await page.waitForSelector('#resetMessage:has-text("a link is on its way")');
+    const link = mails.at(-1).text.match(/https?:\/\/\S+#reset=\S+/)[0];
+    await page.goto(link);
+    await page.reload(); // a link opened in a new tab loads the page fresh
+    await page.waitForSelector('#reset[open] #resetPassword');
+    await page.fill('#resetPassword', 'a brand new password');
+    await page.click('#resetSubmit');
+    await page.waitForSelector('.note h3:text("Send the quarterly report tomorrow")');
+    assert.ok(!(await page.locator('#reset[open], #login[open]').count()), 'no login window left');
+    assert.equal(new URL(page.url()).hash, '', 'the code leaves the address bar');
+    await ctx.close();
+  }
+  console.log('✓ forgot password: email link, new password, logged in');
 
   assert.deepEqual(errors, []);
   console.log('All e2e checks passed. Screenshots in', out);

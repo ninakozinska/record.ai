@@ -169,3 +169,43 @@ test('session tokens are stored hashed', async () => {
     s.close();
   }
 });
+
+test('forgot password: a one-hour link by email resets it and logs out every device', async () => {
+  const sent = [];
+  const s = await start({ mail: { configured: true, send: async (m) => sent.push(m) } });
+  try {
+    const phone = client(s.base);
+    await phone('auth/login', json({ email: 'nina@example.com', password: 'correct horse' }));
+
+    // The same answer for unknown addresses: nobody can test which emails have accounts.
+    assert.equal((await phone('auth/forgot', json({ email: 'nobody@example.com' }))).status, 200);
+    assert.equal(sent.length, 0);
+    assert.equal((await phone('auth/forgot', json({ email: 'not an email' }))).status, 400);
+
+    assert.equal((await phone('auth/forgot', json({ email: 'Nina@Example.com' }))).status, 200);
+    assert.equal(sent.length, 1);
+    assert.equal(sent[0].to, 'nina@example.com');
+    const token = sent[0].text.match(/#reset=([A-Za-z0-9_-]+)/)[1];
+
+    const fresh = client(s.base);
+    assert.equal((await fresh('auth/reset', json({ token: 'made-up', password: 'brand new pw' }))).status, 400);
+    assert.equal((await fresh('auth/reset', json({ token, password: 'short' }))).status, 400);
+    const r = await fresh('auth/reset', json({ token, password: 'brand new pw' }));
+    assert.equal(r.status, 200);
+    assert.equal(r.body.user.email, 'nina@example.com');
+    assert.equal((await fresh('notes')).status, 200, 'logged in with the new password');
+    assert.equal((await phone('notes')).status, 401, 'other devices are logged out');
+    assert.equal((await s.api('notes')).status, 401);
+    assert.equal((await fresh('auth/reset', json({ token, password: 'again again' }))).status, 400, 'a link works once');
+    assert.equal((await phone('auth/login', json({ email: 'nina@example.com', password: 'brand new pw' }))).status, 200);
+
+    // An expired link does nothing.
+    await phone('auth/forgot', json({ email: 'nina@example.com' }));
+    const old = sent[1].text.match(/#reset=([A-Za-z0-9_-]+)/)[1];
+    const key = s.store.db.prepare("SELECT key FROM meta WHERE key LIKE 'reset:%'").get().key;
+    s.store.setMeta(key, JSON.stringify({ userId: s.user.id, expires: Date.now() - 1 }));
+    assert.equal((await fresh('auth/reset', json({ token: old, password: 'brand new pw2' }))).status, 400);
+  } finally {
+    s.close();
+  }
+});

@@ -120,6 +120,8 @@ Open your server's URL, log in, then:
 | `ADMIN_EMAILS` | *(none)* | Comma-separated emails that may open the dashboard (/admin.html) besides the owner (the first account). |
 | `OPTIMIZER` | *(on)* | `off` stops the hourly optimization loops and the daily backups. See [docs/OPTIMIZATION.md](docs/OPTIMIZATION.md). |
 | `AI_UNLIMITED` | *(none)* | Comma-separated emails that have no monthly AI limit either. |
+| `RESEND_API_KEY`, `MAIL_FROM` | *(none)* | Sends "Forgot your password?" emails through [Resend](https://resend.com) (`MAIL_FROM` like `record.ai <hello@your-domain>`, on a domain verified there). Without them the reset link is only written to the server log. |
+| `PUBLIC_URL` | *(the address used)* | The app's public address, used in emailed links (e.g. `https://record-ai-nina.fly.dev`). |
 | `PORT` | `3000` | HTTP port. |
 | `TRUST_PROXY` | `loopback` | Which proxy to believe about visitors' addresses. Behind a host's proxy (Fly.io, Render) set `1`, or one person's wrong passwords slow down everyone. |
 | `DATA_DIR` | `./data` | Where the SQLite database and photos are stored. **Back this up.** |

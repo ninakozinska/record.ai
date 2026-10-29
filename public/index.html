@@ -204,7 +204,25 @@
       <p id="loginError" class="error" role="alert"></p>
       <button class="primary" id="loginSubmit">Log in</button>
       <p class="switch" id="loginSwitch"></p>
+      <p class="switch" id="forgotLine"><button type="button" id="forgotBtn">Forgot your password?</button></p>
       <p class="legal-links"><a href="legal/privacy.html" target="_blank" rel="noopener">Privacy</a> · <a href="legal/terms.html" target="_blank" rel="noopener">Terms</a> · <a href="legal/support.html" target="_blank" rel="noopener">Help</a></p>
+    </form>
+  </dialog>
+
+  <!-- Forgot password: ask for a link, or choose a new password from the link -->
+  <dialog id="reset" class="sheet">
+    <form class="sheet-inner" id="resetForm" novalidate>
+      <h2 id="resetTitle">Reset your password</h2>
+      <p id="resetIntro" class="muted"></p>
+      <label class="field" id="resetEmailField">Email
+        <input id="resetEmail" type="email" autocomplete="email" inputmode="email" autocapitalize="off">
+      </label>
+      <label class="field" id="resetPasswordField">New password (at least 8 characters)
+        <span class="pw-wrap"><input id="resetPassword" type="password" autocomplete="new-password"><button type="button" class="pw-toggle" data-pw-toggle aria-label="Show password" aria-pressed="false">Show</button></span>
+      </label>
+      <p id="resetMessage" role="alert"></p>
+      <button class="primary" id="resetSubmit">Send me a link</button>
+      <p class="switch"><button type="button" id="resetBack">Back to log in</button></p>
     </form>
   </dialog>
 

@@ -22,6 +22,8 @@ Sessions expire after 400 days without use. The server stores only a SHA-256 has
 | GET | `/api/auth/me` | | `{user, devices}`: devices = number of active sessions |
 | POST | `/api/auth/logout-others` | | `{"ok":true, devices}`: ends every other session |
 | POST | `/api/auth/password` | `{current, next}` | `{"ok":true}`; 403 wrong current password; ends every other session |
+| POST | `/api/auth/forgot` | `{email}` | `{"ok":true}` whether or not the account exists. Emails a link `<server>/#reset=<code>`, valid one hour. At most 5 a hour per address and per IP |
+| POST | `/api/auth/reset` | `{token, password}` | `{token, user}` (logged in, like log in); ends every other session. 400 = expired or used link |
 
 **Who may sign up:** the first account always can. It becomes the owner and takes over notes and photos created before accounts existed. After that, sign-up needs `ALLOW_SIGNUP=true`, or the invite code set in `SIGNUP_CODE`. Passwords need at least 8 characters and are stored as scrypt hashes.
 
