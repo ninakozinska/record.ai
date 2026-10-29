@@ -118,7 +118,7 @@ Details: [OPTIMIZATION.md](OPTIMIZATION.md).
 
 | Method | Path | Answer |
 |---|---|---|
-| GET | `/api/plan` | `{plan, premium, admin, features}` |
+| GET | `/api/plan` | `{plan, premium, admin, features, billing: {open, manage}}`: `open` = payments set up, `manage` = has a subscription |
 | GET / POST | `/api/backups` | list `{premium, keepDays, backups}` / make one now (Premium; 402 otherwise) |
 | POST | `/api/backups/:id/restore` | `{restored, rev}`: back to that backup (a backup of now is made first) |
 | GET | `/api/backups/:id/download` | the backup as JSON |
@@ -153,3 +153,6 @@ Details: [OPTIMIZATION.md](OPTIMIZATION.md).
 | `status` | the `ai` status | a reorganize started or finished |
 
 A comment line `: ping` arrives every 25 seconds to keep the connection open.
+| POST | `/api/billing/checkout` | `{plan: 'solo' \| 'family'}` | `{url}`: Stripe's payment page. 503 `{notOpen: true}` until payments are set up; 409 when already subscribed |
+| POST | `/api/billing/portal` | | `{url}`: Stripe's page to manage the subscription; 404 without one |
+| POST | `/api/billing/webhook` | Stripe's signed event | For Stripe only (checks `Stripe-Signature`). Changes the plan. See docs/PAYMENTS.md |

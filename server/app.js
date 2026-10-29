@@ -14,6 +14,7 @@ import { Optimizer, costOf } from './optimizer.js';
 import { EXPERIMENTS } from './experiments.js';
 import { toIcs, noteTitle } from './calendar.js';
 import crypto from 'node:crypto';
+import { billing as makeBilling, PLANS } from './billing.js';
 
 const PUBLIC_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'public');
 const IMAGE_NAME = /^[a-zA-Z0-9-]{8,64}\.(jpg|jpeg|png|webp|gif)$/;
@@ -59,7 +60,7 @@ export function trustProxy(value) {
   return value;
 }
 
-export function createApp({ dataDir, organizer: makeOrganizer, oauth, mail } = {}) {
+export function createApp({ dataDir, organizer: makeOrganizer, oauth, mail, billing = makeBilling() } = {}) {
   const store = openDb(dataDir);
   const imagesDir = path.join(dataDir, 'images');
   fs.mkdirSync(imagesDir, { recursive: true });
@@ -143,6 +144,25 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth, mail } = {
       },
     }),
   );
+  // Stripe tells us about payments here. It signs the exact bytes it sends,
+  // so this route reads the body before it is turned into JSON.
+  app.post('/api/billing/webhook', express.raw({ type: '*/*', limit: '1mb' }), (req, res) => {
+    const event = billing.verify(req.body.toString('utf8'), req.get('stripe-signature'));
+    if (!event) return res.status(400).json({ error: 'Bad signature' });
+    const effect = billing.effect(event);
+    if (effect && store.getUser(effect.userId)) {
+      const before = store.planOf(effect.userId);
+      if (effect.customer) store.setMeta(`stripe:customer:${effect.userId}`, effect.customer);
+      if (store.firstUserId() !== effect.userId) store.setPlan(effect.userId, effect.plan);
+      if (before !== effect.plan) {
+        insights.track(effect.plan === 'free' ? 'subscription_ended' : 'subscription_started', {
+          userId: effect.userId, props: { plan: effect.plan, from: before },
+        });
+      }
+    }
+    res.json({ received: true });
+  });
+
   app.use(express.json({ limit: '25mb' }));
 
   app.get('/api/health', (req, res) => res.json({ ok: true, app: 'record.ai' }));
@@ -429,7 +449,41 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth, mail } = {
   // --- plans, backups (premium), download all my notes ---------------------------
   app.get('/api/plan', (req, res) => {
     const plan = store.planOf(req.user.id);
-    res.json({ plan, premium: premium(plan), admin: isAdmin(req.user), features: { backups: premium(plan), backupDays: 30 } });
+    res.json({
+      plan, premium: premium(plan), admin: isAdmin(req.user),
+      features: { backups: premium(plan), backupDays: 30 },
+      // Payments are open (Stripe set up), and whether there is a subscription to manage.
+      billing: { open: billing.configured, manage: billing.configured && !!store.getMeta(`stripe:customer:${req.user.id}`) },
+    });
+  });
+
+  app.post('/api/billing/checkout', async (req, res) => {
+    const plan = req.body?.plan;
+    if (!PLANS.includes(plan)) return res.status(400).json({ error: 'Choose Solo or Family.' });
+    if (!billing.configured) return res.status(503).json({ error: "Payments aren't open yet.", notOpen: true });
+    if (premium(store.planOf(req.user.id)) && store.getMeta(`stripe:customer:${req.user.id}`)) {
+      return res.status(409).json({ error: 'You already have Premium. Use "Manage subscription" to change it.' });
+    }
+    try {
+      const url = await billing.checkout({
+        user: req.user, plan, customer: store.getMeta(`stripe:customer:${req.user.id}`), base: publicUrl(req),
+      });
+      insights.track('checkout_started', { userId: req.user.id, props: { plan } });
+      res.json({ url });
+    } catch (err) {
+      console.error('[billing]', err.message);
+      res.status(502).json({ error: 'The payment page could not be opened. Please try again.' });
+    }
+  });
+  app.post('/api/billing/portal', async (req, res) => {
+    const customer = store.getMeta(`stripe:customer:${req.user.id}`);
+    if (!billing.configured || !customer) return res.status(404).json({ error: 'No subscription to manage.' });
+    try {
+      res.json({ url: await billing.portal({ customer, base: publicUrl(req) }) });
+    } catch (err) {
+      console.error('[billing]', err.message);
+      res.status(502).json({ error: 'The subscription page could not be opened. Please try again.' });
+    }
   });
 
   app.get('/api/backups', (req, res) => {
@@ -482,6 +536,12 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth, mail } = {
     if (store.firstUserId() === req.user.id) {
       return res.status(400).json({ error: "This account owns the server, so it can't be deleted here." });
     }
+    // A deleted account is never charged again.
+    const customer = store.getMeta(`stripe:customer:${req.user.id}`);
+    if (customer && billing.configured) {
+      billing.cancelAll(customer).catch((err) => console.error('[billing] cancel after account deletion:', err.message));
+    }
+    store.deleteMeta(`stripe:customer:${req.user.id}`);
     const gone = store.deleteUser(req.user.id);
     for (const name of gone.images) {
       for (const f of [path.join(imagesDir, name), path.join(imagesDir, 'thumbs', name)]) fs.rmSync(f, { force: true });

@@ -251,7 +251,12 @@
           <p id="pitchText"></p>
           <button type="button" class="primary" id="getPremium">Get Premium</button>
           <p class="muted" id="premiumThanks" hidden>Thank you! Premium launches soon, and you'll be the first to know.</p>
+          <div class="cal-buttons" id="planChoice" hidden>
+            <button type="button" class="primary" data-checkout="family">Family · €5.99 / month</button>
+            <button type="button" class="ghost" data-checkout="solo">Solo · €3.99 / month</button>
+          </div>
         </div>
+        <button type="button" class="ghost" id="manageBilling" hidden>Manage subscription</button>
         <div id="backupBox" class="stack" hidden>
           <p class="muted">Your notes are backed up every day and kept 30 days. Restore any day with one tap.</p>
           <ul id="backupList" class="identity-list backup-list"></ul>

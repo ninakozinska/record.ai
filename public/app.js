@@ -1441,6 +1441,8 @@ async function loadPremium() {
     $('#dashboardLink').hidden = !plan.admin;
     $('#premiumPitch').hidden = plan.premium;
     $('#backupBox').hidden = !plan.premium;
+    billingOpen = !!plan.billing?.open;
+    $('#manageBilling').hidden = !plan.billing?.manage;
     if (!plan.premium) {
       await loadVariants();
       const v = variant('premium_pitch', 'backups');
@@ -1462,11 +1464,43 @@ function renderBackups(list) {
         <button type="button" class="ghost" data-restore>Restore</button></li>`).join('')
     : '<li class="muted">The first backup is made today.</li>';
 }
+// With payments open (Stripe set up) "Get Premium" shows the plans and goes to
+// Stripe's payment page; before that it only counts who would buy.
+let billingOpen = false;
 $('#getPremium').onclick = () => {
   track('upgrade_click', { pitch: variant('premium_pitch', 'backups') });
   $('#getPremium').hidden = true;
-  $('#premiumThanks').hidden = false;
+  if (billingOpen) $('#planChoice').hidden = false;
+  else $('#premiumThanks').hidden = false;
 };
+async function goToStripe(path, body) {
+  try {
+    const { url } = await local.api(path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    location.href = url;
+  } catch (err) {
+    toast(err.message);
+  }
+}
+$('#planChoice').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-checkout]');
+  if (!b) return;
+  track('checkout_click', { plan: b.dataset.checkout, pitch: variant('premium_pitch', 'backups') });
+  goToStripe('billing/checkout', { plan: b.dataset.checkout });
+});
+$('#manageBilling').onclick = () => goToStripe('billing/portal', {});
+// Back from Stripe's payment page.
+{
+  const back = new URLSearchParams(location.search).get('upgraded');
+  if (back) {
+    history.replaceState(null, '', location.pathname + location.hash);
+    if (back === 'cancelled') toast('No payment made. Premium is there whenever you want it.');
+    else toast('Thank you! Premium is switching on: it can take a minute.');
+  }
+}
 $('#backupNow').onclick = async () => {
   try {
     await local.flush();
