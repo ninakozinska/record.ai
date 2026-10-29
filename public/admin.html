@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>record.ai dashboard</title>
+  <script>try { const t = localStorage.getItem('theme'); if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; } catch {}</script>
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    main.dash { max-width: 1100px; margin: 0 auto; padding: 16px; display: grid; gap: 20px; }
+    .dash h1 { font-size: 1.4rem; margin: 0; }
+    .dash h2 { font-size: 1.05rem; margin: 0 0 8px; }
+    .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+    .tile { padding: 12px; }
+    .tile .v { font-size: 1.5rem; font-weight: 700; }
+    .tile .k { color: var(--muted); font-size: .8rem; }
+    .scroll { overflow-x: auto; }
+    table.data { border-collapse: collapse; width: 100%; font-size: .85rem; }
+    table.data th, table.data td { text-align: right; padding: 6px 8px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+    table.data th:first-child, table.data td:first-child { text-align: left; }
+    .exp { padding: 12px; }
+    .win { color: var(--accent); font-weight: 600; }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .muted { color: var(--muted); }
+  </style>
+</head>
+<body>
+<main class="dash">
+  <div class="row"><h1>📊 record.ai dashboard</h1><span class="spacer"></span><a class="btn ghost" href="./">← Back to notes</a><button class="ghost" id="optimizeNow">Run optimizer now</button></div>
+  <p class="muted" id="status">Loading…</p>
+  <section><h2>Today</h2><div class="tiles" id="tiles"></div></section>
+  <section class="card exp"><h2>A/B tests</h2><div id="experiments"></div></section>
+  <section class="card exp"><h2>What the optimizer did</h2><p class="muted" id="optState"></p><div class="scroll"><table class="data" id="log"></table></div></section>
+  <section class="card exp"><h2>Last 30 days</h2><div class="scroll"><table class="data" id="kpis"></table></div></section>
+  <section class="card exp"><h2>People and plans</h2>
+    <p class="muted">Until payments exist, give Premium by hand (beta testers, family).</p>
+    <div class="scroll"><table class="data" id="users"></table></div>
+  </section>
+</main>
+<script type="module" src="admin.js"></script>
+</body>
+</html>

@@ -12,7 +12,7 @@ export function tmpDir() {
 export async function start(opts = {}) {
   const dataDir = tmpDir();
   const client = opts.client;
-  const { app, store, organizer } = createApp({
+  const { app, store, organizer, insights, optimizer, backups } = createApp({
     dataDir,
     oauth: opts.oauth,
     organizer: client
@@ -40,5 +40,5 @@ export async function start(opts = {}) {
     });
     user = r.body.user;
   }
-  return { api, store, organizer, dataDir, user, base, cookie: () => cookie, close: () => server.close() };
+  return { api, store, organizer, insights, optimizer, backups, dataDir, user, base, cookie: () => cookie, close: () => server.close() };
 }

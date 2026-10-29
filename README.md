@@ -14,6 +14,8 @@ Notes you **type, dictate, or photograph**. They sync across your phone, your co
 - **Lists**: start lines with `- ` and they become a checklist (shopping, a project's tasks, kids' activities). Tick items right from the card; open the note to add items or set each one's priority. Open items show first, most urgent on top.
 - **Sharing**: share a list or note, or a whole group, with the people you choose (your partner, a colleague, family), by email. They can edit, or only view. Changes show up live for everyone. You see who has access, and you can change it or stop sharing at any time.
 - **Dates and calendars**: the AI finds dates and times ("dentist Tuesday 3pm"), and you can pick your own with a date and time picker. Add a note to Google Calendar or your iPhone, Mac or Outlook calendar with one tap, or connect your calendar once so every dated note shows up there by itself.
+- **Premium backups**: daily automatic backups kept 30 days, restore any day with one tap; everyone can download all their notes and photos.
+- **Measured and self-tuning**: A/B tests on the web and in the apps, and optimization loops that cut AI costs and raise revenue while watching quality. The owner's dashboard shows it all. See [docs/OPTIMIZATION.md](docs/OPTIMIZATION.md).
 - **Automatic organization**: each new or edited note is sent to Claude, which assigns a title, summary, **priority**, **group**, tags and a due date. It reuses your existing groups so the list stays tidy.
 - **✨ Reorganize**: Claude reviews all open notes together, merges similar groups and re-ranks priorities against today's date. This also runs on its own after every 20 newly organized notes.
 - **Two views**: *Priority* (Urgent → Low) and *Groups*. There's also search, group filter chips, and a "done" checkbox.
@@ -115,6 +117,8 @@ Open your server's URL, log in, then:
 | `OLLAMA_URL` | `http://127.0.0.1:11434` | Where Ollama runs. |
 | `REORGANIZE_EVERY` | `20` | Run a full reorganize after this many newly organized notes. |
 | `AI_MONTHLY_LIMIT` | `300` | AI uses per person per month with Claude (organizing a note = 1, a full reorganize = 5). After that, notes are still saved and synced, and the AI sorts them again next month. The first account (the owner) has no limit. `0` = no limit for anyone. |
+| `ADMIN_EMAILS` | *(none)* | Comma-separated emails that may open the dashboard (/admin.html) besides the owner (the first account). |
+| `OPTIMIZER` | *(on)* | `off` stops the hourly optimization loops and the daily backups. See [docs/OPTIMIZATION.md](docs/OPTIMIZATION.md). |
 | `AI_UNLIMITED` | *(none)* | Comma-separated emails that have no monthly AI limit either. |
 | `PORT` | `3000` | HTTP port. |
 | `TRUST_PROXY` | `loopback` | Which proxy to believe about visitors' addresses. Behind a host's proxy (Fly.io, Render) set `1`, or one person's wrong passwords slow down everyone. |

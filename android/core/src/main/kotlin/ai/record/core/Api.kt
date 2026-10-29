@@ -3,6 +3,7 @@ package ai.record.core
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
@@ -147,6 +148,23 @@ class Api(val baseUrl: String, private val token: String?, private val client: O
     suspend fun reanalyze(id: String) { post("notes/$id/reanalyze", JsonObject(emptyMap())) }
 
     suspend fun reorganize(): ReorganizeResult = decode(post("reorganize", JsonObject(emptyMap())))
+
+    // --- A/B tests and events (see docs/OPTIMIZATION.md); work before logging in too ---
+
+    /** The variant of every running A/B test for this device or account. */
+    suspend fun experiments(anonId: String): Map<String, String> {
+        val answer = json.parseToJsonElement(call("public/experiments?anon=$anonId&platform=android").decodeToString()).jsonObject
+        return answer["variants"]?.jsonObject?.mapValues { it.value.jsonPrimitive.content } ?: emptyMap()
+    }
+
+    /** Sends events (what people do, never what they write); at most 50 per call. */
+    suspend fun sendEvents(anonId: String, events: List<JsonObject>) {
+        post("public/events", buildJsonObject {
+            put("anon", anonId)
+            put("platform", "android")
+            put("events", JsonArray(events))
+        })
+    }
 
     /** Live updates (Server-Sent Events). Call `cancel()` on the result to stop. */
     fun events(onEvent: (type: String, data: String) -> Unit, onClosed: (Throwable?, Int?) -> Unit): EventSource {

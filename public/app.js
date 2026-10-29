@@ -1,4 +1,5 @@
 import { Local, uuid } from './local.js';
+import { loadVariants, variant, track } from './track.js';
 
 const PRIORITIES = ['urgent', 'high', 'normal', 'low'];
 const PRIORITY_LABEL = { urgent: 'Urgent', high: 'High', normal: 'Normal', low: 'Low' };
@@ -778,13 +779,16 @@ function googleCalendarUrl({ title, text }, { date, time }) {
   return `https://calendar.google.com/calendar/render?${q}`;
 }
 
+/** The day of a note's date as people say it: "Today", "Tomorrow", "Tue 3 Nov" (+ the year when it isn't this year). */
 function dueLabel(date) {
-  const days = Math.round((new Date(date + 'T00:00:00') - new Date(new Date().toDateString())) / 86400000);
+  const day = new Date(date + 'T00:00:00');
+  const days = Math.round((day - new Date(new Date().toDateString())) / 86400000);
   if (days < 0) return { text: `overdue ${-days}d`, cls: 'overdue' };
-  if (days === 0) return { text: 'due today', cls: 'overdue' };
-  if (days === 1) return { text: 'due tomorrow', cls: 'soon' };
-  if (days < 7) return { text: `due in ${days}d`, cls: 'soon' };
-  return { text: `due ${date}`, cls: '' };
+  if (days === 0) return { text: '📅 Today', cls: 'overdue' };
+  if (days === 1) return { text: '📅 Tomorrow', cls: 'soon' };
+  const sameYear = day.getFullYear() === new Date().getFullYear();
+  const text = day.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short', ...(sameYear ? {} : { year: 'numeric' }) });
+  return { text: `📅 ${text}`, cls: days < 7 ? 'soon' : '' };
 }
 
 /** A list's progress and its first open items, tickable from the card. */
@@ -825,7 +829,7 @@ function card(n, { showGroup }) {
           ${showGroup ? `<span class="group-chip">${esc(n.group)}${n.user_group ? ' 📌' : ''}</span>` : ''}
           ${n.role ? `<span class="shared-badge">👥 ${esc(n.owner_name)}${n.role === 'view' ? ' · view only' : ''}</span>`
             : sharesOf(n).length ? '<span class="shared-badge" title="Shared">👥 Shared</span>' : ''}
-          ${due ? `<span class="due ${due.cls}">${esc(due.text)}${n.due_time ? ` · ${esc(n.due_time)}` : ''}${n.user_due ? ' 📌' : ''}</span>` : ''}
+          ${due ? `<span class="due ${due.cls} ${n.due_time ? 'at' : ''}">${esc(due.text)}${n.due_time ? ` · ${esc(n.due_time)}` : ''}${n.user_due ? ' 📌' : ''}</span>` : ''}
           ${(n.tags || []).slice(0, 4).map((t) => `<span class="tag">#${esc(t)}</span>`).join('')}
           <span class="time">${relTime(n.created_at)}</span>
           ${canEdit(n) ? `<button class="done-btn" data-check>${n.done ? '↩ Not done' : '✓ Done'}</button>` : ''}
@@ -1184,6 +1188,7 @@ $('#accountBtn').onclick = async () => {
   $('#account').showModal();
   loadSigninOptions();
   loadAiUsage();
+  loadPremium();
   $('#calendarLink').hidden = true;
   $('#calendarShow').hidden = false;
   renderMyGroups();
@@ -1293,6 +1298,76 @@ $('#calendarReset').onclick = async () => {
   }
 };
 
+// ⭐ Premium under your initials: backups (premium), download all my notes (everyone).
+// The pitch is an A/B test (premium_pitch); "Get Premium" measures interest
+// until payments exist.
+const PITCH = {
+  backups: 'Never lose a note: daily backups, kept 30 days. Restore any day with one tap.',
+  family: "Your family's lists, safe every day: automatic backups for everyone in your Family plan.",
+};
+const PLAN_NAME = { free: 'Free', solo: 'Solo', family: 'Family' };
+async function loadPremium() {
+  try {
+    const plan = await local.api('plan');
+    $('#planLabel').textContent = `· ${PLAN_NAME[plan.plan] || plan.plan}`;
+    $('#dashboardLink').hidden = !plan.admin;
+    $('#premiumPitch').hidden = plan.premium;
+    $('#backupBox').hidden = !plan.premium;
+    if (!plan.premium) {
+      await loadVariants();
+      const v = variant('premium_pitch', 'backups');
+      $('#pitchText').textContent = PITCH[v] || PITCH.backups;
+      track('premium_seen', { pitch: v });
+    } else {
+      renderBackups((await local.api('backups')).backups);
+    }
+  } catch {
+    $('#premiumBox').hidden = false;
+  }
+}
+const day = (ts) => new Date(ts).toLocaleString(undefined, { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+function renderBackups(list) {
+  const label = { daily: 'Daily', manual: 'By hand', 'before-restore': 'Before a restore' };
+  $('#backupList').innerHTML = list.length
+    ? list.slice(0, 10).map((b) => `<li data-backup="${esc(b.id)}"><span class="who"><strong>${esc(day(b.created_at))}</strong>
+        <small>${esc(label[b.kind] || b.kind)} · ${b.notes} notes</small></span>
+        <button type="button" class="ghost" data-restore>Restore</button></li>`).join('')
+    : '<li class="muted">The first backup is made today.</li>';
+}
+$('#getPremium').onclick = () => {
+  track('upgrade_click', { pitch: variant('premium_pitch', 'backups') });
+  $('#getPremium').hidden = true;
+  $('#premiumThanks').hidden = false;
+};
+$('#backupNow').onclick = async () => {
+  try {
+    await local.flush();
+    await local.api('backups', { method: 'POST' });
+    renderBackups((await local.api('backups')).backups);
+    toast('Backup made');
+  } catch (err) {
+    toast(err.message);
+  }
+};
+$('#backupList').addEventListener('click', async (e) => {
+  const li = e.target.closest('[data-backup]');
+  if (!li || !e.target.closest('[data-restore]')) return;
+  const when = li.querySelector('strong').textContent;
+  if (!confirm(`Bring your notes back to how they were on ${when}?\n\nNotes written since then are removed. A backup of how they are now is made first, so you can undo this.`)) return;
+  try {
+    await local.flush();
+    const r = await local.api(`backups/${encodeURIComponent(li.dataset.backup)}/restore`, { method: 'POST' });
+    await local.pull();
+    renderBackups((await local.api('backups')).backups);
+    toast(`Restored: ${r.restored} notes`);
+  } catch (err) {
+    toast(err.message);
+  }
+});
+$('#exportNotes').onclick = () => {
+  location.href = 'api/export';
+};
+
 /** "AI this month: 12 of 300" under your initials (nothing when there's no limit). */
 async function loadAiUsage() {
   try {
@@ -1352,6 +1427,7 @@ local.addEventListener('change', render);
 local.addEventListener('status', renderStatus);
 local.addEventListener('started', loadMyGroups);
 local.addEventListener('started', loadShares);
+local.addEventListener('started', () => track('app_open'));
 local.addEventListener('shares', loadShares);
 local.addEventListener('wiped', () => { myGroups = []; shares = { mine: [], withMe: [] }; });
 render();

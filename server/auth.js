@@ -79,7 +79,7 @@ export function signupPolicy(store) {
 const NO_EMAIL = '@no-email.invalid';
 const publicUser = (u) => ({ id: u.id, name: u.name, email: u.email.endsWith(NO_EMAIL) ? '' : u.email });
 
-export function authRoutes({ store, imagesDir, throttle = new Throttle(), oauth = {} }) {
+export function authRoutes({ store, imagesDir, throttle = new Throttle(), oauth = {}, onSignup = () => {} }) {
   const router = express.Router();
   const env = oauth.env || process.env;
 
@@ -99,7 +99,9 @@ export function authRoutes({ store, imagesDir, throttle = new Throttle(), oauth 
     }
     const email = profile.email || `${String(profile.id).replace(/[^A-Za-z0-9._-]/g, '')}.${profile.provider}${NO_EMAIL}`;
     const name = String(profile.name || '').trim() || (profile.email ? profile.email.split('@')[0] : 'record.ai user');
-    return store.createUser({ email, name: name.slice(0, 80), pwHash: '', imagesDir });
+    const user = store.createUser({ email, name: name.slice(0, 80), pwHash: '', imagesDir });
+    onSignup(user, { method: profile.provider });
+    return user;
   };
 
   router.use('/oauth', oauthRoutes({
@@ -139,6 +141,7 @@ export function authRoutes({ store, imagesDir, throttle = new Throttle(), oauth 
       pwHash: await hashPassword(String(password)),
       imagesDir,
     });
+    onSignup(user, { method: 'email', anonId: req.get('x-anon-id') });
     startSession(req, res, user);
   });
 

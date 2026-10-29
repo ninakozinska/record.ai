@@ -121,5 +121,19 @@ class ServerIntegrationTest {
         assertNotNull(reopened.state.value.notes.values.singleOrNull { it.text == "Written on the train" })
     }
 
+    @Test fun `A-B tests and events work before logging in`() = runBlocking<Unit> {
+        val insights = Insights(Insights.newAnonId()) { Api(url, null) }
+        insights.load()
+        val pitch = insights.variant("premium_pitch", "none")
+        assertTrue(pitch == "backups" || pitch == "family", "got $pitch")
+        insights.load()
+        assertEquals(pitch, insights.variant("premium_pitch", "none"), "the same variant every time")
+        insights.track("app_open", mapOf("screen" to "login"))
+        insights.track("upgrade_click")
+        assertEquals(2, insights.pending())
+        insights.flush()
+        assertEquals(0, insights.pending())
+    }
+
     private suspend fun Api.notesNow(): List<Note> = notes(0).notes
 }

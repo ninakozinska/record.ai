@@ -166,9 +166,14 @@ export class Local extends EventTarget {
 
   /** Logs in (or signs up) and makes sure local data belongs to that account. */
   async authenticate(kind, fields) {
+    let anon = '';
+    try {
+      anon = localStorage.getItem('anonId') || '';
+    } catch {}
     const { user } = await this.api(`auth/${kind}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      // The device's A/B tests and history carry over to the new account.
+      headers: { 'Content-Type': 'application/json', ...(anon ? { 'X-Anon-Id': anon } : {}) },
       body: JSON.stringify(fields),
     });
     await this.useAccount(user);

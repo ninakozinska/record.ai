@@ -78,8 +78,13 @@ Dates: work out relative dates ("tomorrow", "next week", "on Tuesday") from the 
 For photos, describe what matters (e.g. receipt total, whiteboard content, document type) in the summary.`;
 
 export class Organizer {
-  constructor({ store, imagesDir, onChange, client, log = console }) {
+  constructor({ store, imagesDir, onChange, client, log = console, onAiCall }) {
     this.store = store;
+    // Measuring and tuning (see optimizer.js): every AI call is reported, and a
+    // note that is still being typed can wait a moment before it is sorted.
+    this.onAiCall = onAiCall || (() => {});
+    this.debounceMs = 0;
+    this.timers = new Map();
     this.imagesDir = imagesDir;
     this.onChange = onChange;
     this.log = log;
@@ -130,8 +135,25 @@ export class Organizer {
   }
 
   enqueue(id) {
-    this.queue.add(id);
-    queueMicrotask(() => this.drain());
+    if (!this.debounceMs) {
+      this.queue.add(id);
+      queueMicrotask(() => this.drain());
+      return;
+    }
+    // Each new edit restarts the wait, so a note typed in bursts is sorted once.
+    clearTimeout(this.timers.get(id));
+    const t = setTimeout(() => {
+      this.timers.delete(id);
+      this.queue.add(id);
+      this.drain();
+    }, this.debounceMs);
+    t.unref?.();
+    this.timers.set(id, t);
+  }
+
+  /** After how many newly sorted notes a person's notes are reorganized (tuned per person). */
+  reorganizeEvery(userId) {
+    return Number(this.store.getMeta(`opt:reorg_every:${userId}`)) || reorganizeEvery();
   }
 
   /** On startup: finish queued work and retry notes the AI never got to. */
@@ -192,16 +214,22 @@ export class Organizer {
       listItemsBlock(items) +
       `\nAnalyze this note.`;
 
+    const meter = { kind: 'note', userId: note.user_id, started: Date.now() };
     try {
-      const result = await this.ask({ text, images, schema: NoteAnalysis, effort: 'low', maxTokens: 4000 });
+      const result = await this.ask({ text, images, schema: NoteAnalysis, effort: 'low', maxTokens: 4000, meter });
       // If the text/photos were edited while we were waiting, a newer run is
       // queued and this result is stale. (Changing only done/group/priority
       // doesn't invalidate it.)
       const current = this.store.get(id);
-      if (!current || current.ai_status !== 'pending' || !sameContent(current, note)) return;
+      if (!current || current.ai_status !== 'pending' || !sameContent(current, note)) {
+        this.onAiCall({ ...meter, outcome: 'stale' });
+        return;
+      }
+      this.onAiCall({ ...meter, outcome: 'used' });
       this.onChange(this.store.applyAi(id, { ...result, status: 'done' }));
       this.maybeAutoReorganize(note.user_id);
     } catch (err) {
+      if (meter.usage) this.onAiCall({ ...meter, outcome: 'error' });
       this.log.error(`[organizer] note ${id}:`, err.message);
       this.onChange(this.store.applyAi(id, { ...fallbackAnalysis(note, this.store.items?.(id) || []), status: 'error', error: friendlyError(err, this.provider) }));
     }
@@ -212,7 +240,7 @@ export class Organizer {
     const count = Number(this.store.getMeta(key) || 0) + 1;
     this.store.setMeta(key, count);
     const { used, limit } = this.usage(userId);
-    if (count >= reorganizeEvery() && (limit === null || used + REORGANIZE_COST <= limit)) {
+    if (count >= this.reorganizeEvery(userId) && (limit === null || used + REORGANIZE_COST <= limit)) {
       this.reorganizeAll(userId).catch((err) => this.log.error('[organizer] reorganize:', err.message));
     }
   }
@@ -241,7 +269,9 @@ export class Organizer {
           created: new Date(n.created_at).toISOString().slice(0, 10),
         }),
       );
+      const meter = { kind: 'reorganize', userId, started: Date.now() };
       const result = await this.ask({
+        meter,
         text:
           `Today is ${today()}. Here are all open notes, one JSON object per line:\n\n` +
           lines.join('\n') +
@@ -274,6 +304,7 @@ export class Organizer {
         );
         updated++;
       }
+      this.onAiCall({ ...meter, outcome: 'used', moved: updated, total: notes.length });
       return { updated };
     } finally {
       this.reorganizing = false;
@@ -281,7 +312,7 @@ export class Organizer {
   }
 
   /** One structured request to whichever AI is configured. */
-  async ask({ text, images = [], schema, effort, maxTokens, stream = false }) {
+  async ask({ text, images = [], schema, effort, maxTokens, stream = false, meter }) {
     if (this.provider === 'ollama') return this.askOllama({ text, images, schema });
     const content = [
       ...images.map((img) => ({ type: 'image', source: { type: 'base64', media_type: img.mediaType, data: img.data } })),
@@ -294,7 +325,7 @@ export class Organizer {
         messages: [{ role: 'user', content }],
         output_config: { effort, format: betaZodOutputFormat(schema) },
       },
-      { stream },
+      { stream, meter },
     );
   }
 
@@ -302,7 +333,7 @@ export class Organizer {
    * Claude structured-output call with server-side refusal fallback. If the
    * API rejects the fallback parameter (e.g. on a proxy), retry without it.
    */
-  async parse(params, { stream = false } = {}) {
+  async parse(params, { stream = false, meter } = {}) {
     const base = { model: claudeModel(), ...params };
     // Haiku has no server-side fallback; don't send the parameter there.
     const withFallback = /haiku/.test(base.model)
@@ -319,6 +350,7 @@ export class Organizer {
       if (!withFallback || !(err instanceof Anthropic.BadRequestError) || isBillingError(err)) throw err;
       msg = await call(base);
     }
+    if (meter) Object.assign(meter, { model: msg.model || base.model, usage: msg.usage, ms: Date.now() - meter.started });
     if (msg.stop_reason === 'refusal') throw new Error('Claude declined to process this note');
     if (msg.stop_reason === 'max_tokens') throw new Error('Response was cut off (max_tokens)');
     if (msg.parsed_output) return msg.parsed_output;
