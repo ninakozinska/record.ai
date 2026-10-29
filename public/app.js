@@ -1,5 +1,6 @@
 import { Local, uuid } from './local.js';
 import { loadVariants, variant, track } from './track.js';
+import { inWorld, worldOf } from './worlds.js';
 
 const PRIORITIES = ['urgent', 'high', 'normal', 'low'];
 const PRIORITY_LABEL = { urgent: 'Urgent', high: 'High', normal: 'Normal', low: 'Low' };
@@ -9,6 +10,7 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '
 const local = new Local();
 const ui = {
   view: localStorage.getItem('view') || 'priority',
+  world: ['work', 'family'].includes(localStorage.getItem('world')) ? localStorage.getItem('world') : 'all',
   group: null,
   query: '',
   showDone: false,
@@ -614,6 +616,44 @@ async function saveMyGroups(names) {
 }
 const withMyGroups = (groups) => [...groups, ...myGroups.filter((g) => !groups.includes(g))];
 
+// Work and Family worlds (worlds.js): which groups the person moved.
+let chosenWorlds = {};
+async function loadWorlds() {
+  try {
+    chosenWorlds = (await local.api('groups/worlds')).chosen;
+    await local.metaSet('worlds', chosenWorlds);
+  } catch {
+    chosenWorlds = (await local.metaGet('worlds')) || chosenWorlds;
+  }
+  render();
+}
+const WORLD_LABEL = { work: '💼 Work', family: '🏡 Family', null: '💼🏡 Both' };
+/** Work → Family → both → Work: moves one group, on every device. */
+async function cycleWorld(group) {
+  const now = worldOf(group, chosenWorlds);
+  const next = now === 'work' ? 'family' : now === 'family' ? '' : 'work';
+  const previous = chosenWorlds;
+  chosenWorlds = { ...chosenWorlds, [group.toLowerCase()]: next };
+  render();
+  try {
+    chosenWorlds = (await local.api('groups/worlds', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chosen: chosenWorlds }),
+    })).chosen;
+    await local.metaSet('worlds', chosenWorlds);
+    toast(`"${group}" is now in ${WORLD_LABEL[next || null]}`);
+  } catch (err) {
+    chosenWorlds = previous;
+    render();
+    toast(err.message);
+  }
+}
+const shownInWorld = (n) => inWorld(n.group, ui.world, chosenWorlds);
+function worldButton(g) {
+  return `<button class="ghost world-group" data-world-group="${esc(g)}" title="Which world this group is in. Tap to move it.">${WORLD_LABEL[worldOf(g, chosenWorlds)]}</button>`;
+}
+
 // ---------------------------------------------------------------------------
 // Sharing: notes and groups I share (mine), and what others share with me.
 // ---------------------------------------------------------------------------
@@ -921,8 +961,9 @@ function render() {
 }
 
 function renderNow() {
-  const all = local.list().map(forMe);
-  const groups = withMyGroups(groupsOf(all));
+  const everything = local.list().map(forMe);
+  const all = everything.filter(shownInWorld);
+  const groups = withMyGroups(groupsOf(all)).filter((g) => inWorld(g, ui.world, chosenWorlds));
   if (ui.group && !groups.includes(ui.group)) ui.group = null;
 
   $('#groupChips').innerHTML =
@@ -939,11 +980,11 @@ function renderNow() {
   if (ui.view === 'priority') {
     for (const p of PRIORITIES) html += section(PRIORITY_LABEL[p], open.filter((n) => n.priority === p), { showGroup: true }, `p-${p}`);
   } else {
-    for (const g of groupsOf(open)) html += section(g, open.filter((n) => n.group === g), { showGroup: false }, '', shareGroupButton(g));
+    for (const g of groupsOf(open)) html += section(g, open.filter((n) => n.group === g), { showGroup: false }, '', worldButton(g) + shareGroupButton(g));
   }
   if (!open.length) {
-    html += all.length
-      ? '<p class="empty">Nothing here. 🎉</p>'
+    html += everything.length
+      ? `<p class="empty">Nothing here${ui.world === 'all' ? '' : ` in ${WORLD_LABEL[ui.world]}`}. 🎉</p>`
       : '<p class="empty">No notes yet. Type, dictate 🎤 or snap a photo 📷 above — AI will title, prioritize and group them for you.</p>';
   }
   if (done.length) {
@@ -954,9 +995,9 @@ function renderNow() {
     </div>`;
     if (ui.showDone) html += section('Done', done, { showGroup: true }, 'done-section');
   }
-  $('#list').innerHTML = welcomeCard(all) + html;
+  $('#list').innerHTML = welcomeCard(everything) + html;
   // This month's AI sortings are used up: say so once, above the notes.
-  const limited = all.find((n) => !n.role && n.ai_status === 'limit');
+  const limited = everything.find((n) => !n.role && n.ai_status === 'limit');
   $('#limitBanner').hidden = !limited;
   if (limited) $('#limitBanner').textContent = `⏸️ ${limited.ai_error}`;
 
@@ -972,7 +1013,7 @@ function renderNow() {
 async function clearDone() {
   // The same done notes the page shows (search and group filter apply).
   const ids = local.list()
-    .filter((n) => n.done && !n.role && matches(n, ui.query.toLowerCase().trim()) && (!ui.group || forMe(n).group === ui.group))
+    .filter((n) => n.done && !n.role && shownInWorld(forMe(n)) && matches(n, ui.query.toLowerCase().trim()) && (!ui.group || forMe(n).group === ui.group))
     .map((n) => n.id);
   if (!ids.length) return;
   if (!confirm(`Delete ${ids.length} done note${ids.length === 1 ? '' : 's'}? You can undo this for a few seconds.`)) return;
@@ -1053,12 +1094,28 @@ $('#groupChips').addEventListener('click', async (e) => {
   render();
 });
 
-document.querySelectorAll('.view-toggle button').forEach((b) => {
+document.querySelectorAll('.world-toggle button').forEach((b) => {
+  b.classList.toggle('active', b.dataset.world === ui.world);
+  b.onclick = () => {
+    ui.world = b.dataset.world;
+    ui.group = null;
+    localStorage.setItem('world', ui.world);
+    document.querySelectorAll('.world-toggle button').forEach((x) => x.classList.toggle('active', x === b));
+    track('world_switch', { world: ui.world });
+    render();
+  };
+});
+$('#list').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-world-group]');
+  if (b) cycleWorld(b.dataset.worldGroup);
+});
+
+document.querySelectorAll('.view-toggle:not(.world-toggle) button').forEach((b) => {
   b.classList.toggle('active', b.dataset.view === ui.view);
   b.onclick = () => {
     ui.view = b.dataset.view;
     localStorage.setItem('view', ui.view);
-    document.querySelectorAll('.view-toggle button').forEach((x) => x.classList.toggle('active', x === b));
+    document.querySelectorAll('.view-toggle:not(.world-toggle) button').forEach((x) => x.classList.toggle('active', x === b));
     render();
   };
 });
@@ -1627,10 +1684,11 @@ await local.init();
 local.addEventListener('change', render);
 local.addEventListener('status', renderStatus);
 local.addEventListener('started', loadMyGroups);
+local.addEventListener('started', loadWorlds);
 local.addEventListener('started', loadShares);
 local.addEventListener('started', () => track('app_open'));
 local.addEventListener('shares', loadShares);
-local.addEventListener('wiped', () => { myGroups = []; shares = { mine: [], withMe: [] }; });
+local.addEventListener('wiped', () => { myGroups = []; chosenWorlds = {}; shares = { mine: [], withMe: [] }; });
 render();
 renderStatus();
 // Coming back from "Continue with …": show what happened, then tidy the address bar.

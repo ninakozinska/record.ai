@@ -467,6 +467,30 @@ try {
   await desktop.emulateMedia({ colorScheme: 'light' });
   console.log('✓ appearance: auto, light, dark');
 
+  // Work and Family worlds: Work hides the shopping, a group can be moved.
+  await desktop.fill('#composer textarea', 'Buy milk and eggs');
+  await desktop.click('#composer [data-role=save]');
+  await desktop.waitForSelector('.note:has(h3:text("Buy milk and eggs")):not(:has(.ai-pending))');
+  await desktop.click('.world-toggle [data-world=work]');
+  await desktop.waitForSelector('.note h3:text("Send the quarterly report tomorrow")');
+  assert.equal(await desktop.locator('.note h3:text("Buy milk and eggs")').count(), 0, 'shopping is not work');
+  await desktop.click('.world-toggle [data-world=family]');
+  await desktop.waitForSelector('.note h3:text("Buy milk and eggs")');
+  assert.equal(await desktop.locator('.note h3:text("Send the quarterly report tomorrow")').count(), 0, 'work is not family');
+  await desktop.screenshot({ path: path.join(out, 'desktop-family.png') });
+  await desktop.click('.world-toggle [data-world=all]');
+  await desktop.click('.view-toggle [data-view=groups]');
+  await desktop.click('[data-world-group="Shopping"]');
+  await desktop.waitForSelector('[data-world-group="Shopping"]:text("Both")');
+  await desktop.click('.world-toggle [data-world=work]');
+  await desktop.waitForSelector('.note h3:text("Buy milk and eggs")');
+  await desktop.click('.world-toggle [data-world=all]');
+  await desktop.click('[data-world-group="Shopping"]');
+  await desktop.click('[data-world-group="Shopping"]');
+  await desktop.waitForSelector('[data-world-group="Shopping"]:text("Family")');
+  await desktop.click('.view-toggle [data-view=priority]');
+  console.log('✓ work and family worlds, a group moved between them');
+
   // Premium backups (the owner has Premium): back up, delete a note, restore it.
   await desktop.fill('#composer textarea', 'Passport renewal form');
   await desktop.click('#composer [data-role=save]');

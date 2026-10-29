@@ -278,6 +278,25 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth, mail, bill
   // --- notes ----------------------------------------------------------------
   // "My groups": groups the person made, which the AI always keeps and uses.
   app.get('/api/groups/mine', (req, res) => res.json({ names: store.myGroups(req.user.id) }));
+
+  // Which world (Work or Family) each group belongs to, when the person moved it.
+  // {group name in lowercase: 'work' | 'family' | '' (both)}.
+  const worldsKey = (userId) => `worlds:${userId}`;
+  app.get('/api/groups/worlds', (req, res) => res.json({ chosen: JSON.parse(store.getMeta(worldsKey(req.user.id)) || '{}') }));
+  app.put('/api/groups/worlds', (req, res) => {
+    const chosen = req.body?.chosen;
+    if (!chosen || typeof chosen !== 'object' || Array.isArray(chosen) || Object.keys(chosen).length > 200) {
+      return res.status(400).json({ error: 'Send {chosen: {group: "work" | "family" | ""}}.' });
+    }
+    const clean = {};
+    for (const [group, world] of Object.entries(chosen)) {
+      const key = group.trim().toLowerCase().slice(0, 60);
+      if (key && ['work', 'family', ''].includes(world)) clean[key] = world;
+    }
+    store.setMeta(worldsKey(req.user.id), JSON.stringify(clean));
+    insights.track('worlds_changed', { userId: req.user.id, props: { groups: Object.keys(clean).length } });
+    res.json({ chosen: clean });
+  });
   app.put('/api/groups/mine', (req, res) => {
     const names = req.body?.names;
     if (!Array.isArray(names) || names.length > MAX_MY_GROUPS || !names.every((n) => typeof n === 'string')) {

@@ -79,6 +79,7 @@ A note as the server sends it:
 | POST | `/api/reorganize` | | `{updated}` or `{skipped:true}`: the AI re-groups and re-ranks all your open notes. 429 when this month's AI uses are used up |
 | GET | `/api/status` | | `{ai: {enabled, provider, model, pending, reorganizing, usage: {used, limit, resets}}, rev, groups: [{name,count}]}`. `usage` is your AI use this month; `limit: null` = no limit |
 | GET / PUT | `/api/groups/mine` | `{names}` (PUT: up to 30 names of 1–40 characters) | "My groups": groups the person made. They always show, and the AI files matching notes into them and never renames or merges them. Also in `/api/status` as `myGroups` |
+| GET / PUT | `/api/groups/worlds` | | `{chosen: {"<group in lowercase>": "work" \| "family" \| ""}}`: groups moved between Work and Family ("" = both); others are guessed from the name (public/worlds.js) |
 | GET | `/api/server-info` | | `{port, addresses: ["http://192.168.1.20:3000", …]}`: where other devices on the network can reach this server |
 
 - **Use `/api/sync`** for normal syncing. The web, iPhone and Android apps send all waiting edits in one `POST /api/sync`, so a phone that was offline catches up with one round trip instead of one per note. `PUT /api/notes/:id` stays for single edits.
