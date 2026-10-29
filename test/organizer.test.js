@@ -195,3 +195,28 @@ test('"My groups" are given to the AI, for single notes and for reorganizing', a
     t.restore();
   }
 });
+
+test('reorganize replaces titles that are just a group name, and leaves good titles alone', async () => {
+  const client = scripted((p) => ({
+    stop_reason: 'end_turn',
+    parsed_output: { notes: [
+      { id: 'note-travel01', group: 'Travel', priority: 'urgent', priority_reason: 'r', title: 'Book flights for the next trip' },
+      { id: 'note-report01', group: 'Work', priority: 'high', priority_reason: 'r', title: 'Should not be used' },
+    ] },
+  }));
+  const t = setup(client);
+  try {
+    note(t, t.a, 'note-travel01', 'Book flights and plan my next trip');
+    t.store.applyAi('note-travel01', { status: 'done', title: 'Travel', group: 'Travel', priority: 'urgent' });
+    note(t, t.a, 'note-report01', 'Send the quarterly report');
+    t.store.applyAi('note-report01', { status: 'done', title: 'Send quarterly report', group: 'Work', priority: 'high' });
+    await t.organizer.reorganizeAll(t.a.id);
+    const sent = JSON.stringify(client.calls[0].messages);
+    assert.match(sent, /note-travel01\\",\\"title\\":\\"Travel\\",\\"vague_title\\":true,\\"text\\":\\"Book flights/);
+    assert.doesNotMatch(sent, /note-report01[^}]*vague_title/);
+    assert.equal(t.store.get('note-travel01').title, 'Book flights for the next trip');
+    assert.equal(t.store.get('note-report01').title, 'Send quarterly report', 'a good title stays');
+  } finally {
+    t.restore();
+  }
+});
