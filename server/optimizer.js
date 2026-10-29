@@ -208,6 +208,14 @@ export class Optimizer {
       corrections: this.insights.count('ai_corrected', since, until),
       premiumUsers: users.filter((u) => ['solo', 'family'].includes(this.store.planOf(u.id))).length,
       upgradeClicks: this.insights.count('upgrade_click', since, until),
+      checkouts: this.insights.count('checkout_started', since, until),
+      subscriptionsStarted: this.insights.count('subscription_started', since, until),
+      subscriptionsEnded: this.insights.count('subscription_ended', since, until),
+      // Monthly revenue from accounts paying through Stripe (list prices, before VAT and fees).
+      mrrEur: round(users.reduce((sum, u) => {
+        if (!this.store.getMeta(`stripe:customer:${u.id}`) || u.id === this.store.firstUserId()) return sum;
+        return sum + (PRICE_EUR[this.store.planOf(u.id)] || 0);
+      }, 0), 2),
       backupsRestored: this.insights.count('backup_restored', since, until),
     };
   }
@@ -229,6 +237,9 @@ export class Optimizer {
     return out;
   }
 }
+
+/** Monthly list prices in euros (docs/PAYMENTS.md). */
+export const PRICE_EUR = { solo: 3.99, family: 5.99 };
 
 const round = (x, digits = 3) => Math.round(x * 10 ** digits) / 10 ** digits;
 

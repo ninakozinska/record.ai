@@ -3,6 +3,7 @@ const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const pct = (x) => (x == null ? '–' : `${(x * 100).toFixed(1)}%`);
 const usd = (x) => `$${Number(x || 0).toFixed(4)}`;
+const eur = (x) => `€${Number(x || 0).toFixed(2)}`;
 
 async function api(path, opts = {}) {
   const res = await fetch('api/' + path, { credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, ...opts });
@@ -15,6 +16,7 @@ const KPI = [
   ['active', 'Active people'], ['signups', 'Sign-ups'], ['notesCreated', 'Notes written'], ['shares', 'Shares'],
   ['aiCalls', 'AI calls'], ['aiWasted', 'AI calls wasted'], ['aiCostUsd', 'AI cost', usd], ['aiCostPerActiveUsd', 'AI cost per active person', usd],
   ['corrections', 'AI corrected by people'], ['upgradeClicks', '"Get Premium" clicks'], ['premiumUsers', 'Premium people'], ['users', 'Accounts'],
+  ['checkouts', 'Payment pages opened'], ['subscriptionsStarted', 'New subscriptions'], ['subscriptionsEnded', 'Cancelled'], ['mrrEur', 'Monthly revenue', eur],
 ];
 
 function render(o) {
