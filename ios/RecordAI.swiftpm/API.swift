@@ -105,7 +105,7 @@ struct API {
     func events() -> AsyncThrowingStream<(String, Data), Error> {
         AsyncThrowingStream { continuation in
             let task = Task {
-                var req = URLRequest(url: url("events"))
+                var req = URLRequest(url: url("events?items=1&shared=1"))
                 req.timeoutInterval = 70 // the server pings every 25 s
                 if let token { req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
                 do {

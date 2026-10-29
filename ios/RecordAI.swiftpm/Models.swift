@@ -40,8 +40,26 @@ struct Note: Codable, Identifiable, Equatable {
     var aiStatus: String?
     var aiError: String?
     var rev: Int?
+    var dueTime: String?
+    /// The person's date: nil = the AI decides, "" = no date, "YYYY-MM-DD" or "YYYY-MM-DDTHH:MM".
+    var userDue: String?
+    var aiDueDate: String?
+    var aiDueTime: String?
+    /// A list item: the id of its list. Items go one level deep.
+    var parentId: String?
+    var userId: String?
+    /// Set on notes shared with me: "edit" or "view".
+    var role: String?
+    var ownerName: String?
+    /// I can no longer see this note: remove it from the phone.
+    var revoked: Bool?
+
+    /// Shared with me by someone else.
+    var isShared: Bool { role != nil }
+    var canEdit: Bool { role != "view" }
 
     var group: String {
+        if role != nil { return Note.sharedGroup }
         if let g = userGroup, !g.isEmpty { return g }
         if let g = aiGroup, !g.isEmpty { return g }
         return "Inbox"
@@ -66,12 +84,26 @@ struct Note: Codable, Identifiable, Equatable {
 
     var createdDate: Date { Date(timeIntervalSince1970: createdAt / 1000) }
 
+    static let sharedGroup = "Shared with me"
+
+    /// The date shown ("YYYY-MM-DD"): the person's if they chose one (or chose none), else the AI's.
+    var dueDay: String? {
+        if let userDue { return userDue.isEmpty ? nil : String(userDue.prefix(10)) }
+        return aiDueDate ?? dueDate
+    }
+
+    /// The time shown ("HH:MM"), if any.
+    var dueHour: String? {
+        if let userDue { return userDue.count >= 16 ? String(userDue.dropFirst(11).prefix(5)) : nil }
+        return aiDueTime ?? dueTime
+    }
+
     var due: Date? {
-        guard let dueDate else { return nil }
+        guard let dueDay else { return nil }
         let f = DateFormatter()
-        f.dateFormat = "yyyy-MM-dd"
+        f.dateFormat = dueHour == nil ? "yyyy-MM-dd" : "yyyy-MM-dd HH:mm"
         f.timeZone = .current
-        return f.date(from: dueDate)
+        return f.date(from: dueHour.map { "\(dueDay) \($0)" } ?? dueDay)
     }
 
     static func new(text: String, images: [String]) -> Note {
@@ -79,6 +111,79 @@ struct Note: Codable, Identifiable, Equatable {
         return Note(id: UUID().uuidString.lowercased(), text: text, images: images, done: false, deleted: false,
                     createdAt: now, editedAt: now, aiStatus: "pending")
     }
+}
+
+extension Note {
+    enum CodingKeys: String, CodingKey {
+        case id, text, images, done, deleted, createdAt, editedAt, userGroup, userPriority, title, summary
+        case aiGroup, aiPriority, priorityReason, tags, dueDate, aiStatus, aiError, rev
+        case dueTime, userDue, aiDueDate, aiDueTime, parentId, userId, role, ownerName, revoked
+    }
+
+    /// Tolerant: a "no longer shared" marker from the server has only id, rev and the flags.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        text = try c.decodeIfPresent(String.self, forKey: .text) ?? ""
+        images = try c.decodeIfPresent([String].self, forKey: .images) ?? []
+        done = try c.decodeIfPresent(Bool.self, forKey: .done) ?? false
+        deleted = try c.decodeIfPresent(Bool.self, forKey: .deleted) ?? false
+        createdAt = try c.decodeIfPresent(Double.self, forKey: .createdAt) ?? 0
+        editedAt = try c.decodeIfPresent(Double.self, forKey: .editedAt) ?? 0
+        userGroup = try c.decodeIfPresent(String.self, forKey: .userGroup)
+        userPriority = try c.decodeIfPresent(String.self, forKey: .userPriority)
+        title = try c.decodeIfPresent(String.self, forKey: .title)
+        summary = try c.decodeIfPresent(String.self, forKey: .summary)
+        aiGroup = try c.decodeIfPresent(String.self, forKey: .aiGroup)
+        aiPriority = try c.decodeIfPresent(String.self, forKey: .aiPriority)
+        priorityReason = try c.decodeIfPresent(String.self, forKey: .priorityReason)
+        tags = try c.decodeIfPresent([String].self, forKey: .tags)
+        dueDate = try c.decodeIfPresent(String.self, forKey: .dueDate)
+        aiStatus = try c.decodeIfPresent(String.self, forKey: .aiStatus)
+        aiError = try c.decodeIfPresent(String.self, forKey: .aiError)
+        rev = try c.decodeIfPresent(Int.self, forKey: .rev)
+        dueTime = try c.decodeIfPresent(String.self, forKey: .dueTime)
+        userDue = try c.decodeIfPresent(String.self, forKey: .userDue)
+        aiDueDate = try c.decodeIfPresent(String.self, forKey: .aiDueDate)
+        aiDueTime = try c.decodeIfPresent(String.self, forKey: .aiDueTime)
+        parentId = try c.decodeIfPresent(String.self, forKey: .parentId)
+        userId = try c.decodeIfPresent(String.self, forKey: .userId)
+        role = try c.decodeIfPresent(String.self, forKey: .role)
+        ownerName = try c.decodeIfPresent(String.self, forKey: .ownerName)
+        revoked = try c.decodeIfPresent(Bool.self, forKey: .revoked)
+    }
+}
+
+/// A share I made (`mine`), or one made with me (`withMe`, with its owner).
+struct Share: Codable, Identifiable {
+    var id: String
+    var kind: String          // "note" or "group"
+    var target: String        // note id or group name
+    var role: String          // "edit" or "view"
+    var email: String?
+    var name: String?
+    var owner: User?
+}
+
+struct Shares: Codable {
+    var mine: [Share]
+    var withMe: [Share]
+}
+
+struct Plan: Codable {
+    var plan: String
+    var premium: Bool
+}
+
+struct Backup: Codable, Identifiable {
+    var id: String
+    var kind: String          // "daily", "manual" or "before-restore"
+    var createdAt: Double
+    var notes: Int
+}
+
+struct BackupList: Codable {
+    var backups: [Backup]
 }
 
 struct User: Codable, Equatable {
