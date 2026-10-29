@@ -421,6 +421,21 @@ try {
   await tom.click('#getPremium');
   await tom.waitForSelector('#premiumThanks:visible');
   await tom.click('#accountClose');
+  // Onboarding: Tom (2 notes) still sees the welcome card; example notes fill his list.
+  await tom.waitForSelector('#welcome');
+  await tom.click('[data-welcome="examples"]');
+  await tom.waitForSelector('.note h3:text("Groceries")');
+  await tom.waitForSelector('.note h3:text("Dentist Tuesday 3pm")');
+  await tom.waitForSelector('#welcome', { state: 'detached' });
+  // Votes for coming Premium features, and feedback.
+  await tom.click('#accountBtn');
+  await tom.click('[data-interest="family_hub"]');
+  await tom.waitForSelector('[data-interest="family_hub"].chosen');
+  tom.once('dialog', (d) => d.accept('Love the shared lists!'));
+  await tom.click('#sendFeedback');
+  await tom.waitForSelector('.toast:has-text("Nina reads every message")');
+  await tom.click('#accountClose');
+  console.log('✓ onboarding, feature votes, feedback');
   // Tom deletes his account (typing his email confirms it).
   await tom.click('#accountBtn');
   tom.once('dialog', (d) => d.accept('tom@example.com'));
@@ -481,6 +496,8 @@ try {
   await desktop.waitForSelector('#experiments :text("premium_pitch")');
   await desktop.waitForSelector('#users select[data-email="nina@example.com"]');
   await desktop.waitForSelector('#tiles .tile:has-text("Get Premium") .v:text("1")');
+  await desktop.waitForSelector('#interest td:text("👨‍👩‍👧 Give tasks to family")');
+  await desktop.waitForSelector('#feedback :text("Love the shared lists!")');
   await desktop.screenshot({ path: path.join(out, 'desktop-dashboard.png'), fullPage: true });
   await desktop.goBack();
   await desktop.waitForSelector('.note h3');

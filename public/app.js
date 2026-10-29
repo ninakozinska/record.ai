@@ -838,6 +838,66 @@ function card(n, { showGroup }) {
     </article>`;
 }
 
+// A short welcome for new people (until dismissed or a few notes exist),
+// with example notes and an invite for their partner.
+const welcomeDone = () => {
+  try {
+    return localStorage.getItem('welcomeDone') === '1';
+  } catch {
+    return false;
+  }
+};
+function welcomeCard(all) {
+  if (welcomeDone() || all.filter((n) => !n.role).length >= 3) return '';
+  return `<section class="card welcome" id="welcome">
+    <h2>👋 Welcome to record.ai</h2>
+    <ol>
+      <li>Write, dictate 🎤 or snap a photo 📷. The AI gives it a title, a group, a priority and a date.</li>
+      <li>Start lines with <b>- </b> to make a checklist you can tick.</li>
+      <li>Share a list or a whole group with your partner: open it and tap 👥 Share.</li>
+    </ol>
+    <div class="cal-buttons">
+      <button class="primary" data-welcome="examples">✨ Add example notes</button>
+      <button class="ghost" data-welcome="invite">💌 Invite your partner</button>
+      <button class="ghost" data-welcome="done">Got it</button>
+    </div>
+  </section>`;
+}
+const EXAMPLES = ['Groceries\n- milk\n- bread\n- apples', 'Dentist Tuesday 3pm', "Kids this week\n- Swimming bag\n- School trip form\n- Birthday present for Max"];
+async function addNote(text) {
+  const list = splitList(text);
+  const id = uuid();
+  await local.save(id, { text: list.items.length ? list.text : text, images: [] }, { send: false });
+  await addItems(id, list.items);
+}
+async function onWelcome(action) {
+  if (action === 'examples') {
+    for (const t of EXAMPLES) await addNote(t);
+    track('onboarding_examples');
+  } else if (action === 'invite') {
+    const text = "Let's plan our family stuff together in record.ai: groceries, the kids' week, appointments.";
+    const url = location.origin + location.pathname;
+    let via = 'share';
+    try {
+      if (navigator.share) await navigator.share({ title: 'record.ai', text, url });
+      else {
+        via = 'email';
+        location.href = `mailto:?subject=${encodeURIComponent('Join me on record.ai')}&body=${encodeURIComponent(`${text}\n\n${url}`)}`;
+      }
+      track('invite_sent', { via });
+    } catch {
+      return; // the share sheet was closed
+    }
+    toast('Once they have an account, share a list with them: open it and tap 👥 Share.');
+    return;
+  }
+  try {
+    localStorage.setItem('welcomeDone', '1');
+  } catch {}
+  track('onboarding_done', { action });
+  render();
+}
+
 function section(title, notes, opts, extraClass = '', action = '') {
   if (!notes.length) return '';
   return `<section class="group ${extraClass}"><h2>${esc(title)} <span class="count">${notes.length}</span>${action}</h2>${notes.map((n) => card(n, opts)).join('')}</section>`;
@@ -894,7 +954,7 @@ function renderNow() {
     </div>`;
     if (ui.showDone) html += section('Done', done, { showGroup: true }, 'done-section');
   }
-  $('#list').innerHTML = html;
+  $('#list').innerHTML = welcomeCard(all) + html;
   // This month's AI sortings are used up: say so once, above the notes.
   const limited = all.find((n) => !n.role && n.ai_status === 'limit');
   $('#limitBanner').hidden = !limited;
@@ -937,6 +997,8 @@ $('#list').addEventListener('contextmenu', (e) => {
 });
 
 $('#list').addEventListener('click', async (e) => {
+  const welcome = e.target.closest('[data-welcome]');
+  if (welcome) return onWelcome(welcome.dataset.welcome);
   if (e.target.closest('[data-clear-done]')) return clearDone();
   if (e.target.closest('[data-toggle-done]')) {
     ui.showDone = !ui.showDone;
@@ -1364,6 +1426,24 @@ $('#backupList').addEventListener('click', async (e) => {
     toast(err.message);
   }
 });
+// "Fake door" votes: which coming Premium feature people want most (shown on the dashboard).
+$('#interestBox').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-interest]');
+  if (!b) return;
+  track('feature_interest', { feature: b.dataset.interest });
+  b.classList.add('chosen');
+  toast('Thanks! It helps decide what comes first.');
+});
+$('#sendFeedback').onclick = async () => {
+  const text = prompt('What would make record.ai better for you? Anything goes: ideas, problems, wishes.');
+  if (!text?.trim()) return;
+  try {
+    await local.api('feedback', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text, platform: 'web' }) });
+    toast('Thank you! Nina reads every message.');
+  } catch (err) {
+    toast(err.message);
+  }
+};
 $('#exportNotes').onclick = () => {
   location.href = 'api/export';
 };

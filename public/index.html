@@ -238,6 +238,14 @@
           <ul id="backupList" class="identity-list backup-list"></ul>
           <button type="button" class="ghost" id="backupNow">Back up now</button>
         </div>
+        <div class="stack interest" id="interestBox">
+          <p class="muted">Coming to Premium. Which would you use most?</p>
+          <div class="cal-buttons">
+            <button type="button" class="ghost" data-interest="reminders">⏰ Smart reminders</button>
+            <button type="button" class="ghost" data-interest="family_hub">👨‍👩‍👧 Give tasks to family</button>
+            <button type="button" class="ghost" data-interest="letter_to_tasks">📸 School letter → tasks</button>
+          </div>
+        </div>
         <button type="button" class="ghost" id="exportNotes">⬇ Download all my notes</button>
         <a class="btn ghost" id="dashboardLink" href="admin.html" hidden>📊 Dashboard</a>
       </div>
@@ -281,7 +289,7 @@
         <span class="spacer"></span>
         <button class="danger ghost" id="logoutBtn">Log out</button>
       </div>
-      <p class="delete-account"><button type="button" class="link-btn danger-link" id="deleteAccount">Delete my account</button></p>
+      <p class="delete-account"><button type="button" class="link-btn" id="sendFeedback">💬 Send feedback</button> · <button type="button" class="link-btn danger-link" id="deleteAccount">Delete my account</button></p>
     </div>
   </dialog>
 

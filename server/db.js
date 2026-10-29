@@ -165,6 +165,15 @@ function migrate(db) {
       ts         INTEGER NOT NULL,
       PRIMARY KEY (experiment, subject)
     ) WITHOUT ROWID;
+    -- "Send feedback" from the app: what people write to the owner.
+    CREATE TABLE IF NOT EXISTS feedback (
+      id       INTEGER PRIMARY KEY,
+      ts       INTEGER NOT NULL,
+      user_id  TEXT,
+      email    TEXT,
+      platform TEXT,
+      text     TEXT NOT NULL
+    );
     CREATE TABLE IF NOT EXISTS optimizer_log (
       id       INTEGER PRIMARY KEY,
       ts       INTEGER NOT NULL,
@@ -710,7 +719,7 @@ class Store {
       this.db.prepare('DELETE FROM identities WHERE user_id = ?').run(userId);
       this.db.prepare('DELETE FROM sessions WHERE user_id = ?').run(userId);
       this.db.prepare("DELETE FROM assignments WHERE subject = ?").run(`u:${userId}`);
-      this.db.prepare('UPDATE events SET user_id = NULL, anon_id = NULL WHERE user_id = ?').run(userId);
+      this.db.prepare('UPDATE events SET user_id = NULL WHERE user_id = ?').run(userId);
       this.db.prepare('UPDATE ai_calls SET user_id = NULL WHERE user_id = ?').run(userId);
       const token = this.getMeta(`cal_token:${userId}`);
       if (token) this.db.prepare('DELETE FROM meta WHERE key = ?').run(`cal_user:${token}`);

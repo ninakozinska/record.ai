@@ -497,6 +497,16 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth } = {}) {
     res.json({ ok: true });
   });
 
+  // "Send feedback": goes to the owner's dashboard.
+  app.post('/api/feedback', (req, res) => {
+    const text = String(req.body?.text || '').trim();
+    if (!text || text.length > 5000) return res.status(400).json({ error: 'Write between 1 and 5,000 characters.' });
+    const platform = ['web', 'ios', 'android'].includes(req.body?.platform) ? req.body.platform : 'web';
+    store.db.prepare('INSERT INTO feedback (ts, user_id, email, platform, text) VALUES (?, ?, ?, ?, ?)').run(Date.now(), req.user.id, req.user.email, platform, text);
+    insights.track('feedback_sent', { userId: req.user.id, platform });
+    res.json({ ok: true });
+  });
+
   // --- the owner's dashboard: numbers, A/B tests, what the optimizer did ---------------
   const adminOnly = (req, res, next) => (isAdmin(req.user) ? next() : res.status(404).json({ error: 'Not found' }));
   app.get('/api/admin/overview', adminOnly, (req, res) => {
@@ -507,6 +517,12 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth } = {}) {
       optimizer: { debounceMs: organizer.debounceMs ?? 0, quality: optimizer.correctionRate(Date.now() - 7 * 864e5) },
       log: optimizer.logEntries(50),
       users: store.allUsers().map((u) => ({ email: u.email, name: u.name, plan: store.planOf(u.id), created_at: u.created_at })),
+      // "Fake door" buttons: which coming Premium features people want most.
+      featureInterest: store.db.prepare(
+        `SELECT json_extract(props, '$.feature') AS feature, COUNT(DISTINCT COALESCE(user_id, anon_id)) AS people
+         FROM events WHERE name = 'feature_interest' GROUP BY feature ORDER BY people DESC`,
+      ).all(),
+      feedback: store.db.prepare('SELECT ts, email, platform, text FROM feedback ORDER BY id DESC LIMIT 50').all(),
     });
   });
   app.post('/api/admin/experiments', adminOnly, (req, res) => {
