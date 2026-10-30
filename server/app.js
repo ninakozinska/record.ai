@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import express from 'express';
 import compression from 'compression';
 import { openDb, PRIORITIES } from './db.js';
-import { Organizer } from './organizer.js';
+import { Organizer, LANGUAGES } from './organizer.js';
 import { authRoutes, requireUser, getToken } from './auth.js';
 import { Insights, EVENT_NAME, ANON_ID } from './insights.js';
 import { Backups, premium } from './backups.js';
@@ -279,6 +279,17 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth, mail, bill
   // --- notes ----------------------------------------------------------------
   // "My groups": groups the person made, which the AI always keeps and uses.
   app.get('/api/groups/mine', (req, res) => res.json({ names: store.myGroups(req.user.id) }));
+
+  // The person's language: the app's words and the AI's new group names.
+  app.get('/api/language', (req, res) => res.json({ lang: store.languageOf(req.user.id), languages: LANGUAGES }));
+  app.put('/api/language', (req, res) => {
+    const lang = String(req.body?.lang || '');
+    if (!LANGUAGES[lang]) return res.status(400).json({ error: `Choose one of: ${Object.keys(LANGUAGES).join(', ')}.` });
+    const before = store.languageOf(req.user.id);
+    store.setLanguage(req.user.id, lang);
+    if (before !== lang) insights.track('language_set', { userId: req.user.id, props: { lang, from: before } });
+    res.json({ lang });
+  });
 
   // Which world (Work or Family) each group belongs to, when the person moved it.
   // {group name in lowercase: 'work' | 'family' | '' (both)}.

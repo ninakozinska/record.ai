@@ -780,6 +780,15 @@ class Store {
     return this.db.prepare('SELECT value FROM meta WHERE key = ?').get(key)?.value ?? null;
   }
 
+  /** The person's language ('en', 'it', ...), or null when never chosen. */
+  languageOf(userId) {
+    return this.getMeta(`lang:${userId}`);
+  }
+
+  setLanguage(userId, lang) {
+    this.setMeta(`lang:${userId}`, lang);
+  }
+
   deleteMeta(key) {
     this.db.prepare('DELETE FROM meta WHERE key = ?').run(key);
   }
