@@ -1,9 +1,13 @@
 import { Local, uuid } from './local.js';
 import { loadVariants, variant, track } from './track.js';
 import { inWorld, worldOf } from './worlds.js';
+import { t, lang, loadLang, pickLang, saveLang, translatePage, LANGS } from './i18n.js';
+
+await loadLang(pickLang());
+translatePage();
 
 const PRIORITIES = ['urgent', 'high', 'normal', 'low'];
-const PRIORITY_LABEL = { urgent: 'Urgent', high: 'High', normal: 'Normal', low: 'Low' };
+const PRIORITY_LABEL = { urgent: t('Urgent'), high: t('High'), normal: t('Normal'), low: t('Low') };
 const $ = (sel, root = document) => root.querySelector(sel);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
@@ -50,7 +54,7 @@ class Dictation {
   }
   start() {
     if (!SpeechRecognition) {
-      toast('Dictation is not supported in this browser — use your keyboard\'s 🎤 button instead.');
+      toast(t("Dictation is not supported in this browser — use your keyboard's 🎤 button instead."));
       return;
     }
     const rec = new SpeechRecognition();
@@ -68,7 +72,7 @@ class Dictation {
     };
     rec.onerror = (e) => {
       if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
-        toast('Microphone permission denied.');
+        toast(t('Microphone permission denied.'));
         this.stop();
       }
     };
@@ -131,7 +135,7 @@ const camera = {
     this.dialog.classList.add('flash');
     setTimeout(() => this.dialog.classList.remove('flash'), 150);
     this.count++;
-    $('#cameraCount').textContent = `${this.count} photo${this.count > 1 ? 's' : ''} added`;
+    $('#cameraCount').textContent = t('{n} photos added', { n: this.count });
     this.onPhoto(blob);
   },
 };
@@ -139,7 +143,7 @@ $('#cameraShoot').onclick = () => camera.shoot();
 $('#cameraClose').onclick = () => camera.close();
 $('#cameraFlip').onclick = () => {
   camera.facing = camera.facing === 'environment' ? 'user' : 'environment';
-  camera.startStream().catch(() => toast('Could not switch camera'));
+  camera.startStream().catch(() => toast(t('Could not switch camera')));
 };
 camera.dialog.addEventListener('cancel', () => camera.close());
 
@@ -216,7 +220,7 @@ class Composer {
   async renderThumbs() {
     const urls = await Promise.all(this.images.map((n) => local.imageUrl(n, { thumb: true })));
     this.thumbs.innerHTML = this.images
-      .map((n, i) => `<div class="thumb"><img src="${esc(urls[i])}" alt=""><button type="button" data-remove="${esc(n)}" title="Remove">✕</button></div>`)
+      .map((n, i) => `<div class="thumb"><img src="${esc(urls[i])}" alt=""><button type="button" data-remove="${esc(n)}" title="${esc(t('Remove'))}">✕</button></div>`)
       .join('');
     this.thumbs.querySelectorAll('[data-remove]').forEach((b) => {
       b.onclick = () => {
@@ -283,7 +287,7 @@ $('#pasteChoice').addEventListener('close', () => {
 function askPaste(lines, { title, a, b, plain = false }) {
   const d = $('#pasteChoice');
   $('#pasteTitle').textContent = title;
-  $('#pastePreview').innerHTML = lines.slice(0, 6).map((l) => `<li>${esc(l)}</li>`).join('') + (lines.length > 6 ? `<li>… ${lines.length - 6} more</li>` : '');
+  $('#pastePreview').innerHTML = lines.slice(0, 6).map((l) => `<li>${esc(l)}</li>`).join('') + (lines.length > 6 ? `<li>${esc(t('… {n} more', { n: lines.length - 6 }))}</li>` : '');
   $('#pasteA').textContent = a;
   $('#pasteB').textContent = b;
   $('#pastePlain').hidden = !plain;
@@ -306,16 +310,16 @@ composer.text.addEventListener('paste', async (e) => {
   const at = [box.selectionStart, box.selectionEnd];
   const n = pasted.lines.length;
   const choice = await askPaste(pasted.lines, {
-    title: `Paste ${n} lines`,
-    a: `One note with a checklist (${n} items)`,
-    b: `${n} separate notes`,
+    title: t('Paste {n} lines', { n }),
+    a: t('One note with a checklist ({n} items)', { n }),
+    b: t('{n} separate notes', { n }),
     plain: true,
   });
   if (choice === 'b') {
     // Each line its own note, sorted by the AI on its own.
     for (const line of pasted.lines) await local.save(uuid(), { text: line }, { send: false });
     local.flush();
-    toast(`${n} notes added`);
+    toast(t('{n} notes added', { n }));
   } else if (choice === 'a') {
     // Each item on a line of its own, also when pasting into the middle of a line.
     const before = at[0] === 0 || box.value[at[0] - 1] === '\n' ? '' : '\n';
@@ -330,9 +334,9 @@ $('#newItem').addEventListener('paste', async (e) => {
   if (!pasted) return;
   e.preventDefault();
   const choice = await askPaste(pasted.lines, {
-    title: `Paste ${pasted.lines.length} lines`,
-    a: `Add ${pasted.lines.length} items`,
-    b: 'Add as one item',
+    title: t('Paste {n} lines', { n: pasted.lines.length }),
+    a: t('Add {n} items', { n: pasted.lines.length }),
+    b: t('Add as one item'),
   });
   if (!choice) return;
   await addItems(editor.id, choice === 'a' ? pasted.lines : [pasted.lines.join(', ')]);
@@ -374,19 +378,19 @@ const editor = {
     if (!n) return;
     this.id = id;
     this.composer.set(n.text, n.images);
-    $('#editorTitle').textContent = n.title || 'Note';
+    $('#editorTitle').textContent = n.title || t('Note');
     $('#editorGroup').value = n.user_group || '';
-    $('#editorGroup').placeholder = `Auto${n.ai_group ? ` (${n.ai_group})` : ''}`;
+    $('#editorGroup').placeholder = n.ai_group ? t('Auto ({value})', { value: n.ai_group }) : t('Auto');
     $('#editorPriority').value = n.user_priority || '';
-    $('#editorPriority').options[0].textContent = `Auto${n.ai_priority ? ` (${PRIORITY_LABEL[n.ai_priority]})` : ''}`;
-    $('#editorDone').textContent = n.done ? 'Mark not done' : 'Mark done';
+    $('#editorPriority').options[0].textContent = n.ai_priority ? t('Auto ({value})', { value: PRIORITY_LABEL[n.ai_priority] }) : t('Auto');
+    $('#editorDone').textContent = n.done ? t('Mark not done') : t('Mark done');
     $('#groupList').innerHTML = withMyGroups(ownGroups()).map((g) => `<option value="${esc(g)}">`).join('');
     const ai = [];
     if (n.summary) ai.push(`<p>${esc(n.summary)}</p>`);
-    if (n.priority_reason) ai.push(`<p class="muted">Priority: ${esc(n.priority_reason)}</p>`);
-    if (n.due_date) ai.push(`<p class="muted">Due ${esc(n.due_date)}</p>`);
+    if (n.priority_reason) ai.push(`<p class="muted">${esc(t('Priority: {reason}', { reason: n.priority_reason }))}</p>`);
+    if (n.due_date) ai.push(`<p class="muted">${esc(t('Due {date}', { date: n.due_date }))}</p>`);
     if (n.tags?.length) ai.push(`<p>${n.tags.map((t) => `<span class="tag">#${esc(t)}</span>`).join(' ')}</p>`);
-    if (n.ai_status === 'error') ai.push(`<p class="error">AI error: ${esc(n.ai_error)}</p>`);
+    if (n.ai_status === 'error') ai.push(`<p class="error">${esc(t('AI error: {error}', { error: n.ai_error }))}</p>`);
     if (n.ai_status === 'limit') ai.push(`<p class="muted">⏸️ ${esc(n.ai_error)}</p>`);
     $('#editorAi').innerHTML = ai.join('');
     $('#editorAi').hidden = !ai.length;
@@ -399,7 +403,7 @@ const editor = {
     $('#editorReanalyze').hidden = shared;
     $('#editorShare').hidden = shared;
     $('#editorDone').hidden = $('#editorSave').hidden = this.readOnly;
-    $('#editorDelete').textContent = shared ? 'Leave' : 'Delete';
+    $('#editorDelete').textContent = shared ? t('Leave') : t('Delete');
     this.renderShared();
     this.due = n.user_due ?? null;
     $('#editorDate').disabled = $('#editorTime').disabled = this.readOnly;
@@ -419,7 +423,7 @@ const editor = {
     const w = this.when();
     $('#editorDate').value = w.date || '';
     $('#editorTime').value = w.time || '';
-    $('#whenHint').textContent = w.own ? (w.date ? '📌 Your choice' : '📌 No date') : w.date ? 'Found by AI' : 'None yet: the AI adds one when the note mentions it';
+    $('#whenHint').textContent = w.own ? (w.date ? t('📌 Your choice') : t('📌 No date')) : w.date ? t('Found by AI') : t('None yet: the AI adds one when the note mentions it');
     $('#whenAuto').hidden = !w.own;
     $('#whenClear').hidden = !w.date;
     $('#calActions').hidden = !w.date;
@@ -427,7 +431,7 @@ const editor = {
   },
   noteForCalendar() {
     const n = local.notes.get(this.id);
-    return { title: n.title || n.text.split('\n')[0].slice(0, 80) || 'Note', text: [n.text, ...local.items(n.id).map((i) => `${i.done ? '☑' : '☐'} ${i.text}`)].join('\n') };
+    return { title: n.title || n.text.split('\n')[0].slice(0, 80) || t('Note'), text: [n.text, ...local.items(n.id).map((i) => `${i.done ? '☑' : '☐'} ${i.text}`)].join('\n') };
   },
 
   /** Who this note is shared with, or who shared it with me. */
@@ -437,23 +441,23 @@ const editor = {
     const people = sharesOf(effectiveNote(n));
     $('#editorShared').hidden = !n.role && !people.length;
     $('#editorShared').textContent = n.role
-      ? `👥 Shared by ${n.owner_name}${n.role === 'view' ? ' · view only' : ' · you can edit'}`
-      : `👥 Shared with ${people.map((p) => p.name || p.email).join(', ')}`;
+      ? t(n.role === 'view' ? '👥 Shared by {name} · view only' : '👥 Shared by {name} · you can edit', { name: n.owner_name })
+      : t('👥 Shared with {names}', { names: people.map((p) => p.name || p.email).join(', ') });
   },
   renderItems() {
     const items = local.items(this.id);
     const off = this.readOnly ? 'disabled' : '';
     $('.items-box').hidden = this.readOnly && !items.length;
     const open = items.filter((i) => !i.done).length;
-    $('#itemsCount').textContent = items.length ? `${items.length - open}/${items.length} done` : '';
+    $('#itemsCount').textContent = items.length ? t('{done}/{total} done', { done: items.length - open, total: items.length }) : '';
     $('#itemList').innerHTML = items.map((i) => `
       <li class="item p-${i.priority} ${i.done ? 'done' : ''}" data-item="${esc(i.id)}">
-        <button type="button" class="check" data-item-toggle title="${i.done ? 'Mark not done' : 'Mark done'}" ${off}>${i.done ? '✓' : ''}</button>
-        <input class="item-text" data-item-text value="${esc(i.text)}" aria-label="Item" ${off}>
-        <select class="item-priority" data-item-priority aria-label="Priority" ${off}>
+        <button type="button" class="check" data-item-toggle title="${esc(i.done ? t('Mark not done') : t('Mark done'))}" ${off}>${i.done ? '✓' : ''}</button>
+        <input class="item-text" data-item-text value="${esc(i.text)}" aria-label="${esc(t('Item'))}" ${off}>
+        <select class="item-priority" data-item-priority aria-label="${esc(t('Priority'))}" ${off}>
           ${['urgent', 'high', 'normal', 'low'].map((p) => `<option value="${p}" ${i.priority === p ? 'selected' : ''}>${PRIORITY_LABEL[p]}</option>`).join('')}
         </select>
-        <button type="button" class="icon-btn" data-item-delete title="Remove item">✕</button>
+        <button type="button" class="icon-btn" data-item-delete title="${esc(t('Remove item'))}">✕</button>
       </li>`).join('');
   },
   async save() {
@@ -508,7 +512,7 @@ $('#calFile').onclick = async (e) => {
     await local.flush();
     if (local.pending.has(editor.id)) await new Promise((r) => setTimeout(r, 250));
   }
-  if (local.pending.has(editor.id)) return toast('You need to be online to add it to a calendar.');
+  if (local.pending.has(editor.id)) return toast(t('You need to be online to add it to a calendar.'));
   location.href = `api/notes/${encodeURIComponent(editor.id)}/calendar.ics`;
 };
 $('#calGoogle').addEventListener('click', () => editor.save());
@@ -557,7 +561,7 @@ editor.dialog.addEventListener('close', async () => {
 $('#editorDelete').onclick = async () => {
   const n = local.notes.get(editor.id);
   if (n.role) return leaveShared(n);
-  if (!confirm('Delete this note?')) return;
+  if (!confirm(t('Delete this note?'))) return;
   await local.save(editor.id, { deleted: true });
   editor.dialog.close();
 };
@@ -565,7 +569,7 @@ $('#editorShare').onclick = async () => {
   await editor.save();
   await local.flush();
   const n = local.notes.get(editor.id);
-  openShare('note', n.id, n.title || n.text.split('\n')[0].slice(0, 60) || 'this note');
+  openShare('note', n.id, n.title || n.text.split('\n')[0].slice(0, 60) || t('this note'));
 };
 $('#editorDone').onclick = async () => {
   await editor.save();
@@ -577,7 +581,7 @@ $('#editorReanalyze').onclick = async () => {
   try {
     await local.flush();
     await local.api(`notes/${editor.id}/reanalyze`, { method: 'POST' });
-    toast('Re-analyzing…');
+    toast(t('Re-analyzing…'));
   } catch (err) {
     toast(err.message);
   }
@@ -627,7 +631,7 @@ async function loadWorlds() {
   }
   render();
 }
-const WORLD_LABEL = { work: '💼 Work', family: '🏡 Family', null: '💼🏡 Both' };
+const WORLD_LABEL = { work: t('💼 Work'), family: t('🏡 Family'), null: t('💼🏡 Both') };
 /** Work → Family → both → Work: moves one group, on every device. */
 async function cycleWorld(group) {
   const now = worldOf(group, chosenWorlds);
@@ -642,7 +646,7 @@ async function cycleWorld(group) {
       body: JSON.stringify({ chosen: chosenWorlds }),
     })).chosen;
     await local.metaSet('worlds', chosenWorlds);
-    toast(`"${group}" is now in ${WORLD_LABEL[next || null]}`);
+    toast(t('"{group}" is now in {world}', { group, world: WORLD_LABEL[next || null] }));
   } catch (err) {
     chosenWorlds = previous;
     render();
@@ -651,7 +655,7 @@ async function cycleWorld(group) {
 }
 const shownInWorld = (n) => inWorld(n.group, ui.world, chosenWorlds);
 function worldButton(g) {
-  return `<button class="ghost world-group" data-world-group="${esc(g)}" title="Which world this group is in. Tap to move it.">${WORLD_LABEL[worldOf(g, chosenWorlds)]}</button>`;
+  return `<button class="ghost world-group" data-world-group="${esc(g)}" title="${esc(t('Which world this group is in. Tap to move it.'))}">${WORLD_LABEL[worldOf(g, chosenWorlds)]}</button>`;
 }
 
 // ---------------------------------------------------------------------------
@@ -674,6 +678,8 @@ const effectiveNote = (n) => ({ ...n, group: n.user_group || n.ai_group || 'Inbo
 const canEdit = (n) => n.role !== 'view';
 /** Notes shared with me show in their own group: the owner's groups are theirs. */
 const forMe = (n) => (n.role ? { ...n, group: SHARED_GROUP } : n);
+/** A group's name as shown: the two the app names itself are translated. */
+const groupName = (g) => (g === SHARED_GROUP || g === 'Inbox' ? t(g) : g);
 const sameGroup = (a, b) => a.toLowerCase() === b.toLowerCase();
 /** My shares that cover a note of mine: the note itself, or its group. */
 const sharesOf = (n) => (n.role ? [] : shares.mine.filter((s) => (s.kind === 'note' ? s.target === n.id : sameGroup(s.target, n.group))));
@@ -682,11 +688,11 @@ const ownGroups = () => groupsOf(local.list().filter((n) => !n.role));
 const share = { kind: null, target: null };
 function openShare(kind, target, label) {
   Object.assign(share, { kind, target });
-  $('#shareTitle').textContent = `Share "${label}"`;
+  $('#shareTitle').textContent = t('Share "{label}"', { label });
   $('#shareIntro').textContent = (kind === 'group'
-    ? `Everything in ${label}, also what goes there later, with its lists.`
-    : 'This note, with its list.') +
-    ' Only the people below see it. They need a record.ai account with this email.';
+    ? t('Everything in {group}, also what goes there later, with its lists.', { group: label })
+    : t('This note, with its list.')) +
+    ' ' + t('Only the people below see it. They need a record.ai account with this email.');
   $('#shareEmail').value = '';
   $('#shareRole').value = 'edit';
   $('#shareError').textContent = '';
@@ -700,14 +706,14 @@ function renderSharePeople() {
     ? people.map((p) => `
       <li data-share="${esc(p.id)}">
         <span class="who"><strong>${esc(p.name || p.email)}</strong>
-          <small>${p.name ? esc(p.email) : 'No account yet: they see it once they sign up with this email.'}</small></span>
-        <select data-share-role aria-label="What ${esc(p.name || p.email)} can do">
-          <option value="edit" ${p.role === 'edit' ? 'selected' : ''}>Can edit</option>
-          <option value="view" ${p.role === 'view' ? 'selected' : ''}>View only</option>
+          <small>${esc(p.name ? p.email : t('No account yet: they see it once they sign up with this email.'))}</small></span>
+        <select data-share-role aria-label="${esc(t('What {name} can do', { name: p.name || p.email }))}">
+          <option value="edit" ${p.role === 'edit' ? 'selected' : ''}>${esc(t('Can edit'))}</option>
+          <option value="view" ${p.role === 'view' ? 'selected' : ''}>${esc(t('View only'))}</option>
         </select>
-        <button type="button" class="icon-btn" data-share-remove title="Stop sharing with ${esc(p.name || p.email)}">✕</button>
+        <button type="button" class="icon-btn" data-share-remove title="${esc(t('Stop sharing with {name}', { name: p.name || p.email }))}">✕</button>
       </li>`).join('')
-    : '<li class="muted">Not shared with anyone yet.</li>';
+    : `<li class="muted">${esc(t('Not shared with anyone yet.'))}</li>`;
 }
 $('#shareForm').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -723,10 +729,10 @@ $('#shareForm').addEventListener('submit', async (e) => {
     });
     $('#shareEmail').value = '';
     $('#shareError').textContent = '';
-    toast(r.hasAccount ? `Shared with ${email}` : `Shared. ${email} sees it after signing up with this email.`);
+    toast(r.hasAccount ? t('Shared with {email}', { email }) : t('Shared. {email} sees it after signing up with this email.', { email }));
     await loadShares();
   } catch (err) {
-    $('#shareError').textContent = err.status ? err.message : 'You need to be online to share.';
+    $('#shareError').textContent = err.status ? err.message : t('You need to be online to share.');
   } finally {
     $('#shareSubmit').disabled = false;
   }
@@ -749,7 +755,7 @@ $('#sharePeople').addEventListener('click', async (e) => {
   const li = e.target.closest('[data-share]');
   if (!li || !e.target.closest('[data-share-remove]')) return;
   const p = shares.mine.find((x) => x.id === li.dataset.share);
-  if (!confirm(`Stop sharing with ${p?.name || p?.email}? It disappears from their devices.`)) return;
+  if (!confirm(t('Stop sharing with {name}? It disappears from their devices.', { name: p?.name || p?.email }))) return;
   try {
     await local.api(`shares/${li.dataset.share}`, { method: 'DELETE' });
   } catch (err) {
@@ -763,8 +769,8 @@ $('#shareClose').onclick = () => $('#share').close();
 async function leaveShared(n) {
   const group = effectiveNote(n).group;
   const via = shares.withMe.filter((s) => s.owner.id === n.user_id && (s.kind === 'note' ? s.target === n.id : sameGroup(s.target, group)));
-  const what = via.some((s) => s.kind === 'group') ? `the group "${group}"` : `"${n.title || n.text.split('\n')[0]}"`;
-  if (!confirm(`Stop seeing ${what}, shared by ${n.owner_name}? Only ${n.owner_name} can share it with you again.`)) return;
+  const what = via.some((s) => s.kind === 'group') ? t('the group "{group}"', { group }) : `"${n.title || n.text.split('\n')[0]}"`;
+  if (!confirm(t('Stop seeing {what}, shared by {owner}? Only {owner} can share it with you again.', { what, owner: n.owner_name }))) return;
   try {
     for (const s of via) await local.api(`shares/${s.id}`, { method: 'DELETE' });
     editor.dialog.close();
@@ -794,11 +800,11 @@ function matches(n, q) {
 
 function relTime(ts) {
   const d = (Date.now() - ts) / 1000;
-  if (d < 60) return 'just now';
-  if (d < 3600) return `${Math.floor(d / 60)}m ago`;
-  if (d < 86400) return `${Math.floor(d / 3600)}h ago`;
-  if (d < 86400 * 7) return `${Math.floor(d / 86400)}d ago`;
-  return new Date(ts).toLocaleDateString();
+  if (d < 60) return t('just now');
+  if (d < 3600) return t('{n}m ago', { n: Math.floor(d / 60) });
+  if (d < 86400) return t('{n}h ago', { n: Math.floor(d / 3600) });
+  if (d < 86400 * 7) return t('{n}d ago', { n: Math.floor(d / 86400) });
+  return new Date(ts).toLocaleDateString(lang);
 }
 
 /** A note's date and time: the person's own choice, or the AI's. */
@@ -823,11 +829,11 @@ function googleCalendarUrl({ title, text }, { date, time }) {
 function dueLabel(date) {
   const day = new Date(date + 'T00:00:00');
   const days = Math.round((day - new Date(new Date().toDateString())) / 86400000);
-  if (days < 0) return { text: `overdue ${-days}d`, cls: 'overdue' };
-  if (days === 0) return { text: '📅 Today', cls: 'overdue' };
-  if (days === 1) return { text: '📅 Tomorrow', cls: 'soon' };
+  if (days < 0) return { text: t('overdue {n}d', { n: -days }), cls: 'overdue' };
+  if (days === 0) return { text: t('📅 Today'), cls: 'overdue' };
+  if (days === 1) return { text: t('📅 Tomorrow'), cls: 'soon' };
   const sameYear = day.getFullYear() === new Date().getFullYear();
-  const text = day.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short', ...(sameYear ? {} : { year: 'numeric' }) });
+  const text = day.toLocaleDateString(lang, { weekday: 'short', day: 'numeric', month: 'short', ...(sameYear ? {} : { year: 'numeric' }) });
   return { text: `📅 ${text}`, cls: days < 7 ? 'soon' : '' };
 }
 
@@ -841,19 +847,19 @@ function listPreview(n) {
   return `<div class="list-preview">
     <div class="list-progress"><span style="width:${Math.round((done / items.length) * 100)}%"></span></div>
     <span class="list-count">☑ ${done}/${items.length}</span>
-    <ul>${open.map((i) => `<li class="p-${i.priority}"><button class="check small" data-item-check="${esc(i.id)}" title="Mark done" ${off}></button>${esc(i.text)}</li>`).join('')}
-    ${items.length - done > open.length ? `<li class="more">+ ${items.length - done - open.length} more</li>` : ''}</ul>
+    <ul>${open.map((i) => `<li class="p-${i.priority}"><button class="check small" data-item-check="${esc(i.id)}" title="${esc(t('Mark done'))}" ${off}></button>${esc(i.text)}</li>`).join('')}
+    ${items.length - done > open.length ? `<li class="more">${esc(t('+ {n} more', { n: items.length - done - open.length }))}</li>` : ''}</ul>
   </div>`;
 }
 
 function card(n, { showGroup }) {
-  const title = n.title || n.text.split('\n')[0].slice(0, 80) || local.items(n.id)[0]?.text || (n.images.length ? 'Photo' : 'Untitled');
+  const title = n.title || n.text.split('\n')[0].slice(0, 80) || local.items(n.id)[0]?.text || (n.images.length ? t('Photo') : t('Untitled'));
   // The text under the title, unless it just repeats the title (a list called "Groceries").
   const body = !n.title ? n.text.split('\n').slice(1).join('\n') : n.text.trim() === n.title.trim() ? '' : n.text;
   const due = n.due_date ? dueLabel(n.due_date) : null;
   const status =
-    n.ai_status === 'pending' ? '<span class="ai-pending" title="AI is organizing this note">✨</span>' :
-    n.ai_status === 'error' ? '<span class="ai-error" title="AI could not process this note">⚠️</span>' :
+    n.ai_status === 'pending' ? `<span class="ai-pending" title="${esc(t('AI is organizing this note'))}">✨</span>` :
+    n.ai_status === 'error' ? `<span class="ai-error" title="${esc(t('AI could not process this note'))}">⚠️</span>` :
     n.ai_status === 'limit' ? `<span class="ai-limit" title="${esc(n.ai_error)}">⏸️</span>` : '';
   return `
     <article class="note card p-${n.priority} ${n.done ? 'done' : ''}" data-id="${esc(n.id)}">
@@ -866,13 +872,13 @@ function card(n, { showGroup }) {
         ${n.images.length ? `<div class="note-images">${n.images.map((i) => `<img data-img="${esc(i)}" alt="" loading="lazy">`).join('')}</div>` : ''}
         <div class="meta">
           <span class="badge p-${n.priority}">${PRIORITY_LABEL[n.priority]}${n.user_priority ? ' 📌' : ''}</span>
-          ${showGroup ? `<span class="group-chip">${esc(n.group)}${n.user_group ? ' 📌' : ''}</span>` : ''}
-          ${n.role ? `<span class="shared-badge">👥 ${esc(n.owner_name)}${n.role === 'view' ? ' · view only' : ''}</span>`
-            : sharesOf(n).length ? '<span class="shared-badge" title="Shared">👥 Shared</span>' : ''}
+          ${showGroup ? `<span class="group-chip">${esc(groupName(n.group))}${n.user_group ? ' 📌' : ''}</span>` : ''}
+          ${n.role ? `<span class="shared-badge">👥 ${esc(n.owner_name)}${n.role === 'view' ? ` · ${esc(t('view only'))}` : ''}</span>`
+            : sharesOf(n).length ? `<span class="shared-badge" title="${esc(t('Shared'))}">👥 ${esc(t('Shared'))}</span>` : ''}
           ${due ? `<span class="due ${due.cls} ${n.due_time ? 'at' : ''}">${esc(due.text)}${n.due_time ? ` · ${esc(n.due_time)}` : ''}${n.user_due ? ' 📌' : ''}</span>` : ''}
           ${(n.tags || []).slice(0, 4).map((t) => `<span class="tag">#${esc(t)}</span>`).join('')}
           <span class="time">${relTime(n.created_at)}</span>
-          ${canEdit(n) ? `<button class="done-btn" data-check>${n.done ? '↩ Not done' : '✓ Done'}</button>` : ''}
+          ${canEdit(n) ? `<button class="done-btn" data-check>${esc(n.done ? t('↩ Not done') : t('✓ Done'))}</button>` : ''}
         </div>
       </div>
     </article>`;
@@ -899,31 +905,31 @@ function todayCard(notes) {
   const late = open.filter((n) => n.due_date && n.due_date < today);
   const urgent = open.filter((n) => n.priority === 'urgent' && n.due_date !== today && !late.includes(n));
   if (!due.length && !late.length && !urgent.length) return '';
-  const link = (n) => `<button class="link-btn" data-open="${esc(n.id)}">${n.due_time ? `<b>${esc(n.due_time)}</b> ` : ''}${esc(n.title || n.text.split('\n')[0] || 'Note')}</button>`;
+  const link = (n) => `<button class="link-btn" data-open="${esc(n.id)}">${n.due_time ? `<b>${esc(n.due_time)}</b> ` : ''}${esc(n.title || n.text.split('\n')[0] || t('Note'))}</button>`;
   const parts = [];
-  if (due.length) parts.push(`📅 <b>Today:</b> ${due.slice(0, 4).map(link).join(' · ')}${due.length > 4 ? ` · +${due.length - 4}` : ''}`);
-  if (late.length) parts.push(`⏰ <b>${late.length} overdue:</b> ${late.slice(0, 2).map(link).join(' · ')}${late.length > 2 ? ' …' : ''}`);
-  if (urgent.length) parts.push(`🔴 ${urgent.length} more urgent`);
-  return `<section class="today" aria-label="Today">${parts.map((p) => `<p>${p}</p>`).join('')}</section>`;
+  if (due.length) parts.push(`📅 <b>${esc(t('Today:'))}</b> ${due.slice(0, 4).map(link).join(' · ')}${due.length > 4 ? ` · +${due.length - 4}` : ''}`);
+  if (late.length) parts.push(`⏰ <b>${esc(t('{n} overdue:', { n: late.length }))}</b> ${late.slice(0, 2).map(link).join(' · ')}${late.length > 2 ? ' …' : ''}`);
+  if (urgent.length) parts.push(`🔴 ${esc(t('{n} more urgent', { n: urgent.length }))}`);
+  return `<section class="today" aria-label="${esc(t('Today'))}">${parts.map((p) => `<p>${p}</p>`).join('')}</section>`;
 }
 
 function welcomeCard(all) {
   if (welcomeDone() || all.filter((n) => !n.role).length >= 3) return '';
   return `<section class="card welcome" id="welcome">
-    <h2>👋 Welcome to record.ai</h2>
+    <h2>${esc(t('👋 Welcome to record.ai'))}</h2>
     <ol>
-      <li>Write, dictate 🎤 or snap a photo 📷. The AI gives it a title, a group, a priority and a date.</li>
-      <li>Start lines with <b>- </b> to make a checklist you can tick.</li>
-      <li>Share a list or a whole group with your partner: open it and tap 👥 Share.</li>
+      <li>${esc(t('Write, dictate 🎤 or snap a photo 📷. The AI gives it a title, a group, a priority and a date.'))}</li>
+      <li>${t('Start lines with <b>- </b> to make a checklist you can tick.')}</li>
+      <li>${esc(t('Share a list or a whole group with your partner: open it and tap 👥 Share.'))}</li>
     </ol>
     <div class="cal-buttons">
-      <button class="primary" data-welcome="examples">✨ Add example notes</button>
-      <button class="ghost" data-welcome="invite">💌 Invite your partner</button>
-      <button class="ghost" data-welcome="done">Got it</button>
+      <button class="primary" data-welcome="examples">${esc(t('✨ Add example notes'))}</button>
+      <button class="ghost" data-welcome="invite">${esc(t('💌 Invite your partner'))}</button>
+      <button class="ghost" data-welcome="done">${esc(t('Got it'))}</button>
     </div>
   </section>`;
 }
-const EXAMPLES = ['Groceries\n- milk\n- bread\n- apples', 'Dentist Tuesday 3pm', "Kids this week\n- Swimming bag\n- School trip form\n- Birthday present for Max"];
+const EXAMPLES = [t('Groceries\n- milk\n- bread\n- apples'), t('Dentist Tuesday 3pm'), t('Kids this week\n- Swimming bag\n- School trip form\n- Birthday present for Max')];
 async function addNote(text) {
   const list = splitList(text);
   const id = uuid();
@@ -935,20 +941,20 @@ async function onWelcome(action) {
     for (const t of EXAMPLES) await addNote(t);
     track('onboarding_examples');
   } else if (action === 'invite') {
-    const text = "Let's plan our family stuff together in record.ai: groceries, the kids' week, appointments.";
+    const text = t("Let's plan our family stuff together in record.ai: groceries, the kids' week, appointments.");
     const url = location.origin + location.pathname;
     let via = 'share';
     try {
       if (navigator.share) await navigator.share({ title: 'record.ai', text, url });
       else {
         via = 'email';
-        location.href = `mailto:?subject=${encodeURIComponent('Join me on record.ai')}&body=${encodeURIComponent(`${text}\n\n${url}`)}`;
+        location.href = `mailto:?subject=${encodeURIComponent(t('Join me on record.ai'))}&body=${encodeURIComponent(`${text}\n\n${url}`)}`;
       }
       track('invite_sent', { via });
     } catch {
       return; // the share sheet was closed
     }
-    toast('Once they have an account, share a list with them: open it and tap 👥 Share.');
+    toast(t('Once they have an account, share a list with them: open it and tap 👥 Share.'));
     return;
   }
   try {
@@ -960,14 +966,14 @@ async function onWelcome(action) {
 
 function section(title, notes, opts, extraClass = '', action = '') {
   if (!notes.length) return '';
-  return `<section class="group ${extraClass}"><h2>${esc(title)} <span class="count">${notes.length}</span>${action}</h2>${notes.map((n) => card(n, opts)).join('')}</section>`;
+  return `<section class="group ${extraClass}"><h2>${esc(groupName(title))} <span class="count">${notes.length}</span>${action}</h2>${notes.map((n) => card(n, opts)).join('')}</section>`;
 }
 
 /** "Share" on one of my groups (how many people, once shared). */
 function shareGroupButton(g) {
   if (g === SHARED_GROUP) return '';
   const people = shares.mine.filter((s) => s.kind === 'group' && sameGroup(s.target, g)).length;
-  return `<button class="ghost share-group" data-share-group="${esc(g)}">👥 ${people ? `Shared · ${people}` : 'Share'}</button>`;
+  return `<button class="ghost share-group" data-share-group="${esc(g)}">👥 ${esc(people ? t('Shared · {n}', { n: people }) : t('Share'))}</button>`;
 }
 
 let renderQueued = false;
@@ -987,9 +993,9 @@ function renderNow() {
   if (ui.group && !groups.includes(ui.group)) ui.group = null;
 
   $('#groupChips').innerHTML =
-    `<button class="chip ${!ui.group ? 'active' : ''}" data-group="">All</button>` +
-    groups.map((g) => `<button class="chip ${ui.group === g ? 'active' : ''}" data-group="${esc(g)}">${esc(g)}</button>`).join('') +
-    `<button class="chip add-chip" data-add-group title="Add a group of your own. The AI will put matching notes in it.">＋ Group</button>`;
+    `<button class="chip ${!ui.group ? 'active' : ''}" data-group="">${esc(t('All'))}</button>` +
+    groups.map((g) => `<button class="chip ${ui.group === g ? 'active' : ''}" data-group="${esc(g)}">${esc(groupName(g))}</button>`).join('') +
+    `<button class="chip add-chip" data-add-group title="${esc(t('Add a group of your own. The AI will put matching notes in it.'))}">${esc(t('＋ Group'))}</button>`;
 
   const q = ui.query.toLowerCase().trim();
   const visible = all.filter((n) => matches(n, q) && (!ui.group || n.group === ui.group)).sort(sortNotes);
@@ -1004,16 +1010,16 @@ function renderNow() {
   }
   if (!open.length) {
     html += everything.length
-      ? `<p class="empty">Nothing here${ui.world === 'all' ? '' : ` in ${WORLD_LABEL[ui.world]}`}. 🎉</p>`
-      : '<p class="empty">No notes yet. Type, dictate 🎤 or snap a photo 📷 above — AI will title, prioritize and group them for you.</p>';
+      ? `<p class="empty">${esc(ui.world === 'all' ? t('Nothing here. 🎉') : t('Nothing here in {world}. 🎉', { world: WORLD_LABEL[ui.world] }))}</p>`
+      : `<p class="empty">${esc(t('No notes yet. Type, dictate 🎤 or snap a photo 📷 above — AI will title, prioritize and group them for you.'))}</p>`;
   }
   if (done.length) {
     const clearable = done.filter((n) => !n.role).length;
     html += `<div class="done-bar">
-      <button class="ghost" data-toggle-done title="Right-click (two-finger click) to clear them">${ui.showDone ? 'Hide' : 'Show'} done (${done.length})</button>
-      ${clearable ? '<button class="ghost danger" data-clear-done>🗑 Clear done</button>' : ''}
+      <button class="ghost" data-toggle-done title="${esc(t('Right-click (two-finger click) to clear them'))}">${esc(t(ui.showDone ? 'Hide done ({n})' : 'Show done ({n})', { n: done.length }))}</button>
+      ${clearable ? `<button class="ghost danger" data-clear-done>${esc(t('🗑 Clear done'))}</button>` : ''}
     </div>`;
-    if (ui.showDone) html += section('Done', done, { showGroup: true }, 'done-section');
+    if (ui.showDone) html += section(t('Done'), done, { showGroup: true }, 'done-section');
   }
   $('#list').innerHTML = welcomeCard(everything) + (q || ui.group ? '' : todayCard(all)) + html;
   // This month's AI sortings are used up: say so once, above the notes.
@@ -1036,7 +1042,7 @@ async function clearDone() {
     .filter((n) => n.done && !n.role && shownInWorld(forMe(n)) && matches(n, ui.query.toLowerCase().trim()) && (!ui.group || forMe(n).group === ui.group))
     .map((n) => n.id);
   if (!ids.length) return;
-  if (!confirm(`Delete ${ids.length} done note${ids.length === 1 ? '' : 's'}? You can undo this for a few seconds.`)) return;
+  if (!confirm(t('Delete {n} done notes? You can undo this for a few seconds.', { n: ids.length }))) return;
   const removed = [];
   for (const id of ids) {
     for (const item of local.items(id)) removed.push(item.id);
@@ -1044,7 +1050,7 @@ async function clearDone() {
     await local.save(id, { deleted: true }, { send: false });
   }
   local.flush();
-  toast(`${ids.length} done note${ids.length === 1 ? '' : 's'} deleted`, async () => {
+  toast(t('{n} done notes deleted', { n: ids.length }), async () => {
     for (const id of removed) await local.save(id, { deleted: false }, { send: false });
     local.flush();
   });
@@ -1084,7 +1090,7 @@ $('#list').addEventListener('click', async (e) => {
   // Done (or not done) right from the card, with Undo for a wrong tap.
   const markDone = async (noteId, done, what) => {
     await local.save(noteId, { done });
-    toast(`${done ? 'Marked done' : 'Marked not done'}: ${what}`, () => local.save(noteId, { done: !done }));
+    toast(t(done ? 'Marked done: {what}' : 'Marked not done: {what}', { what }), () => local.save(noteId, { done: !done }));
   };
   if (itemCheck) {
     const item = local.notes.get(itemCheck.dataset.itemCheck);
@@ -1100,11 +1106,11 @@ $('#viewer').addEventListener('click', () => $('#viewer').close());
 
 $('#groupChips').addEventListener('click', async (e) => {
   if (e.target.closest('[data-add-group]')) {
-    const name = prompt('New group (for example Baby or Work).\nThe AI will put matching notes in it:')?.trim();
+    const name = prompt(t('New group (for example Baby or Work).\nThe AI will put matching notes in it:'))?.trim();
     if (!name) return;
     try {
       await saveMyGroups([...myGroups, name]);
-      toast(`"${name}" added. New notes that fit go there; tap ✨ Reorganize to sort older ones.`);
+      toast(t('"{name}" added. New notes that fit go there; tap ✨ Reorganize to sort older ones.', { name }));
     } catch (err) {
       toast(err.message);
     }
@@ -1150,15 +1156,15 @@ $('#search').addEventListener('input', (e) => {
 $('#reorganizeBtn').onclick = async () => {
   const btn = $('#reorganizeBtn');
   btn.disabled = true;
-  btn.textContent = '✨ Reorganizing…';
+  btn.textContent = t('✨ Reorganizing…');
   try {
     const r = await local.api('reorganize', { method: 'POST' });
-    toast(r.skipped ? 'Already reorganizing' : `Reorganized — ${r.updated} note${r.updated === 1 ? '' : 's'} moved`);
+    toast(r.skipped ? t('Already reorganizing') : t('Reorganized — {n} notes moved', { n: r.updated }));
   } catch (err) {
     toast(err.message);
   } finally {
     btn.disabled = false;
-    btn.textContent = '✨ Reorganize';
+    btn.textContent = t('✨ Reorganize');
   }
 };
 
@@ -1168,39 +1174,39 @@ $('#reorganizeBtn').onclick = async () => {
 /** A short message at the bottom; with `undo`, it has an Undo button and stays a little longer. */
 function toast(msg, undo) {
   document.querySelector('.toast')?.remove(); // one message at a time
-  const t = document.createElement('div');
-  t.className = 'toast';
-  t.textContent = msg;
+  const box = document.createElement('div');
+  box.className = 'toast';
+  box.textContent = msg;
   if (undo) {
     const b = document.createElement('button');
     b.className = 'toast-undo';
-    b.textContent = 'Undo';
+    b.textContent = t('Undo');
     b.onclick = () => {
-      t.remove();
+      box.remove();
       undo();
     };
-    t.append(' · ', b);
+    box.append(' · ', b);
   }
-  document.body.append(t);
-  setTimeout(() => t.remove(), undo ? 6000 : 3500);
+  document.body.append(box);
+  setTimeout(() => box.remove(), undo ? 6000 : 3500);
 }
 
 function renderStatus() {
   const dot = $('#syncDot');
   dot.className = 'sync-dot ' + (local.online ? (local.unsent ? 'syncing' : 'ok') : 'offline');
-  dot.title = local.online ? (local.unsent ? `Syncing ${local.unsent} change(s)…` : 'Synced') : 'Offline — changes are saved on this device and will sync later';
+  dot.title = local.online ? (local.unsent ? t('Syncing {n} changes…', { n: local.unsent }) : t('Synced')) : t('Offline — changes are saved on this device and will sync later');
   const banner = $('#banner');
   if (local.ai && !local.ai.enabled) {
     banner.hidden = false;
     // On the Mac the launcher turns the AI on; online, the server's owner adds a key.
     const onMac = ['localhost', '127.0.0.1'].includes(location.hostname);
-    banner.textContent = 'AI organization is off. Notes are saved and synced but not auto-organized. ' +
-      (onMac ? 'Double-click "Change AI.command" to turn it on.' : 'The server needs an AI key to turn it on.');
+    banner.textContent = t('AI organization is off. Notes are saved and synced but not auto-organized.') + ' ' +
+      (onMac ? t('Double-click "Change AI.command" to turn it on.') : t('The server needs an AI key to turn it on.'));
   } else {
     banner.hidden = true;
   }
   $('#reorganizeBtn').hidden = local.ai ? !local.ai.enabled : false;
-  if (local.ai?.reorganizing) $('#reorganizeBtn').textContent = '✨ Reorganizing…';
+  if (local.ai?.reorganizing) $('#reorganizeBtn').textContent = t('✨ Reorganizing…');
   $('#accountBtn').hidden = !local.user;
   if (local.user) $('#accountBtn').textContent = initials(local.user.name);
   if (local.needsLogin && !$('#login').open && !$('#reset').open && !auth.opening) {
@@ -1250,21 +1256,21 @@ const auth = {
     this.mode = mode;
     const signup = mode === 'signup';
     const p = this.policy || {};
-    $('#loginTitle').textContent = signup ? (p.firstAccount ? 'Create your account' : 'Create an account') : 'Log in';
+    $('#loginTitle').textContent = signup ? (p.firstAccount ? t('Create your account') : t('Create an account')) : t('Log in');
     $('#loginIntro').textContent = signup && p.firstAccount
-      ? 'This is the first account on this server. It will own all notes already saved here.'
-      : signup ? 'Your notes are private to your account.' : 'Welcome back. Log in to see your notes.';
+      ? t('This is the first account on this server. It will own all notes already saved here.')
+      : signup ? t('Your notes are private to your account.') : t('Welcome back. Log in to see your notes.');
     $('#nameField').hidden = !signup;
     $('#codeField').hidden = !(signup && p.needsCode);
     $('#loginPassword').autocomplete = signup ? 'new-password' : 'current-password';
-    $('#loginSubmit').textContent = signup ? 'Create account' : 'Log in';
+    $('#loginSubmit').textContent = signup ? t('Create account') : t('Log in');
     $('#forgotLine').hidden = signup;
     $('#loginError').textContent = this.error;
     this.error = '';
     this.renderProviders();
     const sw = $('#loginSwitch');
-    if (signup && !p.firstAccount) sw.innerHTML = 'Already have an account? <button type="button" data-mode="login">Log in</button>';
-    else if (!signup && p.open) sw.innerHTML = 'New here? <button type="button" data-mode="signup">Create an account</button>';
+    if (signup && !p.firstAccount) sw.innerHTML = `${esc(t('Already have an account?'))} <button type="button" data-mode="login">${esc(t('Log in'))}</button>`;
+    else if (!signup && p.open) sw.innerHTML = `${esc(t('New here?'))} <button type="button" data-mode="signup">${esc(t('Create an account'))}</button>`;
     else sw.textContent = '';
     if (!$('#login').open) $('#login').showModal();
     (signup ? $('#loginName') : $('#loginEmail')).focus();
@@ -1277,7 +1283,7 @@ auth.renderProviders = function () {
   const invite = this.mode === 'signup' ? $('#loginCode').value.trim() : '';
   box.innerHTML = this.providers.map((p) => {
     const q = invite ? `?invite=${encodeURIComponent(invite)}` : '';
-    return `<a class="provider-btn" href="api/auth/oauth/${encodeURIComponent(p.id)}/start${q}">${providerMark(p.id)}Continue with ${esc(p.name)}</a>`;
+    return `<a class="provider-btn" href="api/auth/oauth/${encodeURIComponent(p.id)}/start${q}">${providerMark(p.id)}${esc(t('Continue with {name}', { name: p.name }))}</a>`;
   }).join('');
 };
 $('#loginCode').addEventListener('input', () => auth.renderProviders());
@@ -1295,7 +1301,7 @@ $('#loginForm').addEventListener('submit', async (e) => {
     $('#login').close();
     $('#loginPassword').value = '';
   } catch (err) {
-    $('#loginError').textContent = err.status === 0 || !err.status ? 'Cannot reach the server. Is it running?' : err.message;
+    $('#loginError').textContent = err.status === 0 || !err.status ? t('Cannot reach the server. Is it running?') : err.message;
   } finally {
     $('#loginSubmit').disabled = false;
   }
@@ -1310,11 +1316,11 @@ const reset = {
     this.token = token;
     const choosing = !!token;
     $('#resetIntro').textContent = choosing
-      ? 'Choose a new password. Your other devices will be logged out.'
-      : "Enter your account's email. We'll send you a link to choose a new password.";
+      ? t('Choose a new password. Your other devices will be logged out.')
+      : t("Enter your account's email. We'll send you a link to choose a new password.");
     $('#resetEmailField').hidden = choosing;
     $('#resetPasswordField').hidden = !choosing;
-    $('#resetSubmit').textContent = choosing ? 'Save new password' : 'Send me a link';
+    $('#resetSubmit').textContent = choosing ? t('Save new password') : t('Send me a link');
     $('#resetSubmit').hidden = false;
     $('#resetMessage').textContent = '';
     $('#resetMessage').className = '';
@@ -1342,7 +1348,7 @@ $('#resetForm').addEventListener('submit', async (e) => {
       history.replaceState(null, '', location.pathname + location.search);
       $('#reset').close();
       if ($('#login').open) $('#login').close();
-      toast('New password saved');
+      toast(t('New password saved'));
       render();
     } else {
       await local.api('auth/forgot', {
@@ -1350,11 +1356,11 @@ $('#resetForm').addEventListener('submit', async (e) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: $('#resetEmail').value.trim() }),
       });
-      reset.say('If an account uses this email, a link is on its way. Check your inbox (and spam) in a few minutes.');
+      reset.say(t('If an account uses this email, a link is on its way. Check your inbox (and spam) in a few minutes.'));
       $('#resetSubmit').hidden = true;
     }
   } catch (err) {
-    reset.say(err.status === 0 || !err.status ? 'Cannot reach the server. Is it running?' : err.message, true);
+    reset.say(err.status === 0 || !err.status ? t('Cannot reach the server. Is it running?') : err.message, true);
   } finally {
     $('#resetSubmit').disabled = false;
   }
@@ -1368,8 +1374,8 @@ $('#reset').addEventListener('close', hidePasswords);
 // Show / Hide on password fields, so people can check what they typed.
 function showPassword(button, show) {
   button.previousElementSibling.type = show ? 'text' : 'password';
-  button.textContent = show ? 'Hide' : 'Show';
-  button.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+  button.textContent = show ? t('Hide') : t('Show');
+  button.setAttribute('aria-label', show ? t('Hide password') : t('Show password'));
   button.setAttribute('aria-pressed', String(show));
 }
 document.addEventListener('click', (e) => {
@@ -1405,7 +1411,7 @@ $('#accountBtn').onclick = async () => {
     const here = location.origin;
     const list = [...new Set([here.startsWith('http://localhost') ? null : here, ...addresses].filter(Boolean))];
     $('#appAddress').hidden = !list.length;
-    $('#appAddress').innerHTML = '<p><strong>iPhone app:</strong> to connect it, enter this server address:</p>' +
+    $('#appAddress').innerHTML = `<p><strong>${esc(t('iPhone app:'))}</strong> ${esc(t('to connect it, enter this server address:'))}</p>` +
       list.map((a) => `<p><code>${esc(a)}</code></p>`).join('');
   } catch {
     $('#appAddress').hidden = true;
@@ -1414,7 +1420,7 @@ $('#accountBtn').onclick = async () => {
 async function loadSigninOptions() {
   try {
     const me = await local.api('auth/me');
-    $('#pwTitle').textContent = me.hasPassword ? 'Change password' : 'Set a password';
+    $('#pwTitle').textContent = me.hasPassword ? t('Change password') : t('Set a password');
     $('#pwCurrentField').hidden = !me.hasPassword;
     const connected = new Map(me.identities.map((i) => [i.provider, i]));
     const all = [...me.providers];
@@ -1423,8 +1429,8 @@ async function loadSigninOptions() {
     $('#identityList').innerHTML = all.map((p) => {
       const c = connected.get(p.id);
       return `<li>${providerMark(p.id)}<span class="who">${esc(p.name)}${c?.email ? ` <span class="muted">· ${esc(c.email)}</span>` : ''}</span>` +
-        (c ? `<button class="ghost" data-disconnect="${esc(p.id)}">Disconnect</button>`
-           : `<a class="ghost button" href="api/auth/oauth/${encodeURIComponent(p.id)}/start?link=1">Connect</a>`) + '</li>';
+        (c ? `<button class="ghost" data-disconnect="${esc(p.id)}">${esc(t('Disconnect'))}</button>`
+           : `<a class="ghost button" href="api/auth/oauth/${encodeURIComponent(p.id)}/start?link=1">${esc(t('Connect'))}</a>`) + '</li>';
     }).join('');
   } catch {
     $('#signinOptions').hidden = true;
@@ -1448,10 +1454,31 @@ $('#themeSwitch').addEventListener('click', (e) => {
   if (b) applyTheme(b.dataset.themeChoice);
 });
 
+// Language: the app's words on this device, and on the account the language
+// the AI names new groups in.
+$('#langSelect').innerHTML = Object.entries(LANGS).map(([code, name]) => `<option value="${code}">${esc(name)}</option>`).join('');
+$('#langSelect').value = lang;
+$('#langSelect').addEventListener('change', async (e) => {
+  saveLang(e.target.value);
+  await local.api('language', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ lang: e.target.value }),
+  }).catch(() => {});
+  location.reload();
+});
+async function syncLanguage() {
+  try {
+    if ((await local.api('language')).lang !== lang) {
+      await local.api('language', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ lang }) });
+    }
+  } catch { /* offline: sent next time */ }
+}
+
 function renderMyGroups() {
   $('#myGroupsBox').hidden = !myGroups.length;
   $('#myGroupsList').innerHTML = myGroups.map((g) =>
-    `<li><span class="who">${esc(g)}</span><button class="ghost" data-remove-group="${esc(g)}">Remove</button></li>`).join('');
+    `<li><span class="who">${esc(g)}</span><button class="ghost" data-remove-group="${esc(g)}">${esc(t('Remove'))}</button></li>`).join('');
 }
 $('#myGroupsList').addEventListener('click', async (e) => {
   const b = e.target.closest('[data-remove-group]');
@@ -1482,9 +1509,9 @@ function showCalendarLink({ url, webcal }) {
   $('#calendarCopy').onclick = async () => {
     try {
       await navigator.clipboard.writeText(url);
-      toast('Link copied');
+      toast(t('Link copied'));
     } catch {
-      prompt('Copy this link:', url);
+      prompt(t('Copy this link:'), url);
     }
   };
 }
@@ -1492,14 +1519,14 @@ $('#calendarShow').onclick = async () => {
   try {
     showCalendarLink(await local.api(`calendar-link?tz=${encodeURIComponent(Intl.DateTimeFormat().resolvedOptions().timeZone)}`));
   } catch (err) {
-    toast(err.status ? err.message : 'You need to be online for this.');
+    toast(err.status ? err.message : t('You need to be online for this.'));
   }
 };
 $('#calendarReset').onclick = async () => {
-  if (!confirm('Make a new link? Calendars that use the old one stop showing your notes until you add the new one.')) return;
+  if (!confirm(t('Make a new link? Calendars that use the old one stop showing your notes until you add the new one.'))) return;
   try {
     showCalendarLink(await local.api('calendar-link/reset', { method: 'POST' }));
-    toast('New link made');
+    toast(t('New link made'));
   } catch (err) {
     toast(err.message);
   }
@@ -1509,10 +1536,10 @@ $('#calendarReset').onclick = async () => {
 // The pitch is an A/B test (premium_pitch); "Get Premium" measures interest
 // until payments exist.
 const PITCH = {
-  backups: 'Never lose a note: daily backups, kept 30 days. Restore any day with one tap.',
-  family: "Your family's lists, safe every day: automatic backups for everyone in your Family plan.",
+  backups: t('Never lose a note: daily backups, kept 30 days. Restore any day with one tap.'),
+  family: t("Your family's lists, safe every day: automatic backups for everyone in your Family plan."),
 };
-const PLAN_NAME = { free: 'Free', solo: 'Solo', family: 'Family' };
+const PLAN_NAME = { free: t('Free'), solo: t('Solo'), family: t('Family') };
 async function loadPremium() {
   try {
     const plan = await local.api('plan');
@@ -1534,14 +1561,14 @@ async function loadPremium() {
     $('#premiumBox').hidden = false;
   }
 }
-const day = (ts) => new Date(ts).toLocaleString(undefined, { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+const day = (ts) => new Date(ts).toLocaleString(lang, { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 function renderBackups(list) {
-  const label = { daily: 'Daily', manual: 'By hand', 'before-restore': 'Before a restore' };
+  const label = { daily: t('Daily'), manual: t('By hand'), 'before-restore': t('Before a restore') };
   $('#backupList').innerHTML = list.length
     ? list.slice(0, 10).map((b) => `<li data-backup="${esc(b.id)}"><span class="who"><strong>${esc(day(b.created_at))}</strong>
-        <small>${esc(label[b.kind] || b.kind)} · ${b.notes} notes</small></span>
-        <button type="button" class="ghost" data-restore>Restore</button></li>`).join('')
-    : '<li class="muted">The first backup is made today.</li>';
+        <small>${esc(label[b.kind] || b.kind)} · ${esc(t('{n} notes', { n: b.notes }))}</small></span>
+        <button type="button" class="ghost" data-restore>${esc(t('Restore'))}</button></li>`).join('')
+    : `<li class="muted">${esc(t('The first backup is made today.'))}</li>`;
 }
 // With payments open (Stripe set up) "Get Premium" shows the plans and goes to
 // Stripe's payment page; before that it only counts who would buy.
@@ -1576,8 +1603,8 @@ $('#manageBilling').onclick = () => goToStripe('billing/portal', {});
   const back = new URLSearchParams(location.search).get('upgraded');
   if (back) {
     history.replaceState(null, '', location.pathname + location.hash);
-    if (back === 'cancelled') toast('No payment made. Premium is there whenever you want it.');
-    else toast('Thank you! Premium is switching on: it can take a minute.');
+    if (back === 'cancelled') toast(t('No payment made. Premium is there whenever you want it.'));
+    else toast(t('Thank you! Premium is switching on: it can take a minute.'));
   }
 }
 $('#backupNow').onclick = async () => {
@@ -1585,7 +1612,7 @@ $('#backupNow').onclick = async () => {
     await local.flush();
     await local.api('backups', { method: 'POST' });
     renderBackups((await local.api('backups')).backups);
-    toast('Backup made');
+    toast(t('Backup made'));
   } catch (err) {
     toast(err.message);
   }
@@ -1594,13 +1621,13 @@ $('#backupList').addEventListener('click', async (e) => {
   const li = e.target.closest('[data-backup]');
   if (!li || !e.target.closest('[data-restore]')) return;
   const when = li.querySelector('strong').textContent;
-  if (!confirm(`Bring your notes back to how they were on ${when}?\n\nNotes written since then are removed. A backup of how they are now is made first, so you can undo this.`)) return;
+  if (!confirm(t('Bring your notes back to how they were on {when}?\n\nNotes written since then are removed. A backup of how they are now is made first, so you can undo this.', { when }))) return;
   try {
     await local.flush();
     const r = await local.api(`backups/${encodeURIComponent(li.dataset.backup)}/restore`, { method: 'POST' });
     await local.pull();
     renderBackups((await local.api('backups')).backups);
-    toast(`Restored: ${r.restored} notes`);
+    toast(t('Restored: {n} notes', { n: r.restored }));
   } catch (err) {
     toast(err.message);
   }
@@ -1611,14 +1638,14 @@ $('#interestBox').addEventListener('click', (e) => {
   if (!b) return;
   track('feature_interest', { feature: b.dataset.interest });
   b.classList.add('chosen');
-  toast('Thanks! It helps decide what comes first.');
+  toast(t('Thanks! It helps decide what comes first.'));
 });
 $('#sendFeedback').onclick = async () => {
-  const text = prompt('What would make record.ai better for you? Anything goes: ideas, problems, wishes.');
+  const text = prompt(t('What would make record.ai better for you? Anything goes: ideas, problems, wishes.'));
   if (!text?.trim()) return;
   try {
     await local.api('feedback', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text, platform: 'web' }) });
-    toast('Thank you! Nina reads every message.');
+    toast(t('Thank you! Nina reads every message.'));
   } catch (err) {
     toast(err.message);
   }
@@ -1633,8 +1660,8 @@ async function loadAiUsage() {
     const { usage } = (await local.api('status')).ai;
     $('#aiUsage').hidden = !usage?.limit;
     if (usage?.limit) {
-      const resets = new Date(usage.resets + 'T00:00:00').toLocaleDateString(undefined, { day: 'numeric', month: 'long' });
-      $('#aiUsage').textContent = `AI sortings this month: ${usage.used} of ${usage.limit} (starts again on ${resets})`;
+      const resets = new Date(usage.resets + 'T00:00:00').toLocaleDateString(lang, { day: 'numeric', month: 'long' });
+      $('#aiUsage').textContent = t('AI sortings this month: {used} of {limit} (starts again on {date})', { used: usage.used, limit: usage.limit, date: resets });
     }
   } catch {
     $('#aiUsage').hidden = true;
@@ -1651,7 +1678,7 @@ $('#passwordForm').addEventListener('submit', async (e) => {
       body: JSON.stringify({ current: $('#pwCurrent').value, next: $('#pwNext').value }),
     });
     msg.className = 'ok';
-    msg.textContent = 'Password saved. Your other devices need to log in again.';
+    msg.textContent = t('Password saved. Your other devices need to log in again.');
     $('#pwCurrent').value = $('#pwNext').value = '';
     hidePasswords();
     loadSigninOptions();
@@ -1663,7 +1690,7 @@ $('#passwordForm').addEventListener('submit', async (e) => {
 $('#logoutOthers').onclick = async () => {
   try {
     await local.api('auth/logout-others', { method: 'POST' });
-    toast('Other devices are logged out.');
+    toast(t('Other devices are logged out.'));
   } catch (err) {
     toast(err.message);
   }
@@ -1671,8 +1698,7 @@ $('#logoutOthers').onclick = async () => {
 // Delete my account: everything goes; typing the email confirms it.
 $('#deleteAccount').onclick = async () => {
   const typed = prompt(
-    'Delete your account?\n\nAll your notes, lists, photos, backups and shares are deleted for good. ' +
-    'Download them first under ⭐ Premium if you want to keep a copy.\n\nType your email address to confirm:',
+    t('Delete your account?\n\nAll your notes, lists, photos, backups and shares are deleted for good. Download them first under ⭐ Premium if you want to keep a copy.\n\nType your email address to confirm:'),
   );
   if (typed == null) return;
   try {
@@ -1684,7 +1710,7 @@ $('#deleteAccount').onclick = async () => {
     $('#account').close();
     await local.wipe();
     local.setStatus({ user: null, needsLogin: true, online: false });
-    toast('Your account is deleted.');
+    toast(t('Your account is deleted.'));
   } catch (err) {
     toast(err.message);
   }
@@ -1692,7 +1718,7 @@ $('#deleteAccount').onclick = async () => {
 $('#logoutBtn').onclick = async () => {
   await local.flush();
   const unsent = await local.unsentCount();
-  if (unsent && !confirm(`${unsent} change(s) haven't reached the server yet and will be lost. Log out anyway?`)) return;
+  if (unsent && !confirm(t("{n} changes haven't reached the server yet and will be lost. Log out anyway?", { n: unsent }))) return;
   $('#account').close();
   await local.logout();
   render();
@@ -1706,6 +1732,7 @@ await local.init();
 local.addEventListener('change', render);
 local.addEventListener('status', renderStatus);
 local.addEventListener('started', loadMyGroups);
+local.addEventListener('started', syncLanguage);
 local.addEventListener('started', loadWorlds);
 local.addEventListener('started', loadShares);
 local.addEventListener('started', () => track('app_open'));
@@ -1717,7 +1744,7 @@ renderStatus();
 const back = new URLSearchParams(location.search);
 if (back.has('login_error') || back.has('linked')) {
   auth.error = back.get('login_error') || '';
-  if (back.has('linked')) setTimeout(() => toast('Connected. You can now log in with it too.'), 300);
+  if (back.has('linked')) setTimeout(() => toast(t('Connected. You can now log in with it too.')), 300);
   history.replaceState(null, '', location.pathname);
 }
 

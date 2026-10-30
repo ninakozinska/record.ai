@@ -1,7 +1,7 @@
 // Service worker: makes the app open offline and keeps photos available.
-const SHELL = 'record-ai-shell-v1';
+const SHELL = 'record-ai-shell-v2';
 const IMAGES = 'record-ai-images-v1';
-const SHELL_FILES = ['./', 'index.html', 'app.js', 'local.js', 'track.js', 'worlds.js', 'styles.css', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png'];
+const SHELL_FILES = ['./', 'index.html', 'app.js', 'local.js', 'track.js', 'worlds.js', 'i18n.js', 'i18n/en.js', 'i18n/it.js', 'i18n/fr.js', 'i18n/es.js', 'i18n/pt.js', 'i18n/de.js', 'i18n/pl.js', 'styles.css', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(SHELL).then((c) => c.addAll(SHELL_FILES)).then(() => self.skipWaiting()));

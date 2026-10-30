@@ -23,6 +23,11 @@ const listItemsBlock = (items) => (items.length
   : '');
 
 /** The person's own groups: the AI must use these exact names when a note fits. */
+/** The languages record.ai speaks (its interface, and the AI's group names). */
+export const LANGUAGES = { en: 'English', it: 'Italian', fr: 'French', es: 'Spanish', pt: 'Portuguese', de: 'German', pl: 'Polish' };
+const languageLine = (lang) => (LANGUAGES[lang]
+  ? `The person's language: ${LANGUAGES[lang]}. Name any new group in ${LANGUAGES[lang]}.\n`
+  : '');
 const myGroupsLine = (names) => (names.length
   ? `The person's own groups (use these exact names whenever a note fits one): ${names.join(', ')}\n`
   : '');
@@ -81,6 +86,7 @@ Priorities:
 - low: reference material, someday/maybe, idle thoughts
 Groups are short topic names (1-3 words, Title Case) like "Work", "Shopping", "Health", "Ideas", "Travel".
 Prefer reusing an existing group. Create a new group only when none fits. Keep the total number of groups small (ideally under 12).
+Language: write the title, summary, priority reason and tags in the language the note is written in. Name new groups in the person's language when it is given, else in the language of their notes. Keep existing group names exactly as they are.
 Dictated notes may contain speech-recognition errors; infer the intended meaning.
 Dates: work out relative dates ("tomorrow", "next week", "on Tuesday") from the day the note was written (its created date), not from today. "On Tuesday" means the next Tuesday after that day; "next week on Wednesday" means the Wednesday of the following week.
 For photos, describe what matters (e.g. receipt total, whiteboard content, document type) in the summary.`;
@@ -215,6 +221,7 @@ export class Organizer {
     const text =
       `Today is ${today()}.\n` +
       `Existing groups: ${groups.length ? groups.join(', ') : '(none yet)'}\n` +
+      languageLine(this.store.languageOf?.(note.user_id)) +
       myGroupsLine(mine) +
       `\n` +
       `<note created="${new Date(note.created_at).toISOString()}" images="${note.images.length}">\n` +
@@ -290,6 +297,9 @@ export class Organizer {
           `(merge near-duplicates, split groups that mix unrelated topics) and re-rank ` +
           `priorities relative to each other and to today's date. Return every note id. ` +
           `For notes marked vague_title, also give a short real title from their text; for all others, title is null.` +
+          (LANGUAGES[this.store.languageOf?.(userId)]
+            ? `\n\nThe person's language is ${LANGUAGES[this.store.languageOf(userId)]}: name new or merged groups in it.`
+            : '') +
           (this.store.myGroups(userId).length
             ? `\n\n` + myGroupsLine(this.store.myGroups(userId)) +
               `Never rename, merge or split these groups; move notes into them whenever they fit.`

@@ -628,6 +628,30 @@ try {
   }
   console.log('✓ forgot password: email link, new password, logged in');
 
+  // 9. Seven languages: the browser's language first, then the one chosen in the account menu.
+  {
+    const ctx = await browser.newContext({ locale: 'it-IT' });
+    const page = await ctx.newPage();
+    watch(page, 'italian');
+    await page.goto(url);
+    await page.waitForSelector('#login[open] #loginSubmit:text("Accedi")');
+    await page.fill('#loginEmail', 'nina@example.com');
+    await page.fill('#loginPassword', 'a brand new password');
+    await page.click('#loginSubmit');
+    await page.waitForSelector('.note h3:text("Send the quarterly report tomorrow")');
+    assert.equal(await page.getAttribute('#search', 'placeholder'), 'Cerca nelle note…');
+    assert.equal(await page.evaluate(() => fetch('api/language').then((r) => r.json()).then((r) => r.lang)), 'it', 'the account learns the language');
+    await page.click('#accountBtn');
+    await page.waitForSelector('#account[open] h3:text("Lingua")');
+    await Promise.all([page.waitForEvent('load'), page.selectOption('#langSelect', 'pl')]);
+    await page.waitForSelector('#search[placeholder="Szukaj notatek…"]');
+    assert.equal(await page.evaluate(() => fetch('api/language').then((r) => r.json()).then((r) => r.lang)), 'pl');
+    assert.equal(await page.inputValue('#langSelect'), 'pl');
+    await page.screenshot({ path: path.join(out, 'polish.png') });
+    await ctx.close();
+  }
+  console.log('✓ seven languages: Italian from the browser, Polish from the menu');
+
   assert.deepEqual(errors, []);
   console.log('All e2e checks passed. Screenshots in', out);
 } catch (err) {
