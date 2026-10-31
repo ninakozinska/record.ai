@@ -78,6 +78,24 @@ export function vagueTitle(title, groups) {
   return groups.some((g) => g.toLowerCase() === t);
 }
 
+// "School letter → tasks": everything a letter, invitation or timetable asks
+// the person to do or attend, each with its date.
+const TaskList = z.object({
+  tasks: z.array(z.object({
+    title: z.string().describe('What to do or attend, short, in the language of the document'),
+    due_date: z.string().nullable().describe('YYYY-MM-DD, or null when no date is given'),
+    due_time: z.string().nullable().describe('HH:MM (24 h), or null'),
+    details: z.string().nullable().describe('One line: what to bring, cost, place, or null'),
+  })).max(20),
+});
+
+const TASKS_SYSTEM = `You read a letter, notice, invitation, timetable, receipt or note (text, photos or both) from a school, club, doctor, workplace or anyone else, and list what the person has to do or attend.
+- One task per action or event: sign and return a form, pay, bring something, go somewhere, reply. Skip general information that needs nothing from the person.
+- Title: short and concrete, in the language of the document ("Sign the trip form", "Pay €12 for the museum").
+- Dates: resolve weekdays and relative dates ("next Friday", "by the 15th") from today's date. due_time only when a time is given. A deadline ("by Friday") is the due date.
+- details: one line with what to bring, how much, or where; null when there is nothing to add.
+- At most 20 tasks. If there is nothing to do, return an empty list.`;
+
 const SYSTEM = `You organize a person's personal notes (typed, dictated, or photos).
 Priorities:
 - urgent: needs action today or is time-critical / has a deadline within ~2 days
@@ -250,6 +268,32 @@ export class Organizer {
     }
   }
 
+  /** The tasks in a note's text and photos (a school letter, an invitation…). One AI use. */
+  async extractTasks(id) {
+    const note = this.store.get(id);
+    if (!note || note.deleted) throw Object.assign(new Error('Note not found'), { status: 404 });
+    if (!this.enabled) throw Object.assign(new Error('AI is not configured'), { status: 503 });
+    if (!this.charge(note.user_id, 1)) {
+      const { limit, resets } = this.usage(note.user_id);
+      throw Object.assign(new Error(`This month's ${limit} AI sortings are used up. Your notes are saved and synced; the AI sorts them again from ${resets}.`), { status: 429 });
+    }
+    const images = note.images.map((name) => this.readImage(name)).filter(Boolean);
+    const items = this.store.items?.(id) || [];
+    const text = `Today is ${today()}.\n<document images="${images.length}">\n${note.text || '(photo only)'}\n</document>\n${listItemsBlock(items)}\nList the tasks.`;
+    const meter = { kind: 'tasks', userId: note.user_id, started: Date.now() };
+    try {
+      const { tasks } = await this.ask({ text, images, schema: TaskList, effort: 'low', maxTokens: 4000, meter, system: TASKS_SYSTEM });
+      this.onAiCall({ ...meter, outcome: 'used' });
+      const date = (d) => (/^\d{4}-\d{2}-\d{2}$/.test(d || '') ? d : null);
+      const time = (t) => (/^([01]\d|2[0-3]):[0-5]\d$/.test(t || '') ? t : null);
+      return tasks.map((t) => ({ title: String(t.title).trim().slice(0, 200), due_date: date(t.due_date), due_time: date(t.due_date) ? time(t.due_time) : null, details: t.details ? String(t.details).trim().slice(0, 300) : null }))
+        .filter((t) => t.title);
+    } catch (err) {
+      if (meter.usage) this.onAiCall({ ...meter, outcome: 'error' });
+      throw Object.assign(new Error(friendlyError(err, this.provider)), { status: 502 });
+    }
+  }
+
   maybeAutoReorganize(userId) {
     const key = `organized_since_reorg:${userId}`;
     const count = Number(this.store.getMeta(key) || 0) + 1;
@@ -337,8 +381,8 @@ export class Organizer {
   }
 
   /** One structured request to whichever AI is configured. */
-  async ask({ text, images = [], schema, effort, maxTokens, stream = false, meter }) {
-    if (this.provider === 'ollama') return this.askOllama({ text, images, schema });
+  async ask({ text, images = [], schema, effort, maxTokens, stream = false, meter, system = SYSTEM }) {
+    if (this.provider === 'ollama') return this.askOllama({ text, images, schema, system });
     const content = [
       ...images.map((img) => ({ type: 'image', source: { type: 'base64', media_type: img.mediaType, data: img.data } })),
       { type: 'text', text },
@@ -346,7 +390,7 @@ export class Organizer {
     return this.parse(
       {
         max_tokens: maxTokens,
-        system: SYSTEM,
+        system,
         messages: [{ role: 'user', content }],
         output_config: { effort, format: betaZodOutputFormat(schema) },
       },
@@ -383,7 +427,7 @@ export class Organizer {
   }
 
   /** Local model via Ollama's chat API with a JSON-schema constrained reply. */
-  async askOllama({ text, images, schema }) {
+  async askOllama({ text, images, schema, system = SYSTEM }) {
     let res;
     try {
       res = await fetch(`${ollamaUrl()}/api/chat`, {
@@ -395,7 +439,7 @@ export class Organizer {
           format: z.toJSONSchema(schema),
           options: { temperature: 0 },
           messages: [
-            { role: 'system', content: SYSTEM + '\nReply with JSON only.' },
+            { role: 'system', content: system + '\nReply with JSON only.' },
             { role: 'user', content: text, ...(images.length ? { images: images.map((i) => i.data) } : {}) },
           ],
         }),

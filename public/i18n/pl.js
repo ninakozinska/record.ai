@@ -440,4 +440,10 @@ export default {
   "Done by {name}": "Zrobione przez: {name}",
   "Giving tasks to others is part of the Family plan.": "Przydzielanie zadań innym jest w planie Rodzina.",
   "This person is not among the people you share with.": "Tej osoby nie ma wśród osób, z którymi się dzielisz.",
+  "📸 Turn into tasks": "📸 Zamień na zadania",
+  "Find everything this letter or photo asks you to do, each with its date": "Znajdź wszystko, czego ten list lub zdjęcie od ciebie wymaga, każde z datą",
+  "Reading it…": "Czytam…",
+  "{n} tasks added": {"one":"Dodano {n} zadanie","few":"Dodano {n} zadania","many":"Dodano {n} zadań","other":"Dodano {n} zadania"},
+  "Nothing to do in this one.": "Tu nie ma nic do zrobienia.",
+  "Turning a letter into tasks is once a month on the free plan. Premium has it any time.": "Zamiana listu na zadania jest w planie darmowym raz w miesiącu. W Premium zawsze.",
 };
