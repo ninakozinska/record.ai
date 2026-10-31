@@ -7,7 +7,7 @@ struct NoteInputs: View {
     @Binding var text: String
     @Binding var images: [String]
     var minLines = 1
-    var placeholder = "Write a note, or tap 🎤 to dictate…"
+    var placeholder = tr("Write a note, or tap 🎤 to dictate…")
 
     @State private var dictation = Dictation()
     @State private var baseText = ""
@@ -50,16 +50,16 @@ struct NoteInputs: View {
                         .foregroundStyle(dictation.isRecording ? Color.red : Color.indigo)
                         .symbolEffect(.pulse, isActive: dictation.isRecording)
                 }
-                .accessibilityLabel(dictation.isRecording ? "Stop dictation" : "Dictate")
+                .accessibilityLabel(dictation.isRecording ? tr("Stop dictation") : tr("Dictate"))
 
                 if CameraPicker.isAvailable {
                     Button { showCamera = true } label: { Image(systemName: "camera") }
-                        .accessibilityLabel("Take a photo")
+                        .accessibilityLabel(tr("Take a photo"))
                 }
                 PhotosPicker(selection: $photoItems, maxSelectionCount: 10, matching: .images) {
                     Image(systemName: "photo.on.rectangle")
                 }
-                .accessibilityLabel("Add photos")
+                .accessibilityLabel(tr("Add photos"))
             }
             .font(.title3)
         }
@@ -114,7 +114,7 @@ struct ComposerView: View {
                     .font(.system(size: 32))
             }
             .disabled(isEmpty)
-            .accessibilityLabel("Save note")
+            .accessibilityLabel(tr("Save note"))
         }
         .padding(12)
         .background(.bar)
@@ -134,8 +134,8 @@ struct ComposerView: View {
                     text = p.before
                     pasted = nil
                 }
-                Button("Paste as text") { pasted = nil }
-                Button("Cancel", role: .cancel) { text = p.before; pasted = nil }
+                Button(tr("Paste as text")) { pasted = nil }
+                Button(tr("Cancel"), role: .cancel) { text = p.before; pasted = nil }
             }
         }
     }

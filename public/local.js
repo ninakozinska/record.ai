@@ -5,6 +5,8 @@
 // from other devices over Server-Sent Events, and we also pull incrementally
 // by revision number when reconnecting.
 
+import { t } from './i18n.js';
+
 const DB_NAME = 'record-ai';
 // Fields only the server sets: the AI's, and for shared notes the access and the owner's name.
 const AI_FIELDS = ['title', 'summary', 'ai_group', 'ai_priority', 'priority_reason', 'tags', 'due_date', 'due_time', 'ai_due_date', 'ai_due_time', 'ai_status', 'ai_error', 'rev', 'role', 'owner_name'];
@@ -160,7 +162,8 @@ export class Local extends EventTarget {
     const res = await fetch('api/' + path, { credentials: 'same-origin', ...opts });
     const data = await res.json().catch(() => ({}));
     if (res.status === 401 && !path.startsWith('auth/')) this.setStatus({ needsLogin: true });
-    if (!res.ok) throw Object.assign(new Error(data.error || res.statusText), { status: res.status });
+    // The server's messages are in English; show them in the app's language.
+    if (!res.ok) throw Object.assign(new Error(t(data.error || res.statusText)), { status: res.status });
     return data;
   }
 

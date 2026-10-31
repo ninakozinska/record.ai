@@ -33,23 +33,23 @@ struct LoginView: View {
                             .disabled(busy)
                         }
                     } footer: {
-                        Text("Or use your email and password:")
+                        Text(tr("Or use your email and password:"))
                     }
                 }
                 Section {
                     if signingUp {
-                        TextField("Your name", text: $name)
+                        TextField(tr("Your name"), text: $name)
                             .textContentType(.name)
                     }
-                    TextField("Email", text: $email)
+                    TextField(tr("Email"), text: $email)
                         .textContentType(.emailAddress)
                         .keyboardType(.emailAddress)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
-                    SecureField("Password", text: $password)
+                    SecureField(tr("Password"), text: $password)
                         .textContentType(signingUp ? .newPassword : .password)
                     if signingUp && policy?.needsCode == true {
-                        TextField("Invite code", text: $code)
+                        TextField(tr("Invite code"), text: $code)
                             .textInputAutocapitalization(.never)
                             .autocorrectionDisabled()
                     }
@@ -60,29 +60,29 @@ struct LoginView: View {
                 Section {
                     Button(action: submit) {
                         HStack {
-                            Text(signingUp ? "Create account" : "Log in").bold()
+                            Text(signingUp ? tr("Create account") : tr("Log in")).bold()
                             if busy { Spacer(); ProgressView() }
                         }
                     }
                     .disabled(busy || email.isEmpty || password.isEmpty)
                     if !signingUp {
-                        Button("Forgot your password?") { forgot() }
+                        Button(tr("Forgot your password?")) { forgot() }
                     }
                     if let info { Text(info).font(.footnote).foregroundStyle(.secondary) }
                     if canSwitch {
-                        Button(signingUp ? "I already have an account" : "Create an account") {
+                        Button(signingUp ? tr("I already have an account") : tr("Create an account")) {
                             signingUp.toggle()
                             error = nil
                         }
                     }
                 }
                 Section {
-                    Button("Use a different server", role: .destructive) { store.forgetServer() }
+                    Button(tr("Use a different server"), role: .destructive) { store.forgetServer() }
                 } footer: {
                     if let url = store.serverURL { Text("Connected to \(url.absoluteString)") }
                 }
             }
-            .navigationTitle(signingUp ? (policy?.firstAccount == true ? "Create your account" : "Create an account") : "Log in")
+            .navigationTitle(signingUp ? (policy?.firstAccount == true ? tr("Create your account") : tr("Create an account")) : tr("Log in"))
             .task {
                 try? await store.refreshAuthState()
                 if store.signupPolicy?.firstAccount == true { signingUp = true }
@@ -97,9 +97,9 @@ struct LoginView: View {
 
     private var intro: String {
         if signingUp && policy?.firstAccount == true {
-            return "This is the first account on your server. It will own all notes already saved there."
+            return tr("This is the first account on your server. It will own all notes already saved there.")
         }
-        return signingUp ? "Your notes are private to your account." : "Log in with the same email and password as on your Mac."
+        return signingUp ? tr("Your notes are private to your account.") : tr("Log in with the same email and password as on your Mac.")
     }
 
     /// Opens the provider's sign-in page in Apple's secure sheet; it comes back
@@ -145,13 +145,13 @@ struct LoginView: View {
     private func forgot() {
         error = nil
         guard !email.trimmingCharacters(in: .whitespaces).isEmpty else {
-            error = "Type your email above, then tap this again."
+            error = tr("Type your email above, then tap this again.")
             return
         }
         Task {
             do {
                 try await store.forgotPassword(email: email)
-                info = "If an account uses this email, a link to choose a new password is on its way. Then log in here with it."
+                info = tr("If an account uses this email, a link to choose a new password is on its way. Then log in here with it.")
             } catch {
                 self.error = error.localizedDescription
             }

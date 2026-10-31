@@ -1,5 +1,7 @@
 package ai.record.android.ui
 
+import ai.record.core.tr
+
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
@@ -61,9 +63,9 @@ fun LoginScreen(repo: NoteRepository, state: UiState) {
     LaunchedEffect(policy?.firstAccount) { if (policy?.firstAccount == true) signingUp = true }
 
     val title = when {
-        signingUp && policy?.firstAccount == true -> "Create your account"
-        signingUp -> "Create an account"
-        else -> "Log in"
+        signingUp && policy?.firstAccount == true -> tr("Create your account")
+        signingUp -> tr("Create an account")
+        else -> tr("Log in")
     }
     Column(
         Modifier.fillMaxSize().safeDrawingPadding().imePadding().verticalScroll(rememberScrollState()).padding(24.dp),
@@ -72,9 +74,9 @@ fun LoginScreen(repo: NoteRepository, state: UiState) {
         Text(title, style = MaterialTheme.typography.headlineSmall)
         Text(
             when {
-                signingUp && policy?.firstAccount == true -> "This is the first account on your server. It will own all notes already saved there."
-                signingUp -> "Your notes are private to your account."
-                else -> "Log in with the same email and password as on your computer."
+                signingUp && policy?.firstAccount == true -> tr("This is the first account on your server. It will own all notes already saved there.")
+                signingUp -> tr("Your notes are private to your account.")
+                else -> tr("Log in with the same email and password as on your computer.")
             },
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -89,7 +91,7 @@ fun LoginScreen(repo: NoteRepository, state: UiState) {
                         try {
                             context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
                         } catch (e: ActivityNotFoundException) {
-                            error = "No web browser found on this phone."
+                            error = tr("No web browser found on this phone.")
                         }
                     },
                     enabled = !busy && !socialBusy,
@@ -98,18 +100,18 @@ fun LoginScreen(repo: NoteRepository, state: UiState) {
             }
             socialError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             HorizontalDivider()
-            Text("Or with your email:", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(tr("Or with your email:"), color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         if (signingUp) {
-            OutlinedTextField(name, { name = it }, label = { Text("Your name") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
+            OutlinedTextField(name, { name = it }, label = { Text(tr("Your name")) }, singleLine = true, modifier = Modifier.fillMaxWidth(),
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words))
         }
-        OutlinedTextField(email, { email = it }, label = { Text("Email") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
+        OutlinedTextField(email, { email = it }, label = { Text(tr("Email")) }, singleLine = true, modifier = Modifier.fillMaxWidth(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email))
-        OutlinedTextField(password, { password = it }, label = { Text("Password") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
+        OutlinedTextField(password, { password = it }, label = { Text(tr("Password")) }, singleLine = true, modifier = Modifier.fillMaxWidth(),
             visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password))
         if (signingUp && policy?.needsCode == true) {
-            OutlinedTextField(code, { code = it }, label = { Text("Invite code") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(code, { code = it }, label = { Text(tr("Invite code")) }, singleLine = true, modifier = Modifier.fillMaxWidth())
         }
         error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         Button(
@@ -125,26 +127,26 @@ fun LoginScreen(repo: NoteRepository, state: UiState) {
             },
             enabled = !busy && email.isNotBlank() && password.isNotBlank(),
             modifier = Modifier.fillMaxWidth(),
-        ) { Text(if (signingUp) "Create account" else "Log in") }
+        ) { Text(if (signingUp) tr("Create account") else tr("Log in")) }
         info?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
         if (!signingUp) {
             TextButton(onClick = {
                 error = null
-                if (email.isBlank()) { error = "Type your email above, then tap this again."; return@TextButton }
+                if (email.isBlank()) { error = tr("Type your email above, then tap this again."); return@TextButton }
                 scope.launch {
                     runCatching { repo.forgotPassword(email) }
-                        .onSuccess { info = "If an account uses this email, a link to choose a new password is on its way. Then log in here with it." }
+                        .onSuccess { info = tr("If an account uses this email, a link to choose a new password is on its way. Then log in here with it.") }
                         .onFailure { error = it.message }
                 }
-            }) { Text("Forgot your password?") }
+            }) { Text(tr("Forgot your password?")) }
         }
         if (policy == null || (policy.open && !policy.firstAccount)) {
             TextButton(onClick = { signingUp = !signingUp; error = null }) {
-                Text(if (signingUp) "I already have an account" else "Create an account")
+                Text(if (signingUp) tr("I already have an account") else tr("Create an account"))
             }
         }
         TextButton(onClick = { scope.launch { repo.forgetServer() } }) {
-            Text("Use a different server", color = MaterialTheme.colorScheme.error)
+            Text(tr("Use a different server"), color = MaterialTheme.colorScheme.error)
         }
         state.serverUrl?.let { Text("Connected to $it", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
     }

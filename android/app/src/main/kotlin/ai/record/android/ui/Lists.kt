@@ -1,5 +1,7 @@
 package ai.record.android.ui
 
+import ai.record.core.tr
+
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
 import android.content.Intent
@@ -66,7 +68,7 @@ fun ListItems(repo: NoteRepository, state: UiState, listId: String, canEdit: Boo
                     color = if (item.done) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface)
                 if (canEdit) {
                     IconButton(onClick = { repo.save(item.id, mapOf("deleted" to true)) }) {
-                        Icon(Icons.Filled.Close, "Remove item", Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Icon(Icons.Filled.Close, tr("Remove item"), Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
@@ -84,16 +86,16 @@ fun ListItems(repo: NoteRepository, state: UiState, listId: String, canEdit: Boo
                     else if (v.endsWith("\n")) { newItem = v.trimEnd(); add() }
                     else newItem = v
                 },
-                placeholder = { Text("+ Add an item") },
+                placeholder = { Text(tr("+ Add an item")) },
                 singleLine = false,
                 maxLines = 3,
-                trailingIcon = { if (newItem.isNotBlank()) TextButton(onClick = ::add) { Text("Add") } },
+                trailingIcon = { if (newItem.isNotBlank()) TextButton(onClick = ::add) { Text(tr("Add")) } },
                 modifier = Modifier.fillMaxWidth(),
             )
         }
     }
     paste?.let { lines ->
-        PasteChoice(lines, title = "Paste ${lines.size} lines", a = "Add ${lines.size} items", b = "Add as one item") { choice ->
+        PasteChoice(lines, title = "Paste ${lines.size} lines", a = "Add ${lines.size} items", b = tr("Add as one item")) { choice ->
             paste = null
             when (choice) {
                 "a" -> { lines.forEach { repo.addItem(listId, it, send = false) }; repo.sendNow() }
@@ -112,7 +114,7 @@ fun PasteChoice(lines: List<String>, title: String, a: String, b: String, plain:
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(title, Modifier.weight(1f))
-                IconButton(onClick = { onChoice("") }) { Icon(Icons.Filled.Close, "Close") }
+                IconButton(onClick = { onChoice("") }) { Icon(Icons.Filled.Close, tr("Close")) }
             }
         },
         text = {
@@ -121,7 +123,7 @@ fun PasteChoice(lines: List<String>, title: String, a: String, b: String, plain:
                 if (lines.size > 6) Text("… ${lines.size - 6} more", style = MaterialTheme.typography.bodySmall)
                 OutlinedButton(onClick = { onChoice("a") }, Modifier.fillMaxWidth()) { Text(a) }
                 OutlinedButton(onClick = { onChoice("b") }, Modifier.fillMaxWidth()) { Text(b) }
-                if (plain) TextButton(onClick = { onChoice("plain") }, Modifier.fillMaxWidth()) { Text("Paste as text") }
+                if (plain) TextButton(onClick = { onChoice("plain") }, Modifier.fillMaxWidth()) { Text(tr("Paste as text")) }
             }
         },
         confirmButton = {},
@@ -154,7 +156,7 @@ fun DueEditor(note: Note, due: String?, enabled: Boolean, onDue: (String?) -> Un
     val date = shown?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         val label = date?.let { it.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)) + (shownTime?.let { t -> " $t" } ?: "") }
-        Text("Date: " + (label ?: "none") + if (due == null) "  (AI)" else "", style = MaterialTheme.typography.bodyMedium)
+        Text(tr("Date: ") + (label ?: "none") + if (due == null) "  (AI)" else "", style = MaterialTheme.typography.bodyMedium)
         if (!enabled) return@Column
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedButton(onClick = {
@@ -163,17 +165,17 @@ fun DueEditor(note: Note, due: String?, enabled: Boolean, onDue: (String?) -> Un
                     val picked = LocalDate.of(y, m + 1, day).toString()
                     onDue(picked + (shownTime?.let { "T$it" } ?: ""))
                 }, d.year, d.monthValue - 1, d.dayOfMonth).show()
-            }) { Text("📅 Date") }
+            }) { Text(tr("📅 Date")) }
             OutlinedButton(enabled = date != null, onClick = {
                 val (h, min) = shownTime?.split(":")?.map { it.toInt() } ?: listOf(9, 0)
                 TimePickerDialog(context, { _, hh, mm ->
                     onDue("${date}T%02d:%02d".format(hh, mm))
                 }, h, min, true).show()
-            }) { Text("🕑 Time") }
+            }) { Text(tr("🕑 Time")) }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilterChip(selected = due == "", onClick = { onDue("") }, label = { Text("No date") })
-            FilterChip(selected = due == null, onClick = { onDue(null) }, label = { Text("Let AI decide") })
+            FilterChip(selected = due == "", onClick = { onDue("") }, label = { Text(tr("No date")) })
+            FilterChip(selected = due == null, onClick = { onDue(null) }, label = { Text(tr("Let AI decide")) })
         }
         if (date != null) {
             TextButton(onClick = {
@@ -186,8 +188,8 @@ fun DueEditor(note: Note, due: String?, enabled: Boolean, onDue: (String?) -> Un
                     .putExtra(CalendarContract.EXTRA_EVENT_BEGIN_TIME, millis)
                     .putExtra(CalendarContract.EXTRA_EVENT_END_TIME, millis + if (shownTime != null) 3_600_000 else 86_400_000)
                     .putExtra(CalendarContract.EXTRA_EVENT_ALL_DAY, shownTime == null)
-                runCatching { context.startActivity(intent) }.onFailure { toast(context, "No calendar app found") }
-            }) { Text("Add to my calendar") }
+                runCatching { context.startActivity(intent) }.onFailure { toast(context, tr("No calendar app found")) }
+            }) { Text(tr("Add to my calendar")) }
         }
     }
 }
@@ -211,13 +213,13 @@ fun ShareDialog(repo: NoteRepository, kind: String, target: String, label: Strin
         title = { Text("Share \"$label\"") },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(if (kind == "group") "Everyone you add sees every note in this group, also ones added later."
-                    else "They see this note and its items on their phone or computer.",
+                Text(if (kind == "group") tr("Everyone you add sees every note in this group, also ones added later.")
+                    else tr("They see this note and its items on their phone or computer."),
                     style = MaterialTheme.typography.bodySmall)
-                OutlinedTextField(email, { email = it }, label = { Text("Their email") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(email, { email = it }, label = { Text(tr("Their email")) }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilterChip(selected = role == "edit", onClick = { role = "edit" }, label = { Text("Can edit") })
-                    FilterChip(selected = role == "view", onClick = { role = "view" }, label = { Text("View only") })
+                    FilterChip(selected = role == "edit", onClick = { role = "edit" }, label = { Text(tr("Can edit")) })
+                    FilterChip(selected = role == "view", onClick = { role = "view" }, label = { Text(tr("View only")) })
                 }
                 OutlinedButton(enabled = email.contains("@"), onClick = {
                     scope.launch {
@@ -225,26 +227,26 @@ fun ShareDialog(repo: NoteRepository, kind: String, target: String, label: Strin
                             .onSuccess { message = "Shared with ${email.trim()}"; email = ""; reload() }
                             .onFailure { message = it.message }
                     }
-                }, modifier = Modifier.fillMaxWidth()) { Text("Share") }
+                }, modifier = Modifier.fillMaxWidth()) { Text(tr("Share")) }
                 message?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary) }
                 shares.forEach { s ->
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
                             Text(s.name ?: s.email.orEmpty())
-                            Text((if (s.role == "view") "View only" else "Can edit") + if (s.name == null) " · invited" else "",
+                            Text((if (s.role == "view") tr("View only") else tr("Can edit")) + if (s.name == null) " · invited" else "",
                                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         TextButton(onClick = {
                             scope.launch { runCatching { repo.setShareRole(s.id, if (s.role == "view") "edit" else "view") }; reload() }
-                        }) { Text(if (s.role == "view") "Allow edits" else "Make view only") }
+                        }) { Text(if (s.role == "view") tr("Allow edits") else tr("Make view only")) }
                         IconButton(onClick = { scope.launch { runCatching { repo.unshare(s.id) }; reload() } }) {
-                            Icon(Icons.Filled.Close, "Stop sharing")
+                            Icon(Icons.Filled.Close, tr("Stop sharing"))
                         }
                     }
                 }
             }
         },
-        confirmButton = { TextButton(onClick = onClose) { Text("Done") } },
+        confirmButton = { TextButton(onClick = onClose) { Text(tr("Done")) } },
     )
 }
 

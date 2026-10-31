@@ -1,5 +1,7 @@
 package ai.record.android.ui
 
+import ai.record.core.tr
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -50,15 +52,15 @@ fun ConnectScreen(repo: NoteRepository) {
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Icon(Icons.Filled.Edit, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-        Text("Connect to your notes", style = MaterialTheme.typography.headlineSmall)
+        Text(tr("Connect to your notes"), style = MaterialTheme.typography.headlineSmall)
         Text(
-            "Enter the address of your record.ai server. On your computer, open record.ai in the browser and tap your initials (top right): the address is shown there.",
+            tr("Enter the address of your record.ai server. On your computer, open record.ai in the browser and tap your initials (top right): the address is shown there."),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         OutlinedTextField(
             value = address,
             onValueChange = { address = it },
-            label = { Text("Server address") },
+            label = { Text(tr("Server address")) },
             placeholder = { Text("http://192.168.1.20:3000") },
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Go),
@@ -67,10 +69,10 @@ fun ConnectScreen(repo: NoteRepository) {
         )
         error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         Button(onClick = connect, enabled = address.isNotBlank() && !busy, modifier = Modifier.fillMaxWidth()) {
-            if (busy) CircularProgressIndicator(Modifier.padding(end = 8.dp)) else Text("Connect")
+            if (busy) CircularProgressIndicator(Modifier.padding(end = 8.dp)) else Text(tr("Connect"))
         }
         Text(
-            "Your phone and your computer must be on the same network, or connected with Tailscale.",
+            tr("Your phone and your computer must be on the same network, or connected with Tailscale."),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

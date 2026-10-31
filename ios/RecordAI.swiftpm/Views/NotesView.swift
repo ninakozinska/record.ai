@@ -21,10 +21,10 @@ struct NotesView: View {
         NavigationStack {
             List {
                 Section {
-                    Picker("World", selection: $world) {
-                        Text("All").tag(Worlds.all)
-                        Text("💼 Work").tag(Worlds.work)
-                        Text("🏡 Family").tag(Worlds.family)
+                    Picker(tr("World"), selection: $world) {
+                        Text(tr("All")).tag(Worlds.all)
+                        Text(tr("💼 Work")).tag(Worlds.work)
+                        Text(tr("🏡 Family")).tag(Worlds.family)
                     }
                     .pickerStyle(.segmented)
                     .onChange(of: world) { _, _ in group = nil }
@@ -37,7 +37,7 @@ struct NotesView: View {
                 }
                 if !store.isAIEnabled {
                     Section {
-                        Label("AI sorting is off on your server. Notes are saved and synced but not sorted.", systemImage: "sparkles")
+                        Label(tr("AI sorting is off on your server. Notes are saved and synced but not sorted."), systemImage: "sparkles")
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                     }
@@ -52,9 +52,9 @@ struct NotesView: View {
                                     if !note.isShared {
                                         Button(role: .destructive) {
                                             store.save(id: note.id, patch: ["deleted": true])
-                                            show("Note deleted") { store.save(id: note.id, patch: ["deleted": false]) }
+                                            show(tr("Note deleted")) { store.save(id: note.id, patch: ["deleted": false]) }
                                         } label: {
-                                            Label("Delete", systemImage: "trash")
+                                            Label(tr("Delete"), systemImage: "trash")
                                         }
                                     }
                                 }
@@ -67,8 +67,8 @@ struct NotesView: View {
                 if open.isEmpty {
                     Section {
                         Text(store.visibleNotes.isEmpty
-                             ? "No notes yet. Type, dictate 🎤 or take a photo 📷 below. AI will title, prioritize and group them for you."
-                             : "Nothing here. 🎉")
+                             ? tr("No notes yet. Type, dictate 🎤 or take a photo 📷 below. AI will title, prioritize and group them for you.")
+                             : tr("Nothing here. 🎉"))
                             .foregroundStyle(.secondary)
                             .frame(maxWidth: .infinity)
                             .multilineTextAlignment(.center)
@@ -82,7 +82,7 @@ struct NotesView: View {
                                 .buttonStyle(.borderless)
                             Spacer()
                             if showDone && done.contains(where: { !$0.isShared }) {
-                                Button("Clear done", role: .destructive) { confirmClear = true }
+                                Button(tr("Clear done"), role: .destructive) { confirmClear = true }
                                     .buttonStyle(.borderless)
                             }
                         }
@@ -97,7 +97,7 @@ struct NotesView: View {
                 }
             }
             .listStyle(.insetGrouped)
-            .searchable(text: $query, prompt: "Search notes")
+            .searchable(text: $query, prompt: tr("Search notes"))
             .task(id: store.user?.id) { chosenWorlds = await store.worlds() }
             .refreshable {
                 chosenWorlds = await store.worlds()
@@ -109,9 +109,9 @@ struct NotesView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) { syncDot }
                 ToolbarItem(placement: .principal) {
-                    Picker("View", selection: $viewMode) {
-                        Text("Priority").tag("priority")
-                        Text("Groups").tag("groups")
+                    Picker(tr("View"), selection: $viewMode) {
+                        Text(tr("Priority")).tag("priority")
+                        Text(tr("Groups")).tag("groups")
                     }
                     .pickerStyle(.segmented)
                     .frame(width: 200)
@@ -119,9 +119,9 @@ struct NotesView: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     Menu {
                         if store.isAIEnabled {
-                            Button { reorganize() } label: { Label("Reorganize with AI", systemImage: "sparkles") }
+                            Button { reorganize() } label: { Label(tr("Reorganize with AI"), systemImage: "sparkles") }
                         }
-                        Button { showAccount = true } label: { Label("Account", systemImage: "person.crop.circle") }
+                        Button { showAccount = true } label: { Label(tr("Account"), systemImage: "person.crop.circle") }
                     } label: {
                         Text(store.user?.initials ?? "?")
                             .font(.footnote.bold())
@@ -139,7 +139,7 @@ struct NotesView: View {
                     HStack(spacing: 12) {
                         Text(message).font(.footnote)
                         if let undo {
-                            Button("Undo") {
+                            Button(tr("Undo")) {
                                 undo()
                                 withAnimation { self.message = nil; self.undo = nil }
                             }
@@ -153,12 +153,12 @@ struct NotesView: View {
                 }
             }
             .confirmationDialog(clearQuestion, isPresented: $confirmClear, titleVisibility: .visible) {
-                Button("Delete", role: .destructive) {
+                Button(tr("Delete"), role: .destructive) {
                     let removed = store.clearDone(done.map(\.id))
                     show("\(removed.count) done note\(removed.count == 1 ? "" : "s") deleted") { store.undelete(removed) }
                 }
             } message: {
-                Text("You can undo this for a few seconds.")
+                Text(tr("You can undo this for a few seconds."))
             }
         }
     }
@@ -169,13 +169,13 @@ struct NotesView: View {
         Circle()
             .fill(store.online ? (store.unsent > 0 ? Color.orange : Color.green) : Color.red)
             .frame(width: 9, height: 9)
-            .accessibilityLabel(store.online ? (store.unsent > 0 ? "Syncing" : "Synced") : "Offline")
+            .accessibilityLabel(store.online ? (store.unsent > 0 ? tr("Syncing") : tr("Synced")) : tr("Offline"))
     }
 
     private var groupChips: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
-                chip("All", selected: group == nil) { group = nil }
+                chip(tr("All"), selected: group == nil) { group = nil }
                 ForEach(groupNames, id: \.self) { name in
                     chip(name, selected: group == name) { group = name }
                 }
@@ -235,10 +235,10 @@ struct NotesView: View {
 
     private func reorganize() {
         Task {
-            show("✨ Reorganizing…")
+            show(tr("✨ Reorganizing…"))
             do {
                 let r = try await store.reorganize()
-                show(r.skipped == true ? "Already reorganizing" : "Reorganized: \(r.updated ?? 0) note(s) moved")
+                show(r.skipped == true ? tr("Already reorganizing") : "Reorganized: \(r.updated ?? 0) note(s) moved")
             } catch {
                 show(error.localizedDescription)
             }
@@ -252,7 +252,7 @@ struct NotesView: View {
 
     private func markDone(_ note: Note) {
         store.setDone(note.id, !note.done)
-        show(note.done ? "Back to open notes" : "Marked done") { store.setDone(note.id, note.done) }
+        show(note.done ? tr("Back to open notes") : tr("Marked done")) { store.setDone(note.id, note.done) }
     }
 
     /// A short message at the top; with `undo`, an Undo button for a few seconds.
@@ -322,7 +322,7 @@ struct NoteRow: View {
                         .padding(.horizontal, 6).padding(.vertical, 2)
                         .background(note.priority.color.opacity(0.12), in: RoundedRectangle(cornerRadius: 5))
                     if note.isShared {
-                        Text("Shared by \(note.ownerName ?? "someone")" + (note.canEdit ? "" : " · view only"))
+                        Text("Shared by \(note.ownerName ?? "someone")" + (note.canEdit ? "" : tr(" · view only")))
                             .font(.caption)
                             .foregroundStyle(.indigo)
                     } else if showGroup {
@@ -338,13 +338,13 @@ struct NoteRow: View {
                     Spacer()
                     if note.canEdit {
                         Button(action: onDone) {
-                            Text(note.done ? "↺ Reopen" : "✓ Done")
+                            Text(note.done ? tr("↺ Reopen") : tr("✓ Done"))
                                 .font(.caption.bold())
                                 .padding(.horizontal, 10).padding(.vertical, 5)
                                 .background(Capsule().stroke(Color.indigo.opacity(0.5)))
                         }
                         .buttonStyle(.borderless)
-                        .accessibilityLabel(note.done ? "Mark not done" : "Mark done")
+                        .accessibilityLabel(note.done ? tr("Mark not done") : tr("Mark done"))
                     }
                 }
             }

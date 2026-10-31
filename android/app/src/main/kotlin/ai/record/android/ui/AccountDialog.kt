@@ -1,5 +1,7 @@
 package ai.record.android.ui
 
+import ai.record.core.tr
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -58,14 +60,14 @@ fun AccountDialog(repo: NoteRepository, state: UiState, onClose: () -> Unit) {
 
     AlertDialog(
         onDismissRequest = onClose,
-        title = { Text(state.user?.name ?: "Account") },
+        title = { Text(state.user?.name ?: tr("Account")) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(state.user?.email.orEmpty())
                 state.serverUrl?.let { Text("Server: $it", style = MaterialTheme.typography.bodySmall) }
                 info?.identities?.takeIf { it.isNotEmpty() }?.let { identities ->
                     HorizontalDivider()
-                    Text("Sign-in options", style = MaterialTheme.typography.titleSmall)
+                    Text(tr("Sign-in options"), style = MaterialTheme.typography.titleSmall)
                     identities.forEach { identity ->
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
@@ -76,53 +78,53 @@ fun AccountDialog(repo: NoteRepository, state: UiState, onClose: () -> Unit) {
                                 scope.launch {
                                     runCatching { repo.disconnect(identity.provider) }
                                         .onSuccess { reload++ }
-                                        .onFailure { message = (it.message ?: "Could not disconnect.") to true }
+                                        .onFailure { message = (it.message ?: tr("Could not disconnect.")) to true }
                                 }
-                            }) { Text("Disconnect", color = MaterialTheme.colorScheme.error) }
+                            }) { Text(tr("Disconnect"), color = MaterialTheme.colorScheme.error) }
                         }
                     }
-                    Text("To connect more, open record.ai in a browser and tap your initials.", style = MaterialTheme.typography.bodySmall)
+                    Text(tr("To connect more, open record.ai in a browser and tap your initials."), style = MaterialTheme.typography.bodySmall)
                 }
                 HorizontalDivider()
-                Text(if (hasPassword) "Change password" else "Set a password", style = MaterialTheme.typography.titleSmall)
+                Text(if (hasPassword) tr("Change password") else tr("Set a password"), style = MaterialTheme.typography.titleSmall)
                 if (hasPassword) {
-                    OutlinedTextField(current, { current = it }, label = { Text("Current password") }, singleLine = true,
+                    OutlinedTextField(current, { current = it }, label = { Text(tr("Current password")) }, singleLine = true,
                         visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth())
                 }
-                OutlinedTextField(next, { next = it }, label = { Text("New password (at least 8 characters)") }, singleLine = true,
+                OutlinedTextField(next, { next = it }, label = { Text(tr("New password (at least 8 characters)")) }, singleLine = true,
                     visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth())
                 OutlinedButton(enabled = (!hasPassword || current.isNotEmpty()) && next.isNotEmpty(), onClick = {
                     scope.launch {
                         runCatching { repo.changePassword(current, next) }
-                            .onSuccess { current = ""; next = ""; reload++; message = "Password saved. Your other devices must log in again." to false }
-                            .onFailure { message = (it.message ?: "Could not change the password.") to true }
+                            .onSuccess { current = ""; next = ""; reload++; message = tr("Password saved. Your other devices must log in again.") to false }
+                            .onFailure { message = (it.message ?: tr("Could not change the password.")) to true }
                     }
-                }) { Text(if (hasPassword) "Change password" else "Set password") }
+                }) { Text(if (hasPassword) tr("Change password") else tr("Set password")) }
                 message?.let { (text, isError) -> Text(text, color = if (isError) MaterialTheme.colorScheme.error else Color(0xFF16A34A)) }
                 HorizontalDivider()
                 TextButton(onClick = {
                     scope.launch {
                         runCatching { repo.logoutOtherDevices() }
-                            .onSuccess { message = "Other devices are logged out." to false }
-                            .onFailure { message = (it.message ?: "Could not log out other devices.") to true }
+                            .onSuccess { message = tr("Other devices are logged out.") to false }
+                            .onFailure { message = (it.message ?: tr("Could not log out other devices.")) to true }
                     }
-                }) { Text("Log out other devices") }
-                TextButton(onClick = { confirmLogout = true }) { Text("Log out", color = MaterialTheme.colorScheme.error) }
-                Text("Logging out removes your notes from this phone. They stay safe on your server.", style = MaterialTheme.typography.bodySmall)
+                }) { Text(tr("Log out other devices")) }
+                TextButton(onClick = { confirmLogout = true }) { Text(tr("Log out"), color = MaterialTheme.colorScheme.error) }
+                Text(tr("Logging out removes your notes from this phone. They stay safe on your server."), style = MaterialTheme.typography.bodySmall)
                 plan?.let { p ->
                     HorizontalDivider()
-                    Text("Premium", style = MaterialTheme.typography.titleSmall)
+                    Text(tr("Premium"), style = MaterialTheme.typography.titleSmall)
                     if (!p.premium) {
-                        Text("Daily backups kept 30 days, and restoring them, are part of Premium.", style = MaterialTheme.typography.bodySmall)
+                        Text(tr("Daily backups kept 30 days, and restoring them, are part of Premium."), style = MaterialTheme.typography.bodySmall)
                     } else {
-                        Text("A backup of your notes is made every day and kept 30 days.", style = MaterialTheme.typography.bodySmall)
+                        Text(tr("A backup of your notes is made every day and kept 30 days."), style = MaterialTheme.typography.bodySmall)
                         OutlinedButton(onClick = {
                             scope.launch {
                                 runCatching { repo.backupNow() }
-                                    .onSuccess { message = "Backup made." to false; reload++ }
-                                    .onFailure { message = (it.message ?: "Could not make a backup.") to true }
+                                    .onSuccess { message = tr("Backup made.") to false; reload++ }
+                                    .onFailure { message = (it.message ?: tr("Could not make a backup.")) to true }
                             }
-                        }) { Text("Back up now") }
+                        }) { Text(tr("Back up now")) }
                         backups.take(10).forEach { b ->
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Column(Modifier.weight(1f)) {
@@ -130,24 +132,24 @@ fun AccountDialog(repo: NoteRepository, state: UiState, onClose: () -> Unit) {
                                     Text("${b.notes} notes" + when (b.kind) { "manual" -> " · by hand"; "before-restore" -> " · before a restore"; else -> "" },
                                         style = MaterialTheme.typography.bodySmall)
                                 }
-                                TextButton(onClick = { restoring = b }) { Text("Restore") }
+                                TextButton(onClick = { restoring = b }) { Text(tr("Restore")) }
                             }
                         }
                     }
                 }
                 HorizontalDivider()
-                TextButton(onClick = { deleting = true }) { Text("Delete my account", color = MaterialTheme.colorScheme.error) }
+                TextButton(onClick = { deleting = true }) { Text(tr("Delete my account"), color = MaterialTheme.colorScheme.error) }
             }
         },
-        confirmButton = { TextButton(onClick = onClose) { Text("Done") } },
+        confirmButton = { TextButton(onClick = onClose) { Text(tr("Done")) } },
     )
 
     if (confirmLogout) {
         AlertDialog(
             onDismissRequest = { confirmLogout = false },
-            title = { Text("Log out?") },
+            title = { Text(tr("Log out?")) },
             text = {
-                Text(if (state.unsent > 0) "${state.unsent} change(s) haven't reached the server yet and will be lost." else "Log out of record.ai on this phone?")
+                Text(if (state.unsent > 0) "${state.unsent} change(s) haven't reached the server yet and will be lost." else tr("Log out of record.ai on this phone?"))
             },
             confirmButton = {
                 TextButton(onClick = {
@@ -157,28 +159,28 @@ fun AccountDialog(repo: NoteRepository, state: UiState, onClose: () -> Unit) {
                         confirmLogout = false
                         onClose()
                     }
-                }) { Text("Log out", color = MaterialTheme.colorScheme.error) }
+                }) { Text(tr("Log out"), color = MaterialTheme.colorScheme.error) }
             },
-            dismissButton = { TextButton(onClick = { confirmLogout = false }) { Text("Cancel") } },
+            dismissButton = { TextButton(onClick = { confirmLogout = false }) { Text(tr("Cancel")) } },
         )
     }
 
     restoring?.let { b ->
         AlertDialog(
             onDismissRequest = { restoring = null },
-            title = { Text("Restore this backup?") },
-            text = { Text("Your notes go back to how they were then. Notes written since are deleted. A backup of how they are now is made first, so you can undo this.") },
+            title = { Text(tr("Restore this backup?")) },
+            text = { Text(tr("Your notes go back to how they were then. Notes written since are deleted. A backup of how they are now is made first, so you can undo this.")) },
             confirmButton = {
                 TextButton(onClick = {
                     restoring = null
                     scope.launch {
                         runCatching { repo.restore(b.id) }
-                            .onSuccess { message = "Restored." to false; reload++ }
-                            .onFailure { message = (it.message ?: "Could not restore.") to true }
+                            .onSuccess { message = tr("Restored.") to false; reload++ }
+                            .onFailure { message = (it.message ?: tr("Could not restore.")) to true }
                     }
-                }) { Text("Restore") }
+                }) { Text(tr("Restore")) }
             },
-            dismissButton = { TextButton(onClick = { restoring = null }) { Text("Cancel") } },
+            dismissButton = { TextButton(onClick = { restoring = null }) { Text(tr("Cancel")) } },
         )
     }
 
@@ -187,11 +189,11 @@ fun AccountDialog(repo: NoteRepository, state: UiState, onClose: () -> Unit) {
         var error by remember { mutableStateOf<String?>(null) }
         AlertDialog(
             onDismissRequest = { deleting = false },
-            title = { Text("Delete your account?") },
+            title = { Text(tr("Delete your account?")) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("This deletes your account, all your notes and photos, and your backups, for good. People you shared with lose access to them.")
-                    OutlinedTextField(email, { email = it }, label = { Text("Type your email to confirm") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    Text(tr("This deletes your account, all your notes and photos, and your backups, for good. People you shared with lose access to them."))
+                    OutlinedTextField(email, { email = it }, label = { Text(tr("Type your email to confirm")) }, singleLine = true, modifier = Modifier.fillMaxWidth())
                     error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                 }
             },
@@ -202,9 +204,9 @@ fun AccountDialog(repo: NoteRepository, state: UiState, onClose: () -> Unit) {
                             .onSuccess { deleting = false; onClose() }
                             .onFailure { error = it.message }
                     }
-                }) { Text("Delete for good", color = MaterialTheme.colorScheme.error) }
+                }) { Text(tr("Delete for good"), color = MaterialTheme.colorScheme.error) }
             },
-            dismissButton = { TextButton(onClick = { deleting = false }) { Text("Cancel") } },
+            dismissButton = { TextButton(onClick = { deleting = false }) { Text(tr("Cancel")) } },
         )
     }
 }
