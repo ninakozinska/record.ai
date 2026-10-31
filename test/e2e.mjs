@@ -690,6 +690,9 @@ try {
     await page.click('#aiConnect');
     await page.waitForSelector('#aiResult code:has-text("/mcp/rai_")');
     await page.waitForSelector('#aiKeys li:has-text("Claude")');
+    // Read aloud: the owner has Premium, so the voice choice is open.
+    await page.waitForSelector('#voiceBox h3:has-text("Leggi ad alta voce")');
+    assert.equal(await page.isVisible('#voicePremium'), false);
     await Promise.all([page.waitForEvent('load'), page.selectOption('#langSelect', 'pl')]);
     await page.waitForSelector('#search[placeholder="Szukaj notatek…"]');
     assert.equal(await page.evaluate(() => fetch('api/language').then((r) => r.json()).then((r) => r.lang)), 'pl');

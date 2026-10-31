@@ -133,6 +133,7 @@
       <div class="sheet-actions">
         <button type="button" id="editorDelete" class="danger ghost">Delete</button>
         <button type="button" id="editorShare" class="ghost">👥 Share</button>
+        <button type="button" id="editorSpeak" class="ghost" title="Read this note aloud">🔊 Read aloud</button>
         <button type="button" id="editorTasks" class="ghost" title="Find everything this letter or photo asks you to do, each with its date">📸 Turn into tasks</button>
         <button type="button" id="editorReanalyze" class="ghost">Re-analyze</button>
         <button type="button" id="editorDone" class="ghost">Mark done</button>
@@ -319,6 +320,17 @@
           <p class="muted">Android: add it in Google Calendar, then it shows on your phone. Calendars check for changes every few hours.</p>
           <p class="muted">Keep this link to yourself: anyone who has it can see your dated notes. <button type="button" class="link-btn" id="calendarReset">Make a new link</button> (the old one stops working).</p>
         </div>
+      </div>
+      <div class="stack" id="voiceBox">
+        <h3>🔊 Read aloud <span class="muted plan-label" id="voicePremium">⭐ Premium</span></h3>
+        <p class="muted">Notes and your day read aloud, with the voice you like. The voices come from this device.</p>
+        <label class="muted" for="voiceSelect">Voice</label>
+        <select id="voiceSelect"></select>
+        <label class="muted" for="voiceRate">Speed</label>
+        <select id="voiceRate">
+          <option value="0.8">Slow</option><option value="1" selected>Normal</option><option value="1.2">Fast</option>
+        </select>
+        <div class="cal-buttons"><button type="button" class="ghost" id="voiceTry">▶ Try it</button></div>
       </div>
       <div class="stack" id="notifyBox">
         <h3>🔔 Notifications</h3>

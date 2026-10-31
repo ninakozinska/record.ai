@@ -79,6 +79,7 @@ struct AccountView: View {
                 } footer: {
                     Text(tr("Logging out removes your notes from this iPhone. They stay safe on your server."))
                 }
+                if let plan { VoiceSection(premium: plan.canReadAloud) }
                 if let plan {
                     Section {
                         if plan.premium {

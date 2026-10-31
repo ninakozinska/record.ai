@@ -356,3 +356,5 @@ a.btn { display: inline-flex; align-items: center; text-decoration: none; color:
 .list-preview .who, .item .who { font-size: .78rem; color: var(--muted); white-space: nowrap; }
 .item-assign { max-width: 7.5em; }
 .assign-row { display: flex; gap: 8px; align-items: center; margin: 8px 0; }
+.today { position: relative; }
+.today .read-day { position: absolute; top: 6px; right: 6px; padding: 2px 8px; }

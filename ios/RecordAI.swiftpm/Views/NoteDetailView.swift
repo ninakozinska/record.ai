@@ -19,6 +19,7 @@ struct NoteDetailView: View {
     @State private var assignee = ""          // "" = anyone
     @State private var people = People(people: [], family: false)
     @State private var working = false
+    @State private var canReadAloud = false
 
     private var canEdit: Bool { note?.canEdit ?? true }
     private var isShared: Bool { note?.isShared ?? false }
@@ -106,6 +107,11 @@ struct NoteDetailView: View {
                         store.save(id: noteId, patch: ["done": !(note?.done ?? false)])
                         dismiss()
                     } }
+                    if canReadAloud, let note {
+                        Button(tr("🔊 Read aloud")) {
+                            ReadAloud.speak(ReadAloud.text(of: note, items: store.notes.values.filter { $0.parentId == noteId && !$0.deleted }))
+                        }
+                    }
                     // A letter, an invitation or a photo of one: each thing to do becomes a note with its date.
                     if !isShared, let note, !note.images.isEmpty || note.text.count > 60 { Button(tr("📸 Turn into tasks")) {
                         saveChanges()
@@ -164,7 +170,10 @@ struct NoteDetailView: View {
             }
             .sheet(isPresented: $sharing) { ShareView(kind: "note", target: noteId, label: note?.displayTitle ?? tr("Note")) }
             .onAppear(perform: load)
-            .task { people = await store.people() }
+            .task {
+                people = await store.people()
+                canReadAloud = (try? await store.plan())?.canReadAloud == true
+            }
         }
     }
 

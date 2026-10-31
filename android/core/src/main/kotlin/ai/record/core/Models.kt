@@ -139,7 +139,10 @@ data class Note(
 
 @Serializable data class Shares(val mine: List<Share> = emptyList(), val withMe: List<Share> = emptyList())
 
-@Serializable data class Plan(val plan: String = "free", val premium: Boolean = false)
+@Serializable data class Plan(val plan: String = "free", val premium: Boolean = false, val admin: Boolean = false) {
+    /** Reading notes aloud is part of Premium; the server's owner has everything. */
+    val canReadAloud: Boolean get() = premium || admin
+}
 
 @Serializable data class Backup(val id: String, val kind: String, @SerialName("created_at") val createdAt: Double, val notes: Int = 0)
 

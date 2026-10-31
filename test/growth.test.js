@@ -45,7 +45,7 @@ test('backups are premium: free accounts are told so; the owner backs up, restor
     assert.equal((await tom.api('backups')).body.premium, false);
 
     // The owner has everything.
-    assert.deepEqual((await s.api('plan')).body, { plan: 'family', premium: true, admin: true, features: { backups: true, backupDays: 30 }, billing: { open: false, manage: false } });
+    assert.deepEqual((await s.api('plan')).body, { plan: 'family', premium: true, admin: true, features: { backups: true, backupDays: 30, voices: true }, billing: { open: false, manage: false } });
     await put(s.api, 'list-groceries', { text: 'Groceries' });
     await put(s.api, 'item-milk0001', { text: 'milk', parent_id: 'list-groceries' });
     await put(s.api, 'note-keepme01', { text: 'Keep me', user_group: 'Home' });
