@@ -27,7 +27,7 @@ const MAX_IMAGE_BYTES = 15 * 1024 * 1024;
 const NOTE_ID = /^[a-zA-Z0-9-]{8,64}$/;
 const MAX_BATCH = 500;
 const MAX_MY_GROUPS = 30;
-const NOTE_FIELDS = ['text', 'images', 'done', 'deleted', 'created_at', 'edited_at', 'user_group', 'user_priority', 'user_due', 'parent_id', 'remind'];
+const NOTE_FIELDS = ['text', 'images', 'done', 'deleted', 'created_at', 'edited_at', 'user_group', 'user_priority', 'user_due', 'parent_id', 'remind', 'assigned_to'];
 const USER_DUE = /^(\d{4}-\d{2}-\d{2}(T\d{2}:\d{2})?)?$/;
 
 /** Checks one note change from a client. Returns an error message, or null when it is valid. */
@@ -273,6 +273,8 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth, mail, bill
   app.use('/api', requireUser(store));
 
   app.use('/api/calendars', calendars.routes());
+  // The people tasks can be for: me, and everyone I share with or who shares with me.
+  app.get('/api/people', (req, res) => res.json({ people: store.circle(req.user.id), family: store.planOf(req.user.id) === 'family' || store.firstUserId() === req.user.id }));
   app.use('/api/assistants', assistants.routes());
 
   // Notifications: this device's subscription, the morning briefing, the allowance.
@@ -418,6 +420,16 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth, mail, bill
     const input = { id };
     for (const k of NOTE_FIELDS) if (k in body) input[k] = body[k];
     const before = store.get(id);
+    // Family hub: a task can be for someone in my sharing circle; giving tasks
+    // to others is part of the Family plan (of the note's owner).
+    if (input.assigned_to != null) {
+      const ownerId = before ? before.user_id : userId;
+      if (!store.circle(userId).some((p) => p.id === input.assigned_to)) return { status: 'invalid', error: 'This person is not among the people you share with.' };
+      const family = store.planOf(ownerId) === 'family' || store.firstUserId() === ownerId;
+      if (input.assigned_to !== userId && input.assigned_to !== before?.assigned_to && !family) {
+        return { status: 'forbidden', error: 'Giving tasks to others is part of the Family plan.' };
+      }
+    }
     // A new reminder counts against the free plan's monthly allowance.
     if (input.remind != null && (before?.remind ?? null) === null) {
       if (reminders.allow(userId)) insights.track('reminder_set', { userId, props: { minutes: input.remind } });
@@ -430,6 +442,12 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth, mail, bill
     const mine = note.user_id === userId;
     if (!stale) {
       onChange(note);
+      // A task given to someone else: a notification on their devices.
+      if (note.assigned_to && note.assigned_to !== userId && note.assigned_to !== before?.assigned_to && !note.done) {
+        const list = note.parent_id ? store.get(note.parent_id) : note;
+        reminders.push(note.assigned_to, { title: `👤 ${store.getUser(userId)?.name || 'record.ai'}`, body: noteTitle(note), url: `./?open=${list.id}`, tag: `task-${note.id}` }).catch(() => {});
+        insights.track('task_assigned', { userId, props: { item: !!note.parent_id } });
+      }
       // What people do (never what they write), for the dashboard and the A/B tests.
       if (!before && !note.parent_id) insights.track('note_created', { userId, props: { list: false } });
       if (before && mine && !note.parent_id && before.ai_status === 'done') {

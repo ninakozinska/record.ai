@@ -9,7 +9,7 @@ import { t } from './i18n.js';
 
 const DB_NAME = 'record-ai';
 // Fields only the server sets: the AI's, and for shared notes the access and the owner's name.
-const AI_FIELDS = ['title', 'summary', 'ai_group', 'ai_priority', 'priority_reason', 'tags', 'due_date', 'due_time', 'ai_due_date', 'ai_due_time', 'ai_status', 'ai_error', 'rev', 'role', 'owner_name'];
+const AI_FIELDS = ['done_by', 'title', 'summary', 'ai_group', 'ai_priority', 'priority_reason', 'tags', 'due_date', 'due_time', 'ai_due_date', 'ai_due_time', 'ai_status', 'ai_error', 'rev', 'role', 'owner_name'];
 
 function req(r) {
   return new Promise((resolve, reject) => {

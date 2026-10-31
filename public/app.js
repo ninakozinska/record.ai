@@ -18,6 +18,7 @@ const ui = {
   group: null,
   query: '',
   showDone: false,
+  mine: false,
 };
 
 // ---------------------------------------------------------------------------
@@ -407,6 +408,15 @@ const editor = {
     this.renderShared();
     this.due = n.user_due ?? null;
     this.remind = n.remind ?? null;
+    $('#assignRow').hidden = people.length < 2 || this.readOnly;
+    $('#editorAssign').innerHTML = assignOptions(n.assigned_to);
+    // Someone may have joined since: refresh who tasks can be for.
+    loadPeople().then(() => {
+      if (this.id !== n.id || !this.dialog.open) return;
+      $('#assignRow').hidden = people.length < 2 || this.readOnly;
+      $('#editorAssign').innerHTML = assignOptions(n.assigned_to);
+      this.renderItems();
+    });
     $('#editorDate').disabled = $('#editorTime').disabled = this.readOnly;
     this.renderWhen();
     $('#newItem').value = '';
@@ -460,6 +470,8 @@ const editor = {
         <select class="item-priority" data-item-priority aria-label="${esc(t('Priority'))}" ${off}>
           ${['urgent', 'high', 'normal', 'low'].map((p) => `<option value="${p}" ${i.priority === p ? 'selected' : ''}>${PRIORITY_LABEL[p]}</option>`).join('')}
         </select>
+        ${people.length > 1 ? `<select class="item-assign" data-item-assign aria-label="${esc(t('For'))}" ${off}>${assignOptions(i.assigned_to)}</select>` : ''}
+        ${i.done && i.done_by && i.done_by !== myId() ? `<span class="who" title="${esc(t('Done by {name}', { name: nameOf(i.done_by) }))}">✓ ${esc(nameOf(i.done_by))}</span>` : ''}
         <button type="button" class="icon-btn" data-item-delete title="${esc(t('Remove item'))}">✕</button>
       </li>`).join('');
   },
@@ -476,6 +488,8 @@ const editor = {
     if (p !== (n.user_priority || null)) patch.user_priority = p;
     if (this.due !== (n.user_due ?? null)) patch.user_due = this.due;
     if (this.remind !== (n.remind ?? null)) patch.remind = this.remind;
+    const to = $('#assignRow').hidden ? n.assigned_to ?? null : $('#editorAssign').value || null;
+    if (to !== (n.assigned_to ?? null) && canAssign(to)) patch.assigned_to = to;
     if (Object.keys(patch).length) await local.save(this.id, patch);
   },
 };
@@ -555,6 +569,10 @@ $('#itemList').addEventListener('change', async (e) => {
     else await local.save(id, { deleted: true });
   } else if (e.target.matches('[data-item-priority]')) {
     await local.save(id, { user_priority: e.target.value });
+  } else if (e.target.matches('[data-item-assign]')) {
+    const to = e.target.value || null;
+    if (!canAssign(to)) return editor.renderItems();
+    await local.save(id, { assigned_to: to });
   } else return;
   editor.renderItems();
 });
@@ -608,6 +626,34 @@ function groupsOf(notes) {
   const counts = new Map();
   for (const n of notes) if (!n.done) counts.set(n.group, (counts.get(n.group) || 0) + 1);
   return [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([g]) => g);
+}
+
+// Family hub: the people tasks can be for (me, and everyone I share with).
+let people = [];
+let familyPlan = false;
+async function loadPeople() {
+  try {
+    const r = await local.api('people');
+    people = r.people;
+    familyPlan = r.family;
+    await local.metaSet('people', r);
+  } catch {
+    const saved = await local.metaGet('people');
+    if (saved) ({ people, family: familyPlan } = saved);
+  }
+  render();
+}
+const myId = () => local.user?.id;
+const nameOf = (id) => (id === myId() ? t('Me') : people.find((p) => p.id === id)?.name || '');
+const forMeTask = (n) => n.assigned_to === myId() || local.items(n.id).some((i) => i.assigned_to === myId() && !i.done);
+/** The choice of who a task is for: nobody, me, or someone I share with. */
+const assignOptions = (current) => `<option value="">${esc(t('Anyone'))}</option>` +
+  people.map((p) => `<option value="${esc(p.id)}" ${p.id === current ? 'selected' : ''}>${esc(p.me ? t('Me') : p.name)}</option>`).join('');
+/** Free plan: tasks can be for me; for others needs Family. */
+function canAssign(to) {
+  if (!to || to === myId() || familyPlan) return true;
+  toast(t('Giving tasks to others is part of the Family plan.'));
+  return false;
 }
 
 // "My groups": groups the person made. They always show, even with no notes
@@ -860,7 +906,7 @@ function listPreview(n) {
   return `<div class="list-preview">
     <div class="list-progress"><span style="width:${Math.round((done / items.length) * 100)}%"></span></div>
     <span class="list-count">☑ ${done}/${items.length}</span>
-    <ul>${open.map((i) => `<li class="p-${i.priority}"><button class="check small" data-item-check="${esc(i.id)}" title="${esc(t('Mark done'))}" ${off}></button>${esc(i.text)}</li>`).join('')}
+    <ul>${open.map((i) => `<li class="p-${i.priority}"><button class="check small" data-item-check="${esc(i.id)}" title="${esc(t('Mark done'))}" ${off}></button>${esc(i.text)}${i.assigned_to ? ` <span class="who">👤 ${esc(nameOf(i.assigned_to))}</span>` : ''}</li>`).join('')}
     ${items.length - done > open.length ? `<li class="more">${esc(t('+ {n} more', { n: items.length - done - open.length }))}</li>` : ''}</ul>
   </div>`;
 }
@@ -888,6 +934,7 @@ function card(n, { showGroup }) {
           ${showGroup ? `<span class="group-chip">${esc(groupName(n.group))}${n.user_group ? ' 📌' : ''}</span>` : ''}
           ${n.role ? `<span class="shared-badge">👥 ${esc(n.owner_name)}${n.role === 'view' ? ` · ${esc(t('view only'))}` : ''}</span>`
             : sharesOf(n).length ? `<span class="shared-badge" title="${esc(t('Shared'))}">👥 ${esc(t('Shared'))}</span>` : ''}
+          ${n.assigned_to ? `<span class="who-badge">👤 ${esc(nameOf(n.assigned_to))}</span>` : ''}
           ${due ? `<span class="due ${due.cls} ${n.due_time ? 'at' : ''}">${esc(due.text)}${n.due_time ? ` · ${esc(n.due_time)}` : ''}${n.user_due ? ' 📌' : ''}</span>` : ''}
           ${(n.tags || []).slice(0, 4).map((t) => `<span class="tag">#${esc(t)}</span>`).join('')}
           <span class="time">${relTime(n.created_at)}</span>
@@ -1007,11 +1054,12 @@ function renderNow() {
 
   $('#groupChips').innerHTML =
     `<button class="chip ${!ui.group ? 'active' : ''}" data-group="">${esc(t('All'))}</button>` +
+    (people.length > 1 ? `<button class="chip ${ui.mine ? 'active' : ''}" data-mine>${esc(t('👤 For me'))}</button>` : '') +
     groups.map((g) => `<button class="chip ${ui.group === g ? 'active' : ''}" data-group="${esc(g)}">${esc(groupName(g))}</button>`).join('') +
     `<button class="chip add-chip" data-add-group title="${esc(t('Add a group of your own. The AI will put matching notes in it.'))}">${esc(t('＋ Group'))}</button>`;
 
   const q = ui.query.toLowerCase().trim();
-  const visible = all.filter((n) => matches(n, q) && (!ui.group || n.group === ui.group)).sort(sortNotes);
+  const visible = all.filter((n) => matches(n, q) && (!ui.group || n.group === ui.group) && (!ui.mine || forMeTask(n))).sort(sortNotes);
   const open = visible.filter((n) => !n.done);
   const done = visible.filter((n) => n.done).sort((a, b) => b.edited_at - a.edited_at);
 
@@ -1128,6 +1176,10 @@ $('#groupChips').addEventListener('click', async (e) => {
       toast(err.message);
     }
     return;
+  }
+  if (e.target.closest('[data-mine]')) {
+    ui.mine = !ui.mine;
+    return render();
   }
   const b = e.target.closest('[data-group]');
   if (!b) return;
@@ -1953,6 +2005,8 @@ local.addEventListener('change', render);
 local.addEventListener('status', renderStatus);
 local.addEventListener('started', loadMyGroups);
 local.addEventListener('started', syncLanguage);
+local.addEventListener('started', loadPeople);
+local.addEventListener('shares', loadPeople);
 local.addEventListener('started', loadWorlds);
 local.addEventListener('started', loadShares);
 local.addEventListener('started', () => track('app_open'));
