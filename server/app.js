@@ -9,6 +9,7 @@ import { openDb, PRIORITIES } from './db.js';
 import { Organizer, LANGUAGES } from './organizer.js';
 import { authRoutes, requireUser, getToken } from './auth.js';
 import { Calendars } from './calendars.js';
+import { Reminders } from './reminders.js';
 import { Insights, EVENT_NAME, ANON_ID } from './insights.js';
 import { Backups, premium } from './backups.js';
 import { Optimizer, costOf } from './optimizer.js';
@@ -24,7 +25,7 @@ const MAX_IMAGE_BYTES = 15 * 1024 * 1024;
 const NOTE_ID = /^[a-zA-Z0-9-]{8,64}$/;
 const MAX_BATCH = 500;
 const MAX_MY_GROUPS = 30;
-const NOTE_FIELDS = ['text', 'images', 'done', 'deleted', 'created_at', 'edited_at', 'user_group', 'user_priority', 'user_due', 'parent_id'];
+const NOTE_FIELDS = ['text', 'images', 'done', 'deleted', 'created_at', 'edited_at', 'user_group', 'user_priority', 'user_due', 'parent_id', 'remind'];
 const USER_DUE = /^(\d{4}-\d{2}-\d{2}(T\d{2}:\d{2})?)?$/;
 
 /** Checks one note change from a client. Returns an error message, or null when it is valid. */
@@ -33,6 +34,7 @@ function invalidChange(id, body) {
   if (typeof body.edited_at !== 'number') return 'edited_at required';
   if (body.user_priority != null && !PRIORITIES.includes(body.user_priority)) return 'Bad priority';
   if (body.user_due != null && !USER_DUE.test(String(body.user_due))) return 'Bad date';
+  if (body.remind != null && !(Number.isInteger(body.remind) && body.remind >= 0 && body.remind <= 7 * 1440)) return 'Bad reminder';
   if (body.parent_id != null && (!NOTE_ID.test(String(body.parent_id)) || body.parent_id === id)) return 'Bad parent_id';
   if (body.images && !(Array.isArray(body.images) && body.images.every((n) => IMAGE_NAME.test(n)))) {
     return 'Bad image list';
@@ -62,7 +64,7 @@ export function trustProxy(value) {
   return value;
 }
 
-export function createApp({ dataDir, organizer: makeOrganizer, oauth, mail, billing = makeBilling(), errors = errorReporter(), calendars: calendarOptions = {} } = {}) {
+export function createApp({ dataDir, organizer: makeOrganizer, oauth, mail, billing = makeBilling(), errors = errorReporter(), calendars: calendarOptions = {}, reminders: reminderOptions = {} } = {}) {
   const store = openDb(dataDir);
   const imagesDir = path.join(dataDir, 'images');
   fs.mkdirSync(imagesDir, { recursive: true });
@@ -105,6 +107,8 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth, mail, bill
   };
   // Google Calendar, Outlook, Calendly and iCloud, both ways (docs/CALENDARS.md).
   calendars = new Calendars({ store, onChange, ...calendarOptions });
+  // Reminders and the morning briefing, as notifications.
+  const reminders = new Reminders({ store, tzOf: (userId) => calendars.tzOf(userId), ...reminderOptions });
   const broadcastStatus = (status) => {
     for (const set of clients.values()) for (const res of set) send(res, 'status', status);
   };
@@ -132,6 +136,7 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth, mail, bill
     setTimeout(() => backups.runDaily(), 30e3).unref();
     setInterval(() => backups.runDaily(), 3600e3).unref();
     calendars.start();
+    reminders.start();
   }
   const isAdmin = (user) =>
     store.firstUserId() === user.id ||
@@ -258,6 +263,37 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth, mail, bill
 
   app.use('/api/calendars', calendars.routes());
 
+  // Notifications: this device's subscription, the morning briefing, the allowance.
+  const pushState = (userId) => ({
+    publicKey: reminders.vapid.publicKey, devices: reminders.devices(userId),
+    briefing: reminders.briefingTime(userId), quota: reminders.quota(userId),
+  });
+  app.get('/api/push', (req, res) => res.json(pushState(req.user.id)));
+  app.post('/api/push/subscribe', (req, res) => {
+    if (!reminders.subscribe(req.user.id, req.body?.subscription)) return res.status(400).json({ error: 'Bad subscription' });
+    const tz = req.body?.tz;
+    if (typeof tz === 'string' && tz) {
+      try {
+        new Intl.DateTimeFormat('en', { timeZone: tz });
+        store.setMeta(`cal_tz:${req.user.id}`, tz);
+      } catch { /* not a time zone */ }
+    }
+    insights.track('push_enabled', { userId: req.user.id });
+    res.json(pushState(req.user.id));
+  });
+  app.post('/api/push/unsubscribe', (req, res) => {
+    reminders.unsubscribe(req.user.id, req.body?.endpoint);
+    res.json(pushState(req.user.id));
+  });
+  app.post('/api/push/test', async (req, res) => {
+    const sent = await reminders.push(req.user.id, { title: 'record.ai', body: '🔔 ✓', url: './', tag: 'test' });
+    res.json({ sent });
+  });
+  app.put('/api/briefing', (req, res) => {
+    if (!reminders.setBriefing(req.user.id, req.body?.time ?? null)) return res.status(400).json({ error: 'Bad time' });
+    res.json(pushState(req.user.id));
+  });
+
   const calendarLink = (req) => {
     const token = store.getMeta(`cal_token:${req.user.id}`);
     const url = `${publicUrl(req)}/api/calendar/${token}.ics`;
@@ -370,6 +406,11 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth, mail, bill
     const input = { id };
     for (const k of NOTE_FIELDS) if (k in body) input[k] = body[k];
     const before = store.get(id);
+    // A new reminder counts against the free plan's monthly allowance.
+    if (input.remind != null && (before?.remind ?? null) === null) {
+      if (reminders.allow(userId)) insights.track('reminder_set', { userId, props: { minutes: input.remind } });
+      else delete input.remind;
+    }
     if ('text' in input) input.text = String(input.text);
     if (input.user_group != null) input.user_group = String(input.user_group).trim().slice(0, 60) || null;
     const { note, stale, contentChanged, forbidden } = store.upsertFromClient(userId, input);
@@ -731,5 +772,5 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth, mail, bill
   });
 
   organizer.resumePending?.();
-  return { app, store, organizer, insights, optimizer, backups, errors, calendars };
+  return { app, store, organizer, insights, optimizer, backups, errors, calendars, reminders };
 }

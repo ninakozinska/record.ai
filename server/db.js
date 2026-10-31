@@ -186,6 +186,17 @@ function migrate(db) {
   if (!columns(db, 'users').includes('plan')) db.exec("ALTER TABLE users ADD COLUMN plan TEXT NOT NULL DEFAULT 'free'");
   // Notes brought in from a calendar say where from ('google', 'microsoft', 'calendly', 'icloud').
   if (!columns(db, 'notes').includes('source')) db.exec('ALTER TABLE notes ADD COLUMN source TEXT');
+  // Reminder: minutes before the note's time (0 = at the time); NULL = none.
+  if (!columns(db, 'notes').includes('remind')) db.exec('ALTER TABLE notes ADD COLUMN remind INTEGER');
+  // Devices that get notifications (Web Push).
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS push_subscriptions (
+      endpoint   TEXT PRIMARY KEY,
+      user_id    TEXT NOT NULL,
+      keys       TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    );
+  `);
   // Connected calendars (secret = tokens or password, encrypted), and which
   // calendar event goes with which note, with what each looked like at the last sync.
   db.exec(`
@@ -262,6 +273,7 @@ function rowToNote(r) {
     user_id: r.user_id,
     parent_id: r.parent_id ?? null,
     source: r.source ?? null,
+    remind: r.remind ?? null,
   };
 }
 
@@ -374,8 +386,8 @@ class Store {
       this.db
         .prepare(
           `INSERT INTO notes (id, user_id, parent_id, text, images, done, deleted, created_at, edited_at,
-             user_group, user_priority, user_due, ai_status, rev)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+             user_group, user_priority, user_due, remind, ai_status, rev)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
         .run(
           input.id,
@@ -390,6 +402,7 @@ class Store {
           input.user_group ?? null,
           input.user_priority ?? null,
           input.user_due ?? null,
+          input.remind ?? null,
           // Items aren't sent to the AI: only their list is.
           parentId ? 'done' : 'pending',
           rev,
@@ -399,7 +412,7 @@ class Store {
       this.db
         .prepare(
           `UPDATE notes SET text = ?, images = ?, done = ?, deleted = ?, edited_at = ?,
-             user_group = ?, user_priority = ?, user_due = ?,
+             user_group = ?, user_priority = ?, user_due = ?, remind = ?,
              ai_status = CASE WHEN ? AND parent_id IS NULL THEN 'pending' ELSE ai_status END,
              rev = ?
            WHERE id = ?`,
@@ -413,6 +426,7 @@ class Store {
           pick('user_group') ?? null,
           pick('user_priority') ?? null,
           pick('user_due') ?? null,
+          pick('remind') ?? null,
           contentChanged ? 1 : 0,
           rev,
           input.id,
@@ -749,6 +763,7 @@ class Store {
       this.db.prepare('DELETE FROM identities WHERE user_id = ?').run(userId);
       this.db.prepare('DELETE FROM calendar_events WHERE link_id IN (SELECT id FROM calendar_links WHERE user_id = ?)').run(userId);
       this.db.prepare('DELETE FROM calendar_links WHERE user_id = ?').run(userId);
+      this.db.prepare('DELETE FROM push_subscriptions WHERE user_id = ?').run(userId);
       this.db.prepare('DELETE FROM sessions WHERE user_id = ?').run(userId);
       this.db.prepare("DELETE FROM assignments WHERE subject = ?").run(`u:${userId}`);
       this.db.prepare('UPDATE events SET user_id = NULL WHERE user_id = ?').run(userId);

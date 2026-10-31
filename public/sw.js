@@ -1,5 +1,5 @@
 // Service worker: makes the app open offline and keeps photos available.
-const SHELL = 'record-ai-shell-v2';
+const SHELL = 'record-ai-shell-v3';
 const IMAGES = 'record-ai-images-v1';
 const SHELL_FILES = ['./', 'index.html', 'app.js', 'local.js', 'track.js', 'worlds.js', 'i18n.js', 'i18n/en.js', 'i18n/it.js', 'i18n/fr.js', 'i18n/es.js', 'i18n/pt.js', 'i18n/de.js', 'i18n/pl.js', 'styles.css', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png'];
 
@@ -43,4 +43,28 @@ self.addEventListener('fetch', (e) => {
       })
       .catch(() => caches.match(e.request).then((r) => r || caches.match('index.html'))),
   );
+});
+
+// Reminders and the morning briefing. Tapping one opens the note.
+self.addEventListener('push', (e) => {
+  const d = (() => {
+    try {
+      return e.data?.json() || {};
+    } catch {
+      return {};
+    }
+  })();
+  e.waitUntil(self.registration.showNotification(d.title || 'record.ai', {
+    body: d.body || '', tag: d.tag, data: { url: d.url || './' }, icon: 'icons/icon-192.png', badge: 'icons/icon-192.png',
+  }));
+});
+
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close();
+  const url = new URL(e.notification.data?.url || './', self.registration.scope).href;
+  e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
+    const open = list[0];
+    if (open) return open.focus().then((c) => c.navigate(url));
+    return self.clients.openWindow(url);
+  }));
 });

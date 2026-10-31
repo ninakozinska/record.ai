@@ -98,6 +98,15 @@
           <button type="button" class="ghost" id="whenAuto" title="Let the AI find the date in the note">Auto</button>
           <button type="button" class="icon-btn" id="whenClear" title="No date">✕</button>
         </div>
+        <div class="when-row" id="remindRow" hidden>
+          <select id="editorRemind" aria-label="Reminder">
+            <option value="">No reminder</option>
+            <option value="0">At the time</option>
+            <option value="15">15 minutes before</option>
+            <option value="60">1 hour before</option>
+            <option value="1440">1 day before</option>
+          </select>
+        </div>
         <div class="cal-actions" id="calActions" hidden>
           <span class="muted">Add to calendar:</span>
           <a class="btn ghost" id="calGoogle" target="_blank" rel="noopener">Google Calendar</a>
@@ -308,6 +317,20 @@
           <p class="muted">Android: add it in Google Calendar, then it shows on your phone. Calendars check for changes every few hours.</p>
           <p class="muted">Keep this link to yourself: anyone who has it can see your dated notes. <button type="button" class="link-btn" id="calendarReset">Make a new link</button> (the old one stops working).</p>
         </div>
+      </div>
+      <div class="stack" id="notifyBox">
+        <h3>🔔 Notifications</h3>
+        <p class="muted" id="notifyStatus"></p>
+        <div class="cal-buttons">
+          <button type="button" class="ghost" id="notifyOn">Turn on notifications on this device</button>
+          <button type="button" class="ghost" id="notifyTest" hidden>Send a test</button>
+        </div>
+        <label class="muted" for="briefingTime">☀️ Morning briefing</label>
+        <select id="briefingTime">
+          <option value="">Off</option>
+          <option>06:30</option><option>07:00</option><option>07:30</option><option>08:00</option><option>08:30</option><option>09:00</option>
+        </select>
+        <p class="muted">What is due today and what is overdue, every morning at this time.</p>
       </div>
       <div id="myGroupsBox" class="stack" hidden>
         <h3>My groups</h3>
