@@ -284,8 +284,20 @@
         <a class="btn ghost" id="dashboardLink" href="admin.html" hidden>📊 Dashboard</a>
       </div>
       <div class="stack" id="calendarBox">
-        <h3>📅 Calendar</h3>
-        <p class="muted">See your notes that have a date in Google Calendar, or in the calendar on your iPhone, Mac or Android phone. Changes show up there by themselves.</p>
+        <h3>📅 Calendars</h3>
+        <div id="calendarsBox" class="stack" hidden>
+          <p class="muted">Connect your calendars: meetings show up here as notes, and notes with a date go to the calendar marked ✍️. Changes go both ways.</p>
+          <ul id="calendarList" class="identity-list"></ul>
+          <div class="cal-buttons" id="calendarConnect"></div>
+          <form id="icloudForm" class="stack" hidden>
+            <p class="muted">At account.apple.com → Sign-In and Security → App-Specific Passwords, make a password for record.ai and paste it here.</p>
+            <input id="icloudEmail" type="email" autocomplete="username" placeholder="Apple ID (email)" required>
+            <input id="icloudPassword" type="password" autocomplete="off" placeholder="xxxx-xxxx-xxxx-xxxx" required>
+            <button class="primary" type="submit">Connect iCloud</button>
+          </form>
+          <p class="muted">Or add a calendar link (one way, updated every few hours):</p>
+        </div>
+        <p class="muted" id="calendarFeedText">See your notes that have a date in Google Calendar, or in the calendar on your iPhone, Mac or Android phone. Changes show up there by themselves.</p>
         <button type="button" class="ghost" id="calendarShow">Connect a calendar</button>
         <div id="calendarLink" class="stack" hidden>
           <div class="cal-buttons">

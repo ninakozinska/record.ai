@@ -184,6 +184,35 @@ function migrate(db) {
   `);
   // Plans: 'free', 'solo' or 'family' (the first account, the owner, always has everything).
   if (!columns(db, 'users').includes('plan')) db.exec("ALTER TABLE users ADD COLUMN plan TEXT NOT NULL DEFAULT 'free'");
+  // Notes brought in from a calendar say where from ('google', 'microsoft', 'calendly', 'icloud').
+  if (!columns(db, 'notes').includes('source')) db.exec('ALTER TABLE notes ADD COLUMN source TEXT');
+  // Connected calendars (secret = tokens or password, encrypted), and which
+  // calendar event goes with which note, with what each looked like at the last sync.
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS calendar_links (
+      id         TEXT PRIMARY KEY,
+      user_id    TEXT NOT NULL,
+      provider   TEXT NOT NULL,
+      account    TEXT NOT NULL DEFAULT '',
+      secret     TEXT NOT NULL,
+      state      TEXT NOT NULL DEFAULT '{}',
+      writes     INTEGER NOT NULL DEFAULT 0,
+      created_at INTEGER NOT NULL,
+      last_sync  INTEGER NOT NULL DEFAULT 0,
+      last_error TEXT
+    );
+    CREATE TABLE IF NOT EXISTS calendar_events (
+      link_id     TEXT NOT NULL,
+      external_id TEXT NOT NULL,
+      note_id     TEXT NOT NULL,
+      origin      TEXT NOT NULL,
+      event_sig   TEXT NOT NULL,
+      note_sig    TEXT NOT NULL,
+      minutes     INTEGER NOT NULL DEFAULT 60,
+      PRIMARY KEY (link_id, external_id)
+    );
+    CREATE INDEX IF NOT EXISTS calendar_events_note ON calendar_events(note_id);
+  `);
 }
 
 // The group a note counts in for sharing: an item counts in its list's group.
@@ -232,6 +261,7 @@ function rowToNote(r) {
     rev: r.rev,
     user_id: r.user_id,
     parent_id: r.parent_id ?? null,
+    source: r.source ?? null,
   };
 }
 
@@ -717,6 +747,8 @@ class Store {
       this.db.prepare('DELETE FROM shares WHERE owner_id = ? OR user_id = ?').run(userId, userId);
       this.db.prepare('DELETE FROM share_seen WHERE user_id = ?').run(userId);
       this.db.prepare('DELETE FROM identities WHERE user_id = ?').run(userId);
+      this.db.prepare('DELETE FROM calendar_events WHERE link_id IN (SELECT id FROM calendar_links WHERE user_id = ?)').run(userId);
+      this.db.prepare('DELETE FROM calendar_links WHERE user_id = ?').run(userId);
       this.db.prepare('DELETE FROM sessions WHERE user_id = ?').run(userId);
       this.db.prepare("DELETE FROM assignments WHERE subject = ?").run(`u:${userId}`);
       this.db.prepare('UPDATE events SET user_id = NULL WHERE user_id = ?').run(userId);
