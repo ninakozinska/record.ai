@@ -182,6 +182,9 @@ struct Shares: Codable {
 struct Plan: Codable {
     var plan: String
     var premium: Bool
+    /// The server's owner has everything.
+    var admin: Bool?
+    var canReadAloud: Bool { premium || admin == true }
 }
 
 struct Backup: Codable, Identifiable {

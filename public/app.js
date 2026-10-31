@@ -993,7 +993,8 @@ function todayCard(notes) {
   if (due.length) parts.push(`📅 <b>${esc(t('Today:'))}</b> ${due.slice(0, 4).map(link).join(' · ')}${due.length > 4 ? ` · +${due.length - 4}` : ''}`);
   if (late.length) parts.push(`⏰ <b>${esc(t('{n} overdue:', { n: late.length }))}</b> ${late.slice(0, 2).map(link).join(' · ')}${late.length > 2 ? ' …' : ''}`);
   if (urgent.length) parts.push(`🔴 ${esc(t('{n} more urgent', { n: urgent.length }))}`);
-  return `<section class="today" aria-label="${esc(t('Today'))}">${parts.map((p) => `<p>${p}</p>`).join('')}</section>`;
+  const listen = synth() ? `<button class="ghost read-day" data-read-day title="${esc(t('Read my day aloud'))}">🔊</button>` : '';
+  return `<section class="today" aria-label="${esc(t('Today'))}">${listen}${parts.map((p) => `<p>${p}</p>`).join('')}</section>`;
 }
 
 function welcomeCard(all) {
@@ -1494,6 +1495,7 @@ $('#accountBtn').onclick = async () => {
   loadNotify();
   loadAssistants();
   $('#aiResult').hidden = true;
+  renderVoices();
   $('#icloudForm').hidden = true;
   $('#calendarLink').hidden = true;
   $('#calendarShow').hidden = false;
@@ -1608,6 +1610,95 @@ function showCalendarLink({ url, webcal }) {
     }
   };
 }
+// Read aloud (Premium): notes and the day, with a voice of this device.
+let canReadAloud = false;
+const synth = () => ('speechSynthesis' in window ? window.speechSynthesis : null);
+const stored = (k, d) => {
+  try {
+    return localStorage.getItem(k) ?? d;
+  } catch {
+    return d;
+  }
+};
+const keep = (k, v) => {
+  try {
+    localStorage.setItem(k, v);
+  } catch { /* private mode */ }
+};
+/** This device's voices, the app's language first. */
+function deviceVoices() {
+  const all = synth()?.getVoices() || [];
+  const mine = all.filter((v) => v.lang.toLowerCase().startsWith(lang));
+  return [...mine, ...all.filter((v) => !mine.includes(v))];
+}
+const chosenVoice = () => deviceVoices().find((v) => v.voiceURI === stored('voice', '')) || deviceVoices()[0] || null;
+function speak(text) {
+  const s = synth();
+  if (!s) return toast(t('This browser cannot read aloud.'));
+  if (!canReadAloud) return toast(t('Reading aloud is part of Premium.'));
+  s.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  const v = chosenVoice();
+  if (v) {
+    u.voice = v;
+    u.lang = v.lang;
+  } else u.lang = lang;
+  u.rate = Number(stored('voiceRate', '1')) || 1;
+  s.speak(u);
+  track('read_aloud', {});
+}
+/** A note as it is read: the title, the text, the list, the date. */
+function spokenNote(n) {
+  const title = n.title || n.text.split('\n')[0] || t('Note');
+  const body = n.text.trim() && n.text.trim() !== title.trim() ? n.text.trim() : '';
+  const items = local.items(n.id).filter((i) => !i.done).map((i) => i.text);
+  const d = effectiveDue(n);
+  const when = d.due_date ? `${new Date(`${d.due_date}T12:00`).toLocaleDateString(lang, { weekday: 'long', day: 'numeric', month: 'long' })}${d.due_time ? ` ${d.due_time}` : ''}` : '';
+  return [title, body, items.join(', '), when].filter(Boolean).join('. ');
+}
+/** The day as it is read: what is due today with times, then how much is overdue. */
+function spokenDay() {
+  const today = new Date().toLocaleDateString('en-CA');
+  const open = local.list().filter((n) => !n.done && !n.role);
+  const due = open.filter((n) => n.due_date === today).sort((a, b) => (a.due_time || '99').localeCompare(b.due_time || '99'));
+  const late = open.filter((n) => n.due_date && n.due_date < today).length;
+  const parts = [t('Today:'), ...due.map((n) => `${n.due_time ? n.due_time + ', ' : ''}${n.title || n.text.split('\n')[0]}`)];
+  if (!due.length) parts.push(t('Nothing due today.'));
+  if (late) parts.push(t('{n} overdue:', { n: late }).replace(/:$/, ''));
+  return parts.join('. ');
+}
+async function loadVoicePlan() {
+  try {
+    const plan = await local.api('plan');
+    canReadAloud = !!(plan.features?.voices ?? plan.premium);
+  } catch { /* offline: keep what we knew */ }
+  render();
+}
+function renderVoices() {
+  const list = deviceVoices();
+  $('#voiceBox').hidden = !synth();
+  $('#voicePremium').hidden = canReadAloud;
+  $('#voiceSelect').innerHTML = list.map((v) => `<option value="${esc(v.voiceURI)}">${esc(v.name)} · ${esc(v.lang)}</option>`).join('');
+  const v = chosenVoice();
+  if (v) $('#voiceSelect').value = v.voiceURI;
+  $('#voiceRate').value = stored('voiceRate', '1');
+  $('#voiceSelect').disabled = $('#voiceRate').disabled = !canReadAloud;
+}
+synth()?.addEventListener?.('voiceschanged', renderVoices);
+$('#voiceSelect').addEventListener('change', (e) => keep('voice', e.target.value));
+$('#voiceRate').addEventListener('change', (e) => keep('voiceRate', e.target.value));
+$('#voiceTry').onclick = () => speak(t('Hello! This is how your notes will sound.'));
+$('#editorSpeak').onclick = () => {
+  if (synth()?.speaking) return synth().cancel();
+  const n = local.notes.get(editor.id);
+  if (n) speak(spokenNote({ ...n, ...effectiveDue(n), text: editor.composer.value.text }));
+};
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('[data-read-day]')) return;
+  if (synth()?.speaking) return synth().cancel();
+  speak(spokenDay());
+});
+
 // Notifications: reminders and the morning briefing (Web Push).
 const pushSupported = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
 const keyBytes = (b64) => Uint8Array.from(atob(b64.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - (b64.length % 4)) % 4)), (c) => c.charCodeAt(0));
@@ -2029,6 +2120,7 @@ local.addEventListener('status', renderStatus);
 local.addEventListener('started', loadMyGroups);
 local.addEventListener('started', syncLanguage);
 local.addEventListener('started', loadPeople);
+local.addEventListener('started', loadVoicePlan);
 local.addEventListener('shares', loadPeople);
 local.addEventListener('started', loadWorlds);
 local.addEventListener('started', loadShares);

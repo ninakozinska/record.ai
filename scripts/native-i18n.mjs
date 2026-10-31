@@ -14,7 +14,7 @@ import path from 'node:path';
 
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const LANGS = ['it', 'fr', 'es', 'pt', 'de', 'pl'];
-const SWIFT_DIRS = ['ios/RecordAI.swiftpm/Views', 'ios/RecordAI.swiftpm/RecordAIApp.swift', 'ios/RecordAI.swiftpm/Worlds.swift'];
+const SWIFT_DIRS = ['ios/RecordAI.swiftpm/Views', 'ios/RecordAI.swiftpm/RecordAIApp.swift', 'ios/RecordAI.swiftpm/Worlds.swift', 'ios/RecordAI.swiftpm/Speech.swift'];
 const KOTLIN_DIRS = ['android/app/src/main/kotlin/ai/record/android/ui', 'android/core/src/main/kotlin/ai/record/core/Worlds.kt'];
 const SWIFT_OUT = 'ios/RecordAI.swiftpm/Translations.swift';
 const KOTLIN_OUT = 'android/core/src/main/kotlin/ai/record/core/Translations.kt';

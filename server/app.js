@@ -599,7 +599,8 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth, mail, bill
     const plan = store.planOf(req.user.id);
     res.json({
       plan, premium: premium(plan), admin: isAdmin(req.user),
-      features: { backups: premium(plan), backupDays: 30 },
+      // Reading notes aloud with a chosen voice is part of Premium (the owner has everything).
+      features: { backups: premium(plan), backupDays: 30, voices: premium(plan) || store.firstUserId() === req.user.id },
       // Payments are open (Stripe set up), and whether there is a subscription to manage.
       billing: { open: billing.configured, manage: billing.configured && !!store.getMeta(`stripe:customer:${req.user.id}`) },
     });

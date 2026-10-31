@@ -111,6 +111,7 @@ fun AccountDialog(repo: NoteRepository, state: UiState, onClose: () -> Unit) {
                 }) { Text(tr("Log out other devices")) }
                 TextButton(onClick = { confirmLogout = true }) { Text(tr("Log out"), color = MaterialTheme.colorScheme.error) }
                 Text(tr("Logging out removes your notes from this phone. They stay safe on your server."), style = MaterialTheme.typography.bodySmall)
+                plan?.let { VoicePicker(it.canReadAloud) }
                 plan?.let { p ->
                     HorizontalDivider()
                     Text(tr("Premium"), style = MaterialTheme.typography.titleSmall)

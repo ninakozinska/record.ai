@@ -59,7 +59,11 @@ fun NoteEditor(repo: NoteRepository, state: UiState, id: String, onClose: () -> 
     var assignee by remember(id) { mutableStateOf(note.assignedTo) }
     var people by remember { mutableStateOf(People()) }
     var working by remember { mutableStateOf(false) }
-    LaunchedEffect(id) { people = repo.people() }
+    var canReadAloud by remember { mutableStateOf(false) }
+    LaunchedEffect(id) {
+        people = repo.people()
+        canReadAloud = runCatching { repo.plan().canReadAloud }.getOrDefault(false)
+    }
     var sharing by remember { mutableStateOf(false) }
     val canEdit = note.canEdit
     var priorityMenu by remember { mutableStateOf(false) }
@@ -180,6 +184,11 @@ fun NoteEditor(repo: NoteRepository, state: UiState, id: String, onClose: () -> 
                     repo.save(id, mapOf("done" to !note.done))
                     onClose()
                 }, modifier = Modifier.fillMaxWidth()) { Text(if (note.done) tr("Mark not done") else tr("✓ Mark done")) }
+                if (canReadAloud) OutlinedButton(onClick = {
+                    val open = state.items(id).filter { !it.done }.joinToString(", ") { it.text }
+                    ReadAloud.speak(context, listOf(note.displayTitle, text.trim().takeIf { it != note.displayTitle }.orEmpty(), open)
+                        .filter { it.isNotBlank() }.joinToString(". "))
+                }, modifier = Modifier.fillMaxWidth()) { Text(tr("🔊 Read aloud")) }
                 // A letter, an invitation or a photo of one: each thing to do becomes a note with its date.
                 if (!note.shared && (note.images.isNotEmpty() || note.text.length > 60)) OutlinedButton(enabled = !working, onClick = {
                     saveChanges()
