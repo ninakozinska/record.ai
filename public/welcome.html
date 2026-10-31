@@ -95,19 +95,19 @@
         <div class="card">
           <span class="tag">Free</span>
           <div class="price">€0</div>
-          <ul><li>Unlimited notes, on every device</li><li>AI sorting (monthly allowance)</li><li>Lists, dates, sharing</li></ul>
+          <ul><li>Unlimited notes, on every device</li><li>AI sorting (monthly allowance)</li><li>Lists, dates, sharing</li><li>3 reminders a month</li></ul>
           <a class="btn ghost" href="./#signup" data-cta="free">Start free</a>
         </div>
         <div class="card">
           <span class="tag">Solo</span>
           <div class="price">€3.99 <span>/ month</span></div>
-          <ul><li>Everything in Free</li><li>More AI every month</li><li>Daily backups, kept 30 days</li></ul>
+          <ul><li>Everything in Free</li><li>More AI every month</li><li>Reminders on your phone and a morning briefing</li><li>Daily backups, kept 30 days</li></ul>
           <a class="btn ghost" href="./#signup" data-cta="solo">Try it</a>
         </div>
         <div class="card featured">
           <span class="tag">Family</span>
           <div class="price">€5.99 <span>/ month</span></div>
-          <ul><li>Everything in Solo, for the whole household</li><li>Shared family groups</li><li>Coming soon: smart reminders, tasks for the kids</li></ul>
+          <ul><li>Everything in Solo, for the whole household</li><li>Shared family groups</li><li>Coming soon: tasks for the kids</li></ul>
           <a class="btn" href="./#signup" data-cta="family">Try it</a>
         </div>
       </div>
@@ -130,6 +130,10 @@
 
   <script type="module">
     import { loadVariants, variant, track } from './track.js';
+    import { t, loadLang, pickLang, translatePage } from './i18n.js';
+    // The page in the visitor's language (the same dictionaries as the app).
+    await loadLang(pickLang());
+    translatePage();
     // A/B test: which promise brings more people to "Start free" (docs/OPTIMIZATION.md).
     const HEADLINES = {
       two_in_one: ['Work and family, in one place.', 'Write it down the way it comes: a meeting, the dentist, milk, the school trip. record.ai sorts it into priorities, groups and dates, on every device.'],
@@ -138,8 +142,8 @@
     await loadVariants(['landing_headline']);
     const v = variant('landing_headline', 'two_in_one');
     const [h, lead] = HEADLINES[v] || HEADLINES.two_in_one;
-    document.getElementById('headline').textContent = h;
-    document.getElementById('lead').textContent = lead;
+    document.getElementById('headline').textContent = t(h);
+    document.getElementById('lead').textContent = t(lead);
     track('landing_view', { variant: v, ref: document.referrer ? new URL(document.referrer).hostname.slice(0, 40) : '' });
     for (const a of document.querySelectorAll('[data-cta]')) {
       a.addEventListener('click', () => track('landing_cta', { where: a.dataset.cta, variant: v }));

@@ -1,5 +1,7 @@
 package ai.record.android.ui
 
+import ai.record.core.tr
+
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
@@ -63,7 +65,7 @@ fun NoteInputs(
     onText: (String) -> Unit,
     images: List<String>,
     onImages: (List<String>) -> Unit,
-    placeholder: String = "Write a note, or tap the mic to dictate…",
+    placeholder: String = tr("Write a note, or tap the mic to dictate…"),
     minLines: Int = 1,
 ) {
     val context = LocalContext.current
@@ -118,23 +120,23 @@ fun NoteInputs(
                         IconButton(
                             onClick = { onImages(images - name) },
                             modifier = Modifier.align(Alignment.TopEnd).size(22.dp).background(Color.Black.copy(alpha = 0.55f), CircleShape),
-                        ) { Icon(Icons.Filled.Close, contentDescription = "Remove photo", tint = Color.White, modifier = Modifier.size(14.dp)) }
+                        ) { Icon(Icons.Filled.Close, contentDescription = tr("Remove photo"), tint = Color.White, modifier = Modifier.size(14.dp)) }
                     }
                 }
             }
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = { startDictation(context) { dictate.launch(it) } }) {
-                Icon(Icons.Outlined.Mic, contentDescription = "Dictate", tint = MaterialTheme.colorScheme.primary)
+                Icon(Icons.Outlined.Mic, contentDescription = tr("Dictate"), tint = MaterialTheme.colorScheme.primary)
             }
             IconButton(onClick = {
                 val uri = newCameraFile(context)
                 cameraUri = uri
-                try { takePhoto.launch(uri) } catch (e: ActivityNotFoundException) { toast(context, "No camera app found.") }
-            }) { Icon(Icons.Outlined.PhotoCamera, contentDescription = "Take a photo", tint = MaterialTheme.colorScheme.primary) }
+                try { takePhoto.launch(uri) } catch (e: ActivityNotFoundException) { toast(context, tr("No camera app found.")) }
+            }) { Icon(Icons.Outlined.PhotoCamera, contentDescription = tr("Take a photo"), tint = MaterialTheme.colorScheme.primary) }
             IconButton(onClick = {
                 pickPhotos.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-            }) { Icon(Icons.Outlined.PhotoLibrary, contentDescription = "Add photos", tint = MaterialTheme.colorScheme.primary) }
+            }) { Icon(Icons.Outlined.PhotoLibrary, contentDescription = tr("Add photos"), tint = MaterialTheme.colorScheme.primary) }
         }
     }
 }
@@ -142,11 +144,11 @@ fun NoteInputs(
 private fun startDictation(context: Context, launch: (Intent) -> Unit) {
     val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
         .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-        .putExtra(RecognizerIntent.EXTRA_PROMPT, "Speak your note")
+        .putExtra(RecognizerIntent.EXTRA_PROMPT, tr("Speak your note"))
     try {
         launch(intent)
     } catch (e: ActivityNotFoundException) {
-        toast(context, "Speech recognition isn't available on this phone. Use the mic on your keyboard instead.")
+        toast(context, tr("Speech recognition isn't available on this phone. Use the mic on your keyboard instead."))
     }
 }
 

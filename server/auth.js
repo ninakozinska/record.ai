@@ -6,7 +6,7 @@
 //  - after that only with ALLOW_SIGNUP=true, or with the invite code in
 //    SIGNUP_CODE.
 import crypto from 'node:crypto';
-import { mailer } from './mail.js';
+import { mailer, mailLanguage, resetEmail } from './mail.js';
 import { promisify } from 'node:util';
 import express from 'express';
 import { configuredProviders, oauthRoutes, OAuthError, PROVIDERS } from './oauth.js';
@@ -180,10 +180,10 @@ export function authRoutes({ store, imagesDir, throttle = new Throttle(), oauth 
       const token = crypto.randomBytes(24).toString('base64url');
       store.setMeta(resetKey(token), JSON.stringify({ userId: user.id, expires: Date.now() + RESET_MS }));
       const base = (env.PUBLIC_URL || `${req.protocol}://${req.get('host')}`).replace(/\/$/, '');
+      const lang = mailLanguage(store.languageOf?.(user.id), req.get('accept-language'));
       await mail.send({
         to: user.email,
-        subject: 'Reset your record.ai password',
-        text: `Hi ${user.name},\n\nTo choose a new password, open this link within one hour:\n${base}/#reset=${token}\n\nIf you didn't ask for this, ignore this email: your password stays the same.\n\nrecord.ai`,
+        ...resetEmail(lang, { name: user.name, link: `${base}/#reset=${token}` }),
       }).catch((err) => console.error('[mail]', err.message));
     }
     res.json({ ok: true });

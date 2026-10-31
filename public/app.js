@@ -1900,11 +1900,11 @@ if (back.has('open')) {
   openWhenHere();
 }
 if (back.has('calendar') || back.has('calendar_error')) {
-  setTimeout(() => toast(back.get('calendar_error') || t('Calendar connected')), 300);
+  setTimeout(() => toast(back.has('calendar_error') ? t(back.get('calendar_error')) : t('Calendar connected')), 300);
   history.replaceState(null, '', location.pathname);
 }
 if (back.has('login_error') || back.has('linked')) {
-  auth.error = back.get('login_error') || '';
+  auth.error = t(back.get('login_error') || '');
   if (back.has('linked')) setTimeout(() => toast(t('Connected. You can now log in with it too.')), 300);
   history.replaceState(null, '', location.pathname);
 }

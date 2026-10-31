@@ -25,7 +25,7 @@ struct NoteDetailView: View {
         NavigationStack {
             Form {
                 if let note, hasAIInfo(note) {
-                    Section("AI") {
+                    Section(tr("AI")) {
                         if let s = note.summary, !s.isEmpty { Text(s) }
                         if let r = note.priorityReason, !r.isEmpty {
                             Text("Priority: \(r)").font(.subheadline).foregroundStyle(.secondary)
@@ -41,10 +41,10 @@ struct NoteDetailView: View {
                 if let note, note.isShared {
                     Section {
                         HStack {
-                            Text("Shared by \(note.ownerName ?? "someone")" + (note.canEdit ? " · you can edit" : " · view only"))
+                            Text("Shared by \(note.ownerName ?? "someone")" + (note.canEdit ? " · you can edit" : tr(" · view only")))
                                 .font(.subheadline).foregroundStyle(.indigo)
                             Spacer()
-                            Button("Leave") {
+                            Button(tr("Leave")) {
                                 Task {
                                     try? await store.leave(note)
                                     dismiss()
@@ -54,9 +54,9 @@ struct NoteDetailView: View {
                         }
                     }
                 }
-                Section("Note") {
+                Section(tr("Note")) {
                     if canEdit {
-                        NoteInputs(text: $text, images: $images, minLines: 4, placeholder: "Note")
+                        NoteInputs(text: $text, images: $images, minLines: 4, placeholder: tr("Note"))
                     } else {
                         Text(note?.text ?? "")
                         ForEach(note?.images ?? [], id: \.self) { name in NoteImage(name: name).frame(maxHeight: 240) }
@@ -66,22 +66,22 @@ struct NoteDetailView: View {
                 if let note { DueSection(note: note, due: $due, canEdit: canEdit && !isShared) }
                 if !isShared { Section {
                     TextField(groupPlaceholder, text: $group)
-                    Picker("Priority", selection: $priority) {
+                    Picker(tr("Priority"), selection: $priority) {
                         Text(autoPriorityLabel).tag("")
                         ForEach(Priority.allCases) { p in Text(p.label).tag(p.rawValue) }
                     }
                 } header: {
-                    Text("Sorting")
+                    Text(tr("Sorting"))
                 } footer: {
-                    Text("Leave these on Auto to let the AI decide. Your choice is kept (📌).")
+                    Text(tr("Leave these on Auto to let the AI decide. Your choice is kept (📌)."))
                 } }
                 Section {
-                    if canEdit { Button(note?.done == true ? "Mark not done" : "✓ Mark done") {
+                    if canEdit { Button(note?.done == true ? tr("Mark not done") : tr("✓ Mark done")) {
                         saveChanges()
                         store.save(id: noteId, patch: ["done": !(note?.done ?? false)])
                         dismiss()
                     } }
-                    if !isShared { Button("Re-analyze with AI") {
+                    if !isShared { Button(tr("Re-analyze with AI")) {
                         saveChanges()
                         Task {
                             do {
@@ -93,22 +93,22 @@ struct NoteDetailView: View {
                         }
                     } }
                     if let info { Text(info).font(.footnote).foregroundStyle(.red) }
-                    if !isShared { Button("Delete note", role: .destructive) { confirmDelete = true } }
+                    if !isShared { Button(tr("Delete note"), role: .destructive) { confirmDelete = true } }
                 }
             }
-            .navigationTitle(note?.displayTitle ?? "Note")
+            .navigationTitle(note?.displayTitle ?? tr("Note"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button(tr("Cancel")) { dismiss() } }
                 if !isShared {
                     ToolbarItem(placement: .primaryAction) {
                         Button { saveChanges(); sharing = true } label: { Image(systemName: "person.badge.plus") }
-                            .accessibilityLabel("Share")
+                            .accessibilityLabel(tr("Share"))
                     }
                 }
                 if canEdit {
                     ToolbarItem(placement: .confirmationAction) {
-                        Button("Save") {
+                        Button(tr("Save")) {
                             saveChanges()
                             dismiss()
                         }
@@ -116,25 +116,25 @@ struct NoteDetailView: View {
                     }
                 }
             }
-            .confirmationDialog("Delete this note?", isPresented: $confirmDelete, titleVisibility: .visible) {
-                Button("Delete", role: .destructive) {
+            .confirmationDialog(tr("Delete this note?"), isPresented: $confirmDelete, titleVisibility: .visible) {
+                Button(tr("Delete"), role: .destructive) {
                     store.save(id: noteId, patch: ["deleted": true])
                     dismiss()
                 }
             }
-            .sheet(isPresented: $sharing) { ShareView(kind: "note", target: noteId, label: note?.displayTitle ?? "Note") }
+            .sheet(isPresented: $sharing) { ShareView(kind: "note", target: noteId, label: note?.displayTitle ?? tr("Note")) }
             .onAppear(perform: load)
         }
     }
 
     private var groupPlaceholder: String {
         if let g = note?.aiGroup, !g.isEmpty { return "Group: Auto (\(g))" }
-        return "Group: Auto"
+        return tr("Group: Auto")
     }
 
     private var autoPriorityLabel: String {
         if let p = note?.aiPriority, let pr = Priority(rawValue: p) { return "Auto (\(pr.label))" }
-        return "Auto"
+        return tr("Auto")
     }
 
     private func hasAIInfo(_ n: Note) -> Bool {

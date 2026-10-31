@@ -1,5 +1,7 @@
 package ai.record.android.ui
 
+import ai.record.core.tr
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -74,17 +76,17 @@ fun NoteEditor(repo: NoteRepository, state: UiState, id: String, onClose: () -> 
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Row {
-                    TextButton(onClick = onClose) { Text("Cancel") }
+                    TextButton(onClick = onClose) { Text(tr("Cancel")) }
                     Box(Modifier.weight(1f))
-                    if (!note.shared) TextButton(onClick = { saveChanges(); sharing = true }) { Text("Share") }
-                    if (canEdit) Button(onClick = { saveChanges(); onClose() }) { Text("Save") }
+                    if (!note.shared) TextButton(onClick = { saveChanges(); sharing = true }) { Text(tr("Share")) }
+                    if (canEdit) Button(onClick = { saveChanges(); onClose() }) { Text(tr("Save")) }
                 }
                 Text(note.displayTitle, style = MaterialTheme.typography.titleLarge)
                 if (note.shared) {
                     Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                        Text("Shared by ${note.ownerName ?: "someone"}" + if (canEdit) " · you can edit" else " · view only",
+                        Text("Shared by ${note.ownerName ?: "someone"}" + if (canEdit) " · you can edit" else tr(" · view only"),
                             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.weight(1f))
-                        TextButton(onClick = { scope.launch { runCatching { leaveShared(repo, note) }; onClose() } }) { Text("Leave") }
+                        TextButton(onClick = { scope.launch { runCatching { leaveShared(repo, note) }; onClose() } }) { Text(tr("Leave")) }
                     }
                 }
 
@@ -102,7 +104,7 @@ fun NoteEditor(repo: NoteRepository, state: UiState, id: String, onClose: () -> 
 
                 if (canEdit) {
                     Surface(shape = MaterialTheme.shapes.medium, tonalElevation = 1.dp) {
-                        NoteInputs(repo, text, { text = it }, images, { images.clear(); images.addAll(it) }, placeholder = "Note", minLines = 4)
+                        NoteInputs(repo, text, { text = it }, images, { images.clear(); images.addAll(it) }, placeholder = tr("Note"), minLines = 4)
                     }
                 } else {
                     if (note.text.isNotBlank()) Text(note.text)
@@ -116,39 +118,39 @@ fun NoteEditor(repo: NoteRepository, state: UiState, id: String, onClose: () -> 
                 if (!note.shared) OutlinedTextField(
                     value = group,
                     onValueChange = { group = it },
-                    label = { Text("Group") },
-                    placeholder = { Text("Auto" + (note.aiGroup?.let { " ($it)" } ?: "")) },
+                    label = { Text(tr("Group")) },
+                    placeholder = { Text(tr("Auto") + (note.aiGroup?.let { " ($it)" } ?: "")) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 if (!note.shared) Box {
                     OutlinedButton(onClick = { priorityMenu = true }, modifier = Modifier.fillMaxWidth()) {
-                        val auto = Priority.of(note.aiPriority)?.let { "Auto (${it.label})" } ?: "Auto"
-                        Text("Priority: " + (Priority.of(priority)?.label ?: auto))
+                        val auto = Priority.of(note.aiPriority)?.let { "Auto (${it.label})" } ?: tr("Auto")
+                        Text(tr("Priority: ") + (Priority.of(priority)?.label ?: auto))
                     }
                     DropdownMenu(expanded = priorityMenu, onDismissRequest = { priorityMenu = false }) {
-                        DropdownMenuItem(text = { Text("Auto") }, onClick = { priority = null; priorityMenu = false })
+                        DropdownMenuItem(text = { Text(tr("Auto")) }, onClick = { priority = null; priorityMenu = false })
                         Priority.entries.forEach { p ->
                             DropdownMenuItem(text = { Text(p.label, color = p.color, fontWeight = FontWeight.SemiBold) }, onClick = { priority = p.key; priorityMenu = false })
                         }
                     }
                 }
-                if (!note.shared) Text("Leave these on Auto to let the AI decide. Your choice is kept.", style = MaterialTheme.typography.bodySmall,
+                if (!note.shared) Text(tr("Leave these on Auto to let the AI decide. Your choice is kept."), style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
 
                 if (canEdit) OutlinedButton(onClick = {
                     saveChanges()
                     repo.save(id, mapOf("done" to !note.done))
                     onClose()
-                }, modifier = Modifier.fillMaxWidth()) { Text(if (note.done) "Mark not done" else "✓ Mark done") }
+                }, modifier = Modifier.fillMaxWidth()) { Text(if (note.done) tr("Mark not done") else tr("✓ Mark done")) }
                 if (!note.shared) OutlinedButton(onClick = {
                     saveChanges()
                     scope.launch {
                         runCatching { repo.reanalyze(id) }.onSuccess { onClose() }.onFailure { error = it.message }
                     }
-                }, modifier = Modifier.fillMaxWidth()) { Text("Re-analyze with AI") }
+                }, modifier = Modifier.fillMaxWidth()) { Text(tr("Re-analyze with AI")) }
                 error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-                if (!note.shared) TextButton(onClick = { confirmDelete = true }) { Text("Delete note", color = MaterialTheme.colorScheme.error) }
+                if (!note.shared) TextButton(onClick = { confirmDelete = true }) { Text(tr("Delete note"), color = MaterialTheme.colorScheme.error) }
             }
         }
     }
@@ -158,13 +160,13 @@ fun NoteEditor(repo: NoteRepository, state: UiState, id: String, onClose: () -> 
     if (confirmDelete) {
         AlertDialog(
             onDismissRequest = { confirmDelete = false },
-            title = { Text("Delete this note?") },
+            title = { Text(tr("Delete this note?")) },
             confirmButton = {
                 TextButton(onClick = { repo.save(id, mapOf("deleted" to true)); confirmDelete = false; onClose() }) {
-                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                    Text(tr("Delete"), color = MaterialTheme.colorScheme.error)
                 }
             },
-            dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Cancel") } },
+            dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text(tr("Cancel")) } },
         )
     }
 }

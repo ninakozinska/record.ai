@@ -2,6 +2,8 @@
 
 package ai.record.android.ui
 
+import ai.record.core.tr
+
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -106,7 +108,7 @@ fun NotesScreen(repo: NoteRepository, state: UiState, sharedText: String?, onSha
     fun notify(text: String, undo: (() -> Unit)? = null) {
         scope.launch {
             snackbar.currentSnackbarData?.dismiss()
-            val r = snackbar.showSnackbar(text, actionLabel = if (undo != null) "Undo" else null, duration = SnackbarDuration.Short)
+            val r = snackbar.showSnackbar(text, actionLabel = if (undo != null) tr("Undo") else null, duration = SnackbarDuration.Short)
             if (r == SnackbarResult.ActionPerformed) undo?.invoke()
         }
     }
@@ -157,7 +159,7 @@ fun NotesScreen(repo: NoteRepository, state: UiState, sharedText: String?, onSha
                     }
                 },
                 actions = {
-                    IconButton(onClick = { searching = !searching; if (!searching) query = "" }) { Icon(Icons.Filled.Search, "Search") }
+                    IconButton(onClick = { searching = !searching; if (!searching) query = "" }) { Icon(Icons.Filled.Search, tr("Search")) }
                     Box {
                         Surface(
                             onClick = { menu = true },
@@ -171,17 +173,17 @@ fun NotesScreen(repo: NoteRepository, state: UiState, sharedText: String?, onSha
                         }
                         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                             if (state.aiEnabled) {
-                                DropdownMenuItem(text = { Text("Reorganize with AI") }, onClick = {
+                                DropdownMenuItem(text = { Text(tr("Reorganize with AI")) }, onClick = {
                                     menu = false
                                     scope.launch {
-                                        toast(context, "Reorganizing…")
+                                        toast(context, tr("Reorganizing…"))
                                         runCatching { repo.reorganize() }
-                                            .onSuccess { toast(context, if (it.skipped == true) "Already reorganizing" else "Reorganized: ${it.updated ?: 0} note(s) moved") }
-                                            .onFailure { toast(context, it.message ?: "Could not reorganize") }
+                                            .onSuccess { toast(context, if (it.skipped == true) tr("Already reorganizing") else "Reorganized: ${it.updated ?: 0} note(s) moved") }
+                                            .onFailure { toast(context, it.message ?: tr("Could not reorganize")) }
                                     }
                                 })
                             }
-                            DropdownMenuItem(text = { Text("Account") }, onClick = { menu = false; account = true })
+                            DropdownMenuItem(text = { Text(tr("Account")) }, onClick = { menu = false; account = true })
                         }
                     }
                 },
@@ -198,7 +200,7 @@ fun NotesScreen(repo: NoteRepository, state: UiState, sharedText: String?, onSha
                         repo.create(draft.trim(), draftImages.toList())
                         draft = ""
                         draftImages.clear()
-                    }) { Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Save note", tint = if (empty) Color.Gray else MaterialTheme.colorScheme.primary) }
+                    }) { Icon(Icons.AutoMirrored.Filled.Send, contentDescription = tr("Save note"), tint = if (empty) Color.Gray else MaterialTheme.colorScheme.primary) }
                 }
             }
         },
@@ -207,26 +209,26 @@ fun NotesScreen(repo: NoteRepository, state: UiState, sharedText: String?, onSha
             item(key = "controls") {
                 Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (searching) {
-                        OutlinedTextField(query, { query = it }, placeholder = { Text("Search notes") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                        OutlinedTextField(query, { query = it }, placeholder = { Text(tr("Search notes")) }, singleLine = true, modifier = Modifier.fillMaxWidth())
                     }
                     SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                        listOf(Worlds.ALL to "All", Worlds.WORK to "💼 Work", Worlds.FAMILY to "🏡 Family").forEachIndexed { i, (key, label) ->
+                        listOf(Worlds.ALL to tr("All"), Worlds.WORK to tr("💼 Work"), Worlds.FAMILY to tr("🏡 Family")).forEachIndexed { i, (key, label) ->
                             SegmentedButton(selected = world == key, onClick = { world = key; group = null },
                                 shape = SegmentedButtonDefaults.itemShape(i, 3)) { Text(label) }
                         }
                     }
                     SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                        SegmentedButton(selected = !byGroup, onClick = { byGroup = false }, shape = SegmentedButtonDefaults.itemShape(0, 2)) { Text("Priority") }
-                        SegmentedButton(selected = byGroup, onClick = { byGroup = true }, shape = SegmentedButtonDefaults.itemShape(1, 2)) { Text("Groups") }
+                        SegmentedButton(selected = !byGroup, onClick = { byGroup = false }, shape = SegmentedButtonDefaults.itemShape(0, 2)) { Text(tr("Priority")) }
+                        SegmentedButton(selected = byGroup, onClick = { byGroup = true }, shape = SegmentedButtonDefaults.itemShape(1, 2)) { Text(tr("Groups")) }
                     }
                     if (groupNames.isNotEmpty()) {
                         Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            FilterChip(selected = group == null, onClick = { group = null }, label = { Text("All") })
+                            FilterChip(selected = group == null, onClick = { group = null }, label = { Text(tr("All")) })
                             groupNames.forEach { g -> FilterChip(selected = group == g, onClick = { group = g }, label = { Text(g) }) }
                         }
                     }
                     if (!state.aiEnabled) {
-                        Text("AI sorting is off on your server. Notes are saved and synced but not sorted.",
+                        Text(tr("AI sorting is off on your server. Notes are saved and synced but not sorted."),
                             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
@@ -243,15 +245,15 @@ fun NotesScreen(repo: NoteRepository, state: UiState, sharedText: String?, onSha
                 items(section.notes, key = { it.id }) { note ->
                     NoteRow(repo, state, note, showGroup = !byGroup, onOpen = { editing = note.id }, onDone = {
                         repo.setDone(note.id, true)
-                        notify("Marked done") { repo.setDone(note.id, false) }
+                        notify(tr("Marked done")) { repo.setDone(note.id, false) }
                     })
                 }
             }
             if (open.isEmpty()) {
                 item(key = "empty") {
                     Text(
-                        if (state.visible.isEmpty()) "No notes yet. Type, dictate or take a photo below. AI will title, prioritize and group them for you."
-                        else "Nothing here.",
+                        if (state.visible.isEmpty()) tr("No notes yet. Type, dictate or take a photo below. AI will title, prioritize and group them for you.")
+                        else tr("Nothing here."),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.fillMaxWidth().padding(32.dp),
                     )
@@ -264,14 +266,14 @@ fun NotesScreen(repo: NoteRepository, state: UiState, sharedText: String?, onSha
                             Text(if (showDone) "Hide done (${done.size})" else "Show done (${done.size})")
                         }
                         if (showDone && done.any { !it.shared }) TextButton(onClick = { confirmClear = true }) {
-                            Text("Clear done", color = MaterialTheme.colorScheme.error)
+                            Text(tr("Clear done"), color = MaterialTheme.colorScheme.error)
                         }
                     }
                 }
                 if (showDone) items(done, key = { "d-" + it.id }) { note ->
                     NoteRow(repo, state, note, showGroup = true, onOpen = { editing = note.id }, onDone = {
                         repo.setDone(note.id, false)
-                        notify("Back to open notes") { repo.setDone(note.id, true) }
+                        notify(tr("Back to open notes")) { repo.setDone(note.id, true) }
                     })
                 }
             }
@@ -286,15 +288,15 @@ fun NotesScreen(repo: NoteRepository, state: UiState, sharedText: String?, onSha
         AlertDialog(
             onDismissRequest = { confirmClear = false },
             title = { Text("Delete ${mine.size} done note${if (mine.size == 1) "" else "s"}?") },
-            text = { Text("You can undo this for a few seconds.") },
+            text = { Text(tr("You can undo this for a few seconds.")) },
             confirmButton = {
                 TextButton(onClick = {
                     confirmClear = false
                     val removed = repo.clearDone(mine.map { it.id })
                     notify("${removed.size} done note${if (removed.size == 1) "" else "s"} deleted") { repo.undelete(removed) }
-                }) { Text("Delete", color = MaterialTheme.colorScheme.error) }
+                }) { Text(tr("Delete"), color = MaterialTheme.colorScheme.error) }
             },
-            dismissButton = { TextButton(onClick = { confirmClear = false }) { Text("Cancel") } },
+            dismissButton = { TextButton(onClick = { confirmClear = false }) { Text(tr("Cancel")) } },
         )
     }
 
@@ -354,7 +356,7 @@ private fun NoteRow(repo: NoteRepository, state: UiState, note: Note, showGroup:
                 Text(note.priority.label + if (note.userPriority != null) " (pinned)" else "",
                     style = MaterialTheme.typography.labelMedium, color = note.priority.color, fontWeight = FontWeight.SemiBold)
                 if (note.shared) {
-                    Text("Shared by ${note.ownerName ?: "someone"}" + if (note.canEdit) "" else " · view only",
+                    Text("Shared by ${note.ownerName ?: "someone"}" + if (note.canEdit) "" else tr(" · view only"),
                         style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
                 } else if (showGroup) Text(note.group, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 dueText(note)?.let { (label, soon) ->
@@ -363,7 +365,7 @@ private fun NoteRow(repo: NoteRepository, state: UiState, note: Note, showGroup:
                 }
                 Spacer(Modifier.weight(1f))
                 if (note.canEdit) TextButton(onClick = onDone, contentPadding = PaddingValues(horizontal = 10.dp)) {
-                    Text(if (note.done) "↺ Reopen" else "✓ Done", style = MaterialTheme.typography.labelLarge)
+                    Text(if (note.done) tr("↺ Reopen") else tr("✓ Done"), style = MaterialTheme.typography.labelLarge)
                 }
             }
             HorizontalDivider(Modifier.padding(top = 6.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))

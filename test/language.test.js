@@ -44,3 +44,13 @@ test('the AI is told the language when it sorts a note', async () => {
   assert.match(prompts[1], /The person's language: Italian\. Name any new group in Italian\./);
   assert.equal(store.get('note-lang-0002').ai_group, 'Spesa');
 });
+
+test('the reset email is in the account\'s language, else the browser\'s', async () => {
+  const { mailLanguage, resetEmail } = await import('../server/mail.js');
+  assert.equal(mailLanguage('pl', 'it-IT,it;q=0.9'), 'pl');
+  assert.equal(mailLanguage(null, 'fr-CH, fr;q=0.9, en;q=0.8'), 'fr');
+  assert.equal(mailLanguage(null, 'ja-JP'), 'en');
+  const it = resetEmail('it', { name: 'Nina', link: 'https://x/#reset=abc' });
+  assert.equal(it.subject, 'Reimposta la password di record.ai');
+  assert.match(it.text, /^Ciao Nina,[\s\S]*https:\/\/x\/#reset=abc/);
+});

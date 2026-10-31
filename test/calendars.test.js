@@ -24,7 +24,7 @@ function fakeGoogle() {
     const u = new URL(url);
     const method = init.method || 'GET';
     calls.push({ method, url: u, body: init.body });
-    if (u.host === 'oauth2.googleapis.com') return json({ access_token: 'at', refresh_token: 'rt', expires_in: 3600 });
+    if (u.host === 'oauth2.googleapis.com') return json({ access_token: 'at', refresh_token: 'refresh-token-in-the-clear', expires_in: 3600 });
     if (u.pathname === '/calendar/v3/calendars/primary') return json({ id: 'nina@gmail.com' });
     const id = decodeURIComponent(u.pathname.split('/events/')[1] || '');
     if (method === 'GET') return json({ items: [...events.values()] });
@@ -102,7 +102,7 @@ test('Google both ways: meetings come in, dated notes go out, moves and deletion
     const [link] = (await t.api('calendars')).body.links;
     assert.equal(link.account, 'nina@gmail.com');
     assert.equal(link.writes, true, 'the first calendar receives the notes');
-    assert.ok(!JSON.stringify(t.store.db.prepare('SELECT secret FROM calendar_links').get()).includes('rt'), 'tokens are not stored in the clear');
+    assert.ok(!JSON.stringify(t.store.db.prepare('SELECT secret FROM calendar_links').get()).includes('refresh-token-in-the-clear'), 'tokens are not stored in the clear');
 
     // The meeting is a note, with its time and place.
     let meeting = notes(t).find((n) => n.source === 'google');

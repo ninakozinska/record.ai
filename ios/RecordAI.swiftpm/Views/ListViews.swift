@@ -46,13 +46,13 @@ struct ListItemsSection: View {
                 .swipeActions {
                     if canEdit {
                         Button(role: .destructive) { store.save(id: item.id, patch: ["deleted": true]) } label: {
-                            Label("Remove", systemImage: "trash")
+                            Label(tr("Remove"), systemImage: "trash")
                         }
                     }
                 }
             }
             if canEdit {
-                TextField("+ Add an item", text: $newItem)
+                TextField(tr("+ Add an item"), text: $newItem)
                     .onSubmit(add)
                     .submitLabel(.done)
                     .onChange(of: newItem) { old, new in
@@ -70,11 +70,11 @@ struct ListItemsSection: View {
                     store.sendNow()
                     newItem = ""
                 }
-                Button("Add as one item") {
+                Button(tr("Add as one item")) {
                     store.addItem(to: listId, text: lines.joined(separator: ", "))
                     newItem = ""
                 }
-                Button("Cancel", role: .cancel) { newItem = "" }
+                Button(tr("Cancel"), role: .cancel) { newItem = "" }
             }
         }
     }
@@ -118,11 +118,11 @@ struct DueSection: View {
     var body: some View {
         Section {
             if canEdit {
-                DatePicker("Date", selection: Binding(
+                DatePicker(tr("Date"), selection: Binding(
                     get: { date ?? Date() },
                     set: { d in due = Self.dayFormat.string(from: d) + (shownHour.map { "T\($0)" } ?? "") }
                 ), displayedComponents: .date)
-                Toggle("Time", isOn: Binding(
+                Toggle(tr("Time"), isOn: Binding(
                     get: { shownHour != nil },
                     set: { on in
                         let day = shownDay ?? Self.dayFormat.string(from: Date())
@@ -130,23 +130,23 @@ struct DueSection: View {
                     }
                 ))
                 if shownHour != nil {
-                    DatePicker("At", selection: Binding(
+                    DatePicker(tr("At"), selection: Binding(
                         get: { date ?? Date() },
                         set: { d in due = (shownDay ?? Self.dayFormat.string(from: d)) + "T" + Self.hourFormat.string(from: d) }
                     ), displayedComponents: .hourAndMinute)
                 }
                 HStack {
-                    Button("No date") { due = "" }.buttonStyle(.bordered).tint(due == "" ? .indigo : .secondary)
-                    Button("Let AI decide") { due = nil }.buttonStyle(.bordered).tint(due == nil ? .indigo : .secondary)
+                    Button(tr("No date")) { due = "" }.buttonStyle(.bordered).tint(due == "" ? .indigo : .secondary)
+                    Button(tr("Let AI decide")) { due = nil }.buttonStyle(.bordered).tint(due == nil ? .indigo : .secondary)
                 }
             } else if let shown = dueText(note) {
                 Text(shown.0)
             }
             if date != nil {
-                Button("Add to my calendar") { showCalendar = true }
+                Button(tr("Add to my calendar")) { showCalendar = true }
             }
         } header: {
-            Text("Date" + (due == nil && shownDay != nil ? " (chosen by AI)" : ""))
+            Text(tr("Date") + (due == nil && shownDay != nil ? tr(" (chosen by AI)") : ""))
         }
         .sheet(isPresented: $showCalendar) {
             if let date { CalendarEventView(title: note.displayTitle, notes: note.text, start: date, allDay: shownHour == nil) }
@@ -203,38 +203,38 @@ struct ShareView: View {
         NavigationStack {
             Form {
                 Section {
-                    TextField("Their email", text: $email)
+                    TextField(tr("Their email"), text: $email)
                         .keyboardType(.emailAddress)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
-                    Picker("They", selection: $role) {
-                        Text("Can edit").tag("edit")
-                        Text("View only").tag("view")
+                    Picker(tr("They"), selection: $role) {
+                        Text(tr("Can edit")).tag("edit")
+                        Text(tr("View only")).tag("view")
                     }
                     .pickerStyle(.segmented)
-                    Button("Share") { share() }.disabled(!email.contains("@"))
+                    Button(tr("Share")) { share() }.disabled(!email.contains("@"))
                     if let message { Text(message).font(.footnote).foregroundStyle(.secondary) }
                 } footer: {
-                    Text(kind == "group" ? "Everyone you add sees every note in this group, also ones added later."
-                                         : "They see this note and its items on their phone or computer.")
+                    Text(kind == "group" ? tr("Everyone you add sees every note in this group, also ones added later.")
+                                         : tr("They see this note and its items on their phone or computer."))
                 }
                 if !shares.isEmpty {
-                    Section("Shared with") {
+                    Section(tr("Shared with")) {
                         ForEach(shares) { s in
                             HStack {
                                 VStack(alignment: .leading) {
                                     Text(s.name ?? s.email ?? "")
-                                    Text((s.role == "view" ? "View only" : "Can edit") + (s.name == nil ? " · invited" : ""))
+                                    Text((s.role == "view" ? tr("View only") : tr("Can edit")) + (s.name == nil ? " · invited" : ""))
                                         .font(.footnote).foregroundStyle(.secondary)
                                 }
                                 Spacer()
-                                Button(s.role == "view" ? "Allow edits" : "View only") {
+                                Button(s.role == "view" ? tr("Allow edits") : tr("View only")) {
                                     Task { try? await store.setShareRole(s.id, role: s.role == "view" ? "edit" : "view"); await reload() }
                                 }
                                 .buttonStyle(.borderless)
                             }
                             .swipeActions {
-                                Button("Stop", role: .destructive) { Task { try? await store.unshare(s.id); await reload() } }
+                                Button(tr("Stop"), role: .destructive) { Task { try? await store.unshare(s.id); await reload() } }
                             }
                         }
                     }
@@ -242,7 +242,7 @@ struct ShareView: View {
             }
             .navigationTitle("Share \"\(label)\"")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button(tr("Done")) { dismiss() } } }
             .task { await reload() }
         }
     }

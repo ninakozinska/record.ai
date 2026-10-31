@@ -1,0 +1,842 @@
+{
+ " (chosen by AI)": {
+  "de": " (von der KI gewählt)",
+  "es": " (elegida por la IA)",
+  "fr": " (choisie par l'IA)",
+  "it": " (scelta dall'AI)",
+  "pl": " (wybrana przez AI)",
+  "pt": " (escolhida pela IA)"
+ },
+ " · before a restore": {
+  "de": " · vor einer Wiederherstellung",
+  "es": " · antes de restaurar",
+  "fr": " · avant une restauration",
+  "it": " · prima di un ripristino",
+  "pl": " · przed przywróceniem",
+  "pt": " · antes de restaurar"
+ },
+ " · view only": {
+  "de": " · nur ansehen",
+  "es": " · solo ver",
+  "fr": " · lecture seule",
+  "it": " · solo lettura",
+  "pl": " · tylko podgląd",
+  "pt": " · só ver"
+ },
+ "+ Add an item": {
+  "de": "+ Punkt hinzufügen",
+  "es": "+ Añadir un elemento",
+  "fr": "+ Ajouter un élément",
+  "it": "+ Aggiungi una voce",
+  "pl": "+ Dodaj pozycję",
+  "pt": "+ Adicionar um item"
+ },
+ "A backup of your notes is made every day and kept 30 days.": {
+  "de": "Jeden Tag wird eine Sicherung deiner Notizen erstellt und 30 Tage aufbewahrt.",
+  "es": "Cada día se hace una copia de tus notas y se guarda 30 días.",
+  "fr": "Une sauvegarde de vos notes est faite chaque jour et gardée 30 jours.",
+  "it": "Ogni giorno viene fatto un backup delle tue note, conservato 30 giorni.",
+  "pl": "Codziennie powstaje kopia notatek, przechowywana 30 dni.",
+  "pt": "Todos os dias é feita uma cópia das suas notas, guardada 30 dias."
+ },
+ "AI": {
+  "de": "KI",
+  "es": "IA",
+  "fr": "IA",
+  "it": "AI",
+  "pl": "AI",
+  "pt": "IA"
+ },
+ "AI sorting is off on your server. Notes are saved and synced but not sorted.": {
+  "de": "Die KI-Sortierung ist auf deinem Server aus. Notizen werden gespeichert und synchronisiert, aber nicht sortiert.",
+  "es": "La ordenación con IA está apagada en tu servidor. Las notas se guardan y sincronizan, pero no se ordenan.",
+  "fr": "Le tri par l'IA est désactivé sur votre serveur. Les notes sont enregistrées et synchronisées mais pas triées.",
+  "it": "L'ordinamento con l'AI è spento sul tuo server. Le note sono salvate e sincronizzate ma non ordinate.",
+  "pl": "Porządkowanie przez AI jest wyłączone na serwerze. Notatki są zapisywane i synchronizowane, ale nie porządkowane.",
+  "pt": "A organização com IA está desligada no seu servidor. As notas são guardadas e sincronizadas, mas não organizadas."
+ },
+ "Add photos": {
+  "de": "Fotos hinzufügen",
+  "es": "Añadir fotos",
+  "fr": "Ajouter des photos",
+  "it": "Aggiungi foto",
+  "pl": "Dodaj zdjęcia",
+  "pt": "Adicionar fotos"
+ },
+ "Add to my calendar": {
+  "de": "Zu meinem Kalender hinzufügen",
+  "es": "Añadir a mi calendario",
+  "fr": "Ajouter à mon agenda",
+  "it": "Aggiungi al mio calendario",
+  "pl": "Dodaj do mojego kalendarza",
+  "pt": "Adicionar ao meu calendário"
+ },
+ "Allow edits": {
+  "de": "Bearbeiten erlauben",
+  "es": "Permitir editar",
+  "fr": "Autoriser les modifications",
+  "it": "Consenti modifiche",
+  "pl": "Pozwól edytować",
+  "pt": "Permitir edição"
+ },
+ "At": {
+  "de": "Um",
+  "es": "A las",
+  "fr": "À",
+  "it": "Alle",
+  "pl": "O",
+  "pt": "Às"
+ },
+ "Back to open notes": {
+  "de": "Zurück zu offenen Notizen",
+  "es": "Volver a las notas abiertas",
+  "fr": "Retour aux notes ouvertes",
+  "it": "Torna alle note aperte",
+  "pl": "Wróć do otwartych notatek",
+  "pt": "Voltar às notas abertas"
+ },
+ "Backup made.": {
+  "de": "Sicherung erstellt.",
+  "es": "Copia hecha.",
+  "fr": "Sauvegarde faite.",
+  "it": "Backup fatto.",
+  "pl": "Utworzono kopię.",
+  "pt": "Cópia feita."
+ },
+ "Cancel": {
+  "de": "Abbrechen",
+  "es": "Cancelar",
+  "fr": "Annuler",
+  "it": "Annulla",
+  "pl": "Anuluj",
+  "pt": "Cancelar"
+ },
+ "Changing your password logs out your other devices.": {
+  "de": "Wenn du das Passwort änderst, werden deine anderen Geräte abgemeldet.",
+  "es": "Cambiar la contraseña cierra la sesión en tus otros dispositivos.",
+  "fr": "Changer le mot de passe déconnecte vos autres appareils.",
+  "it": "Cambiare la password disconnette gli altri dispositivi.",
+  "pl": "Zmiana hasła wyloguje pozostałe urządzenia.",
+  "pt": "Alterar a palavra-passe termina a sessão nos outros dispositivos."
+ },
+ "Clear done": {
+  "de": "Erledigte löschen",
+  "es": "Borrar hechas",
+  "fr": "Effacer les faits",
+  "it": "Elimina fatte",
+  "pl": "Usuń zrobione",
+  "pt": "Limpar feitas"
+ },
+ "Connect to your notes": {
+  "de": "Mit deinen Notizen verbinden",
+  "es": "Conéctate a tus notas",
+  "fr": "Connectez-vous à vos notes",
+  "it": "Collegati alle tue note",
+  "pl": "Połącz się z notatkami",
+  "pt": "Ligue-se às suas notas"
+ },
+ "Could not change the password.": {
+  "de": "Passwort konnte nicht geändert werden.",
+  "es": "No se pudo cambiar la contraseña.",
+  "fr": "Impossible de changer le mot de passe.",
+  "it": "Impossibile cambiare la password.",
+  "pl": "Nie udało się zmienić hasła.",
+  "pt": "Não foi possível alterar a palavra-passe."
+ },
+ "Could not disconnect.": {
+  "de": "Trennen fehlgeschlagen.",
+  "es": "No se pudo desconectar.",
+  "fr": "Impossible de déconnecter.",
+  "it": "Impossibile scollegare.",
+  "pl": "Nie udało się odłączyć.",
+  "pt": "Não foi possível desligar."
+ },
+ "Could not log out other devices.": {
+  "de": "Andere Geräte konnten nicht abgemeldet werden.",
+  "es": "No se pudo cerrar la sesión en otros dispositivos.",
+  "fr": "Impossible de déconnecter les autres appareils.",
+  "it": "Impossibile disconnettere gli altri dispositivi.",
+  "pl": "Nie udało się wylogować innych urządzeń.",
+  "pt": "Não foi possível terminar a sessão noutros dispositivos."
+ },
+ "Could not make a backup.": {
+  "de": "Sicherung fehlgeschlagen.",
+  "es": "No se pudo hacer la copia.",
+  "fr": "Impossible de faire une sauvegarde.",
+  "it": "Impossibile fare il backup.",
+  "pl": "Nie udało się utworzyć kopii.",
+  "pt": "Não foi possível fazer a cópia."
+ },
+ "Could not reorganize": {
+  "de": "Neu ordnen fehlgeschlagen",
+  "es": "No se pudo reorganizar",
+  "fr": "Impossible de réorganiser",
+  "it": "Impossibile riorganizzare",
+  "pl": "Nie udało się uporządkować",
+  "pt": "Não foi possível reorganizar"
+ },
+ "Could not restore.": {
+  "de": "Wiederherstellen fehlgeschlagen.",
+  "es": "No se pudo restaurar.",
+  "fr": "Impossible de restaurer.",
+  "it": "Impossibile ripristinare.",
+  "pl": "Nie udało się przywrócić.",
+  "pt": "Não foi possível restaurar."
+ },
+ "Daily backups kept 30 days, and restoring them, are part of Premium.": {
+  "de": "Tägliche Sicherungen für 30 Tage und ihre Wiederherstellung gehören zu Premium.",
+  "es": "Las copias diarias guardadas 30 días, y restaurarlas, son parte de Premium.",
+  "fr": "Les sauvegardes quotidiennes gardées 30 jours, et leur restauration, font partie de Premium.",
+  "it": "I backup giornalieri conservati 30 giorni, e il loro ripristino, fanno parte di Premium.",
+  "pl": "Codzienne kopie przez 30 dni i ich przywracanie są w Premium.",
+  "pt": "As cópias diárias guardadas 30 dias, e restaurá-las, fazem parte do Premium."
+ },
+ "Date: ": {
+  "de": "Datum: ",
+  "es": "Fecha: ",
+  "fr": "Date : ",
+  "it": "Data: ",
+  "pl": "Data: ",
+  "pt": "Data: "
+ },
+ "Delete for good": {
+  "de": "Endgültig löschen",
+  "es": "Eliminar para siempre",
+  "fr": "Supprimer définitivement",
+  "it": "Elimina per sempre",
+  "pl": "Usuń na zawsze",
+  "pt": "Apagar para sempre"
+ },
+ "Delete note": {
+  "de": "Notiz löschen",
+  "es": "Eliminar nota",
+  "fr": "Supprimer la note",
+  "it": "Elimina nota",
+  "pl": "Usuń notatkę",
+  "pt": "Apagar nota"
+ },
+ "Delete your account?": {
+  "de": "Konto löschen?",
+  "es": "¿Eliminar tu cuenta?",
+  "fr": "Supprimer votre compte ?",
+  "it": "Eliminare il tuo account?",
+  "pl": "Usunąć konto?",
+  "pt": "Apagar a sua conta?"
+ },
+ "Deletes your account, all your notes and photos, and your backups, for good.": {
+  "de": "Löscht dein Konto, alle Notizen und Fotos und deine Sicherungen endgültig.",
+  "es": "Elimina para siempre tu cuenta, todas tus notas y fotos, y tus copias.",
+  "fr": "Supprime définitivement votre compte, toutes vos notes et photos, et vos sauvegardes.",
+  "it": "Elimina per sempre il tuo account, tutte le note e le foto, e i backup.",
+  "pl": "Usuwa na zawsze konto, wszystkie notatki i zdjęcia oraz kopie.",
+  "pt": "Apaga para sempre a sua conta, todas as notas e fotos, e as cópias."
+ },
+ "Enter the address of your record.ai server. On your Mac, open record.ai in the browser and tap your initials (top right): the address is shown there.": {
+  "de": "Gib die Adresse deines record.ai-Servers ein. Öffne record.ai auf dem Mac im Browser und tippe auf deine Initialen (oben rechts): Dort steht die Adresse.",
+  "es": "Escribe la dirección de tu servidor record.ai. En tu Mac, abre record.ai en el navegador y toca tus iniciales (arriba a la derecha): ahí está la dirección.",
+  "fr": "Saisissez l'adresse de votre serveur record.ai. Sur votre Mac, ouvrez record.ai dans le navigateur et touchez vos initiales (en haut à droite) : l'adresse y figure.",
+  "it": "Inserisci l'indirizzo del tuo server record.ai. Sul Mac, apri record.ai nel browser e tocca le tue iniziali (in alto a destra): l'indirizzo è lì.",
+  "pl": "Wpisz adres serwera record.ai. Na Macu otwórz record.ai w przeglądarce i dotknij inicjałów (u góry po prawej): tam jest adres.",
+  "pt": "Escreva o endereço do seu servidor record.ai. No Mac, abra o record.ai no navegador e toque nas suas iniciais (em cima à direita): o endereço aparece lá."
+ },
+ "Enter the address of your record.ai server. On your computer, open record.ai in the browser and tap your initials (top right): the address is shown there.": {
+  "de": "Gib die Adresse deines record.ai-Servers ein. Öffne record.ai auf dem Computer im Browser und tippe auf deine Initialen (oben rechts): Dort steht die Adresse.",
+  "es": "Escribe la dirección de tu servidor record.ai. En tu ordenador, abre record.ai en el navegador y toca tus iniciales (arriba a la derecha): ahí está la dirección.",
+  "fr": "Saisissez l'adresse de votre serveur record.ai. Sur votre ordinateur, ouvrez record.ai dans le navigateur et touchez vos initiales (en haut à droite) : l'adresse y figure.",
+  "it": "Inserisci l'indirizzo del tuo server record.ai. Sul computer, apri record.ai nel browser e tocca le tue iniziali (in alto a destra): l'indirizzo è lì.",
+  "pl": "Wpisz adres serwera record.ai. Na komputerze otwórz record.ai w przeglądarce i dotknij inicjałów (u góry po prawej): tam jest adres.",
+  "pt": "Escreva o endereço do seu servidor record.ai. No computador, abra o record.ai no navegador e toque nas suas iniciais (em cima à direita): o endereço aparece lá."
+ },
+ "Everyone you add sees every note in this group, also ones added later.": {
+  "de": "Alle, die du hinzufügst, sehen jede Notiz dieser Gruppe, auch spätere.",
+  "es": "Quien añadas ve todas las notas de este grupo, también las que se añadan después.",
+  "fr": "Chaque personne ajoutée voit toutes les notes de ce groupe, y compris celles ajoutées plus tard.",
+  "it": "Chi aggiungi vede tutte le note di questo gruppo, anche quelle aggiunte dopo.",
+  "pl": "Każdy, kogo dodasz, widzi wszystkie notatki w tej grupie, także dodane później.",
+  "pt": "Quem adicionar vê todas as notas deste grupo, também as que forem adicionadas depois."
+ },
+ "Group: Auto": {
+  "de": "Gruppe: Auto",
+  "es": "Grupo: Auto",
+  "fr": "Groupe : Auto",
+  "it": "Gruppo: Auto",
+  "pl": "Grupa: Auto",
+  "pt": "Grupo: Auto"
+ },
+ "I already have an account": {
+  "de": "Ich habe schon ein Konto",
+  "es": "Ya tengo una cuenta",
+  "fr": "J'ai déjà un compte",
+  "it": "Ho già un account",
+  "pl": "Mam już konto",
+  "pt": "Já tenho conta"
+ },
+ "If an account uses this email, a link to choose a new password is on its way. Then log in here with it.": {
+  "de": "Wenn ein Konto diese E-Mail nutzt, kommt ein Link für ein neues Passwort. Melde dich dann hier damit an.",
+  "es": "Si alguna cuenta usa este email, va de camino un enlace para elegir una contraseña nueva. Luego inicia sesión aquí con ella.",
+  "fr": "Si un compte utilise cet e-mail, un lien pour choisir un nouveau mot de passe arrive. Connectez-vous ensuite ici avec.",
+  "it": "Se un account usa questa email, sta arrivando un link per scegliere una nuova password. Poi accedi qui con quella.",
+  "pl": "Jeśli jakieś konto używa tego adresu, wysłaliśmy link do ustawienia nowego hasła. Potem zaloguj się tu nowym hasłem.",
+  "pt": "Se alguma conta usa este email, está a caminho um link para escolher nova palavra-passe. Depois entre aqui com ela."
+ },
+ "Leave these on Auto to let the AI decide. Your choice is kept (📌).": {
+  "de": "Lass sie auf Auto, dann entscheidet die KI. Deine Wahl bleibt (📌).",
+  "es": "Déjalos en Auto para que decida la IA. Tu elección se mantiene (📌).",
+  "fr": "Laissez-les sur Auto pour que l'IA décide. Votre choix est gardé (📌).",
+  "it": "Lasciali su Auto e decide l'AI. La tua scelta resta (📌).",
+  "pl": "Zostaw Auto, a zdecyduje AI. Twój wybór zostaje (📌).",
+  "pt": "Deixe em Auto para a IA decidir. A sua escolha mantém-se (📌)."
+ },
+ "Leave these on Auto to let the AI decide. Your choice is kept.": {
+  "de": "Lass sie auf Auto, dann entscheidet die KI. Deine Wahl bleibt.",
+  "es": "Déjalos en Auto para que decida la IA. Tu elección se mantiene.",
+  "fr": "Laissez-les sur Auto pour que l'IA décide. Votre choix est gardé.",
+  "it": "Lasciali su Auto e decide l'AI. La tua scelta resta.",
+  "pl": "Zostaw Auto, a zdecyduje AI. Twój wybór zostaje.",
+  "pt": "Deixe em Auto para a IA decidir. A sua escolha mantém-se."
+ },
+ "Let AI decide": {
+  "de": "KI entscheiden lassen",
+  "es": "Que decida la IA",
+  "fr": "Laisser l'IA décider",
+  "it": "Decide l'AI",
+  "pl": "Niech zdecyduje AI",
+  "pt": "Deixar a IA decidir"
+ },
+ "Log in with the same email and password as on your Mac.": {
+  "de": "Melde dich mit derselben E-Mail und demselben Passwort an wie auf dem Mac.",
+  "es": "Inicia sesión con el mismo email y contraseña que en tu Mac.",
+  "fr": "Connectez-vous avec le même e-mail et mot de passe que sur votre Mac.",
+  "it": "Accedi con la stessa email e password del Mac.",
+  "pl": "Zaloguj się tym samym e-mailem i hasłem co na Macu.",
+  "pt": "Entre com o mesmo email e palavra-passe do Mac."
+ },
+ "Log in with the same email and password as on your computer.": {
+  "de": "Melde dich mit derselben E-Mail und demselben Passwort an wie auf dem Computer.",
+  "es": "Inicia sesión con el mismo email y contraseña que en tu ordenador.",
+  "fr": "Connectez-vous avec le même e-mail et mot de passe que sur votre ordinateur.",
+  "it": "Accedi con la stessa email e password del computer.",
+  "pl": "Zaloguj się tym samym e-mailem i hasłem co na komputerze.",
+  "pt": "Entre com o mesmo email e palavra-passe do computador."
+ },
+ "Log out of record.ai on this iPhone?": {
+  "de": "Auf diesem iPhone von record.ai abmelden?",
+  "es": "¿Cerrar sesión de record.ai en este iPhone?",
+  "fr": "Se déconnecter de record.ai sur cet iPhone ?",
+  "it": "Uscire da record.ai su questo iPhone?",
+  "pl": "Wylogować się z record.ai na tym iPhonie?",
+  "pt": "Sair do record.ai neste iPhone?"
+ },
+ "Log out of record.ai on this phone?": {
+  "de": "Auf diesem Handy von record.ai abmelden?",
+  "es": "¿Cerrar sesión de record.ai en este teléfono?",
+  "fr": "Se déconnecter de record.ai sur ce téléphone ?",
+  "it": "Uscire da record.ai su questo telefono?",
+  "pl": "Wylogować się z record.ai na tym telefonie?",
+  "pt": "Sair do record.ai neste telemóvel?"
+ },
+ "Log out?": {
+  "de": "Abmelden?",
+  "es": "¿Cerrar sesión?",
+  "fr": "Se déconnecter ?",
+  "it": "Uscire?",
+  "pl": "Wylogować?",
+  "pt": "Sair?"
+ },
+ "Logging out removes your notes from this iPhone. They stay safe on your server.": {
+  "de": "Beim Abmelden werden deine Notizen von diesem iPhone entfernt. Auf deinem Server bleiben sie sicher.",
+  "es": "Al cerrar sesión, tus notas se quitan de este iPhone. Siguen a salvo en tu servidor.",
+  "fr": "La déconnexion retire vos notes de cet iPhone. Elles restent en sécurité sur votre serveur.",
+  "it": "Uscendo, le note vengono tolte da questo iPhone. Restano al sicuro sul tuo server.",
+  "pl": "Wylogowanie usuwa notatki z tego iPhone'a. Na serwerze są bezpieczne.",
+  "pt": "Ao sair, as notas são removidas deste iPhone. Ficam seguras no seu servidor."
+ },
+ "Logging out removes your notes from this phone. They stay safe on your server.": {
+  "de": "Beim Abmelden werden deine Notizen von diesem Handy entfernt. Auf deinem Server bleiben sie sicher.",
+  "es": "Al cerrar sesión, tus notas se quitan de este teléfono. Siguen a salvo en tu servidor.",
+  "fr": "La déconnexion retire vos notes de ce téléphone. Elles restent en sécurité sur votre serveur.",
+  "it": "Uscendo, le note vengono tolte da questo telefono. Restano al sicuro sul tuo server.",
+  "pl": "Wylogowanie usuwa notatki z tego telefonu. Na serwerze są bezpieczne.",
+  "pt": "Ao sair, as notas são removidas deste telemóvel. Ficam seguras no seu servidor."
+ },
+ "Make view only": {
+  "de": "Nur ansehen erlauben",
+  "es": "Hacer solo lectura",
+  "fr": "Passer en lecture seule",
+  "it": "Rendi solo lettura",
+  "pl": "Ustaw tylko podgląd",
+  "pt": "Tornar só de leitura"
+ },
+ "Marked done": {
+  "de": "Als erledigt markiert",
+  "es": "Marcada como hecha",
+  "fr": "Marqué comme fait",
+  "it": "Segnata come fatta",
+  "pl": "Oznaczono jako zrobione",
+  "pt": "Marcada como feita"
+ },
+ "Name": {
+  "de": "Name",
+  "es": "Nombre",
+  "fr": "Nom",
+  "it": "Nome",
+  "pl": "Imię",
+  "pt": "Nome"
+ },
+ "No calendar app found": {
+  "de": "Keine Kalender-App gefunden",
+  "es": "No se encontró ninguna app de calendario",
+  "fr": "Aucune app d'agenda trouvée",
+  "it": "Nessuna app calendario trovata",
+  "pl": "Nie znaleziono aplikacji kalendarza",
+  "pt": "Nenhuma app de calendário encontrada"
+ },
+ "No camera app found.": {
+  "de": "Keine Kamera-App gefunden.",
+  "es": "No se encontró ninguna app de cámara.",
+  "fr": "Aucune app d'appareil photo trouvée.",
+  "it": "Nessuna app fotocamera trovata.",
+  "pl": "Nie znaleziono aplikacji aparatu.",
+  "pt": "Nenhuma app de câmara encontrada."
+ },
+ "No notes yet. Type, dictate or take a photo below. AI will title, prioritize and group them for you.": {
+  "de": "Noch keine Notizen. Schreib, diktiere oder mach unten ein Foto – die KI gibt Titel, Priorität und Gruppe.",
+  "es": "Aún no hay notas. Escribe, dicta o haz una foto abajo: la IA les pondrá título, prioridad y grupo.",
+  "fr": "Aucune note pour l'instant. Écrivez, dictez ou prenez une photo ci-dessous : l'IA leur donnera titre, priorité et groupe.",
+  "it": "Ancora nessuna nota. Scrivi, detta o scatta una foto qui sotto: l'AI darà titolo, priorità e gruppo.",
+  "pl": "Brak notatek. Pisz, dyktuj lub zrób zdjęcie poniżej — AI nada tytuł, priorytet i grupę.",
+  "pt": "Ainda não há notas. Escreva, dite ou tire uma foto abaixo: a IA dá-lhes título, prioridade e grupo."
+ },
+ "No notes yet. Type, dictate 🎤 or take a photo 📷 below. AI will title, prioritize and group them for you.": {
+  "de": "Noch keine Notizen. Schreib, diktiere 🎤 oder mach unten ein Foto 📷 – die KI gibt Titel, Priorität und Gruppe.",
+  "es": "Aún no hay notas. Escribe, dicta 🎤 o haz una foto 📷 abajo: la IA les pondrá título, prioridad y grupo.",
+  "fr": "Aucune note pour l'instant. Écrivez, dictez 🎤 ou prenez une photo 📷 ci-dessous : l'IA leur donnera titre, priorité et groupe.",
+  "it": "Ancora nessuna nota. Scrivi, detta 🎤 o scatta una foto 📷 qui sotto: l'AI darà titolo, priorità e gruppo.",
+  "pl": "Brak notatek. Pisz, dyktuj 🎤 lub zrób zdjęcie 📷 poniżej — AI nada tytuł, priorytet i grupę.",
+  "pt": "Ainda não há notas. Escreva, dite 🎤 ou tire uma foto 📷 abaixo: a IA dá-lhes título, prioridade e grupo."
+ },
+ "No web browser found on this phone.": {
+  "de": "Kein Browser auf diesem Handy gefunden.",
+  "es": "No se encontró ningún navegador en este teléfono.",
+  "fr": "Aucun navigateur trouvé sur ce téléphone.",
+  "it": "Nessun browser trovato su questo telefono.",
+  "pl": "Nie znaleziono przeglądarki na tym telefonie.",
+  "pt": "Nenhum navegador encontrado neste telemóvel."
+ },
+ "Note deleted": {
+  "de": "Notiz gelöscht",
+  "es": "Nota eliminada",
+  "fr": "Note supprimée",
+  "it": "Nota eliminata",
+  "pl": "Usunięto notatkę",
+  "pt": "Nota apagada"
+ },
+ "Nothing here.": {
+  "de": "Hier ist nichts.",
+  "es": "Nada por aquí.",
+  "fr": "Rien ici.",
+  "it": "Niente qui.",
+  "pl": "Nic tu nie ma.",
+  "pt": "Nada aqui."
+ },
+ "Offline": {
+  "de": "Offline",
+  "es": "Sin conexión",
+  "fr": "Hors ligne",
+  "it": "Offline",
+  "pl": "Offline",
+  "pt": "Offline"
+ },
+ "Or use your email and password:": {
+  "de": "Oder nutze E-Mail und Passwort:",
+  "es": "O usa tu email y contraseña:",
+  "fr": "Ou utilisez votre e-mail et votre mot de passe :",
+  "it": "Oppure usa email e password:",
+  "pl": "Albo użyj e-maila i hasła:",
+  "pt": "Ou use o seu email e palavra-passe:"
+ },
+ "Or with your email:": {
+  "de": "Oder mit deiner E-Mail:",
+  "es": "O con tu email:",
+  "fr": "Ou avec votre e-mail :",
+  "it": "Oppure con la tua email:",
+  "pl": "Albo przez e-mail:",
+  "pt": "Ou com o seu email:"
+ },
+ "Password saved.": {
+  "de": "Passwort gespeichert.",
+  "es": "Contraseña guardada.",
+  "fr": "Mot de passe enregistré.",
+  "it": "Password salvata.",
+  "pl": "Zapisano hasło.",
+  "pt": "Palavra-passe guardada."
+ },
+ "Password saved. Your other devices must log in again.": {
+  "de": "Passwort gespeichert. Deine anderen Geräte müssen sich neu anmelden.",
+  "es": "Contraseña guardada. Tus otros dispositivos tendrán que iniciar sesión de nuevo.",
+  "fr": "Mot de passe enregistré. Vos autres appareils doivent se reconnecter.",
+  "it": "Password salvata. Gli altri dispositivi devono accedere di nuovo.",
+  "pl": "Zapisano hasło. Pozostałe urządzenia muszą zalogować się ponownie.",
+  "pt": "Palavra-passe guardada. Os outros dispositivos têm de entrar de novo."
+ },
+ "Paste as text": {
+  "de": "Als Text einfügen",
+  "es": "Pegar como texto",
+  "fr": "Coller comme texte",
+  "it": "Incolla come testo",
+  "pl": "Wklej jako tekst",
+  "pt": "Colar como texto"
+ },
+ "Premium": {
+  "de": "Premium",
+  "es": "Premium",
+  "fr": "Premium",
+  "it": "Premium",
+  "pl": "Premium",
+  "pt": "Premium"
+ },
+ "Priority: ": {
+  "de": "Priorität: ",
+  "es": "Prioridad: ",
+  "fr": "Priorité : ",
+  "it": "Priorità: ",
+  "pl": "Priorytet: ",
+  "pt": "Prioridade: "
+ },
+ "Re-analyze with AI": {
+  "de": "Mit KI neu analysieren",
+  "es": "Volver a analizar con IA",
+  "fr": "Réanalyser avec l'IA",
+  "it": "Rianalizza con l'AI",
+  "pl": "Przeanalizuj ponownie z AI",
+  "pt": "Analisar de novo com IA"
+ },
+ "Remove photo": {
+  "de": "Foto entfernen",
+  "es": "Quitar foto",
+  "fr": "Retirer la photo",
+  "it": "Rimuovi foto",
+  "pl": "Usuń zdjęcie",
+  "pt": "Remover foto"
+ },
+ "Reorganize with AI": {
+  "de": "Mit KI neu ordnen",
+  "es": "Reorganizar con IA",
+  "fr": "Réorganiser avec l'IA",
+  "it": "Riorganizza con l'AI",
+  "pl": "Uporządkuj z AI",
+  "pt": "Reorganizar com IA"
+ },
+ "Reorganizing…": {
+  "de": "Wird neu geordnet…",
+  "es": "Reorganizando…",
+  "fr": "Réorganisation…",
+  "it": "Riorganizzo…",
+  "pl": "Porządkuję…",
+  "pt": "A reorganizar…"
+ },
+ "Restore this backup?": {
+  "de": "Diese Sicherung wiederherstellen?",
+  "es": "¿Restaurar esta copia?",
+  "fr": "Restaurer cette sauvegarde ?",
+  "it": "Ripristinare questo backup?",
+  "pl": "Przywrócić tę kopię?",
+  "pt": "Restaurar esta cópia?"
+ },
+ "Restored.": {
+  "de": "Wiederhergestellt.",
+  "es": "Restaurado.",
+  "fr": "Restauré.",
+  "it": "Ripristinato.",
+  "pl": "Przywrócono.",
+  "pt": "Restaurado."
+ },
+ "Save note": {
+  "de": "Notiz speichern",
+  "es": "Guardar nota",
+  "fr": "Enregistrer la note",
+  "it": "Salva nota",
+  "pl": "Zapisz notatkę",
+  "pt": "Guardar nota"
+ },
+ "Search": {
+  "de": "Suchen",
+  "es": "Buscar",
+  "fr": "Rechercher",
+  "it": "Cerca",
+  "pl": "Szukaj",
+  "pt": "Pesquisar"
+ },
+ "Search notes": {
+  "de": "Notizen suchen",
+  "es": "Buscar notas",
+  "fr": "Rechercher des notes",
+  "it": "Cerca nelle note",
+  "pl": "Szukaj notatek",
+  "pt": "Pesquisar notas"
+ },
+ "Server": {
+  "de": "Server",
+  "es": "Servidor",
+  "fr": "Serveur",
+  "it": "Server",
+  "pl": "Serwer",
+  "pt": "Servidor"
+ },
+ "Server address": {
+  "de": "Serveradresse",
+  "es": "Dirección del servidor",
+  "fr": "Adresse du serveur",
+  "it": "Indirizzo del server",
+  "pl": "Adres serwera",
+  "pt": "Endereço do servidor"
+ },
+ "Set password": {
+  "de": "Passwort festlegen",
+  "es": "Crear contraseña",
+  "fr": "Définir le mot de passe",
+  "it": "Imposta password",
+  "pl": "Ustaw hasło",
+  "pt": "Definir palavra-passe"
+ },
+ "Shared with": {
+  "de": "Geteilt mit",
+  "es": "Compartido con",
+  "fr": "Partagé avec",
+  "it": "Condivisa con",
+  "pl": "Udostępniono",
+  "pt": "Partilhado com"
+ },
+ "Sorting": {
+  "de": "Sortierung",
+  "es": "Orden",
+  "fr": "Tri",
+  "it": "Ordinamento",
+  "pl": "Porządek",
+  "pt": "Organização"
+ },
+ "Speak your note": {
+  "de": "Sprich deine Notiz",
+  "es": "Dicta tu nota",
+  "fr": "Dictez votre note",
+  "it": "Detta la tua nota",
+  "pl": "Podyktuj notatkę",
+  "pt": "Dite a sua nota"
+ },
+ "Speech recognition isn't available on this phone. Use the mic on your keyboard instead.": {
+  "de": "Spracherkennung gibt es auf diesem Handy nicht. Nutze das Mikrofon der Tastatur.",
+  "es": "El reconocimiento de voz no está disponible en este teléfono. Usa el micrófono del teclado.",
+  "fr": "La reconnaissance vocale n'est pas disponible sur ce téléphone. Utilisez le micro du clavier.",
+  "it": "Il riconoscimento vocale non è disponibile su questo telefono. Usa il microfono della tastiera.",
+  "pl": "Rozpoznawanie mowy nie jest dostępne na tym telefonie. Użyj mikrofonu na klawiaturze.",
+  "pt": "O reconhecimento de voz não está disponível neste telemóvel. Use o microfone do teclado."
+ },
+ "Stop": {
+  "de": "Stopp",
+  "es": "Detener",
+  "fr": "Arrêter",
+  "it": "Stop",
+  "pl": "Zatrzymaj",
+  "pt": "Parar"
+ },
+ "Stop dictation": {
+  "de": "Diktieren beenden",
+  "es": "Detener el dictado",
+  "fr": "Arrêter la dictée",
+  "it": "Ferma la dettatura",
+  "pl": "Zatrzymaj dyktowanie",
+  "pt": "Parar o ditado"
+ },
+ "Stop sharing": {
+  "de": "Nicht mehr teilen",
+  "es": "Dejar de compartir",
+  "fr": "Arrêter le partage",
+  "it": "Smetti di condividere",
+  "pl": "Przestań udostępniać",
+  "pt": "Deixar de partilhar"
+ },
+ "Syncing": {
+  "de": "Synchronisiert",
+  "es": "Sincronizando",
+  "fr": "Synchronisation",
+  "it": "Sincronizzazione",
+  "pl": "Synchronizacja",
+  "pt": "A sincronizar"
+ },
+ "Their email": {
+  "de": "Ihre E-Mail",
+  "es": "Su email",
+  "fr": "Son e-mail",
+  "it": "La sua email",
+  "pl": "Jej e-mail",
+  "pt": "O email dessa pessoa"
+ },
+ "They": {
+  "de": "Darf",
+  "es": "Puede",
+  "fr": "Peut",
+  "it": "Può",
+  "pl": "Może",
+  "pt": "Pode"
+ },
+ "They see this note and its items on their phone or computer.": {
+  "de": "Die Person sieht diese Notiz mit ihren Punkten auf Handy oder Computer.",
+  "es": "Verá esta nota y sus elementos en su teléfono u ordenador.",
+  "fr": "Elle verra cette note et ses éléments sur son téléphone ou ordinateur.",
+  "it": "Vedrà questa nota e le sue voci sul telefono o sul computer.",
+  "pl": "Zobaczy tę notatkę i jej pozycje na telefonie lub komputerze.",
+  "pt": "Verá esta nota e os seus itens no telemóvel ou computador."
+ },
+ "This deletes your account, all your notes and photos, and your backups, for good. People you shared with lose access to them.": {
+  "de": "Damit löschst du dein Konto, alle Notizen und Fotos und deine Sicherungen endgültig. Wer etwas von dir geteilt bekam, verliert den Zugriff.",
+  "es": "Esto elimina para siempre tu cuenta, todas tus notas y fotos, y tus copias. Quienes tenían acceso compartido lo pierden.",
+  "fr": "Cela supprime définitivement votre compte, toutes vos notes et photos, et vos sauvegardes. Les personnes avec qui vous partagiez n'y ont plus accès.",
+  "it": "Così elimini per sempre il tuo account, tutte le note e le foto, e i backup. Chi aveva accesso condiviso lo perde.",
+  "pl": "To usuwa na zawsze konto, wszystkie notatki i zdjęcia oraz kopie. Osoby, którym udostępniłeś, stracą dostęp.",
+  "pt": "Isto apaga para sempre a sua conta, todas as notas e fotos, e as cópias. Quem tinha acesso partilhado perde-o."
+ },
+ "This deletes your account, all your notes and photos, and your backups. People you shared with lose access to them.": {
+  "de": "Damit löschst du dein Konto, alle Notizen und Fotos und deine Sicherungen. Wer etwas von dir geteilt bekam, verliert den Zugriff.",
+  "es": "Esto elimina tu cuenta, todas tus notas y fotos, y tus copias. Quienes tenían acceso compartido lo pierden.",
+  "fr": "Cela supprime votre compte, toutes vos notes et photos, et vos sauvegardes. Les personnes avec qui vous partagiez n'y ont plus accès.",
+  "it": "Così elimini il tuo account, tutte le note e le foto, e i backup. Chi aveva accesso condiviso lo perde.",
+  "pl": "To usuwa konto, wszystkie notatki i zdjęcia oraz kopie. Osoby, którym udostępniłeś, stracą dostęp.",
+  "pt": "Isto apaga a sua conta, todas as notas e fotos, e as cópias. Quem tinha acesso partilhado perde-o."
+ },
+ "This is the first account on your server. It will own all notes already saved there.": {
+  "de": "Das ist das erste Konto auf deinem Server. Ihm gehören alle schon gespeicherten Notizen.",
+  "es": "Es la primera cuenta de tu servidor. Será dueña de todas las notas ya guardadas.",
+  "fr": "C'est le premier compte sur votre serveur. Il possédera toutes les notes déjà enregistrées.",
+  "it": "Questo è il primo account sul tuo server. Avrà tutte le note già salvate lì.",
+  "pl": "To pierwsze konto na serwerze. Będzie właścicielem wszystkich zapisanych notatek.",
+  "pt": "É a primeira conta no seu servidor. Fica com todas as notas já guardadas."
+ },
+ "Time": {
+  "de": "Uhrzeit",
+  "es": "Hora",
+  "fr": "Heure",
+  "it": "Ora",
+  "pl": "Godzina",
+  "pt": "Hora"
+ },
+ "To connect more, open record.ai in a browser and tap your initials.": {
+  "de": "Um weitere zu verbinden, öffne record.ai im Browser und tippe auf deine Initialen.",
+  "es": "Para conectar más, abre record.ai en un navegador y toca tus iniciales.",
+  "fr": "Pour en connecter d'autres, ouvrez record.ai dans un navigateur et touchez vos initiales.",
+  "it": "Per collegarne altri, apri record.ai in un browser e tocca le tue iniziali.",
+  "pl": "Aby połączyć więcej, otwórz record.ai w przeglądarce i dotknij inicjałów.",
+  "pt": "Para ligar mais, abra o record.ai num navegador e toque nas suas iniciais."
+ },
+ "Type your email above, then tap this again.": {
+  "de": "Gib oben deine E-Mail ein und tippe dann noch einmal hier.",
+  "es": "Escribe tu email arriba y vuelve a tocar aquí.",
+  "fr": "Saisissez votre e-mail ci-dessus, puis touchez ici à nouveau.",
+  "it": "Scrivi la tua email qui sopra, poi tocca di nuovo qui.",
+  "pl": "Wpisz e-mail powyżej i dotknij tu ponownie.",
+  "pt": "Escreva o seu email acima e toque aqui de novo."
+ },
+ "Type your email to confirm": {
+  "de": "Gib zur Bestätigung deine E-Mail ein",
+  "es": "Escribe tu email para confirmar",
+  "fr": "Saisissez votre e-mail pour confirmer",
+  "it": "Scrivi la tua email per confermare",
+  "pl": "Wpisz e-mail, aby potwierdzić",
+  "pt": "Escreva o seu email para confirmar"
+ },
+ "Use a different server": {
+  "de": "Anderen Server verwenden",
+  "es": "Usar otro servidor",
+  "fr": "Utiliser un autre serveur",
+  "it": "Usa un altro server",
+  "pl": "Użyj innego serwera",
+  "pt": "Usar outro servidor"
+ },
+ "View": {
+  "de": "Ansicht",
+  "es": "Vista",
+  "fr": "Vue",
+  "it": "Vista",
+  "pl": "Widok",
+  "pt": "Vista"
+ },
+ "World": {
+  "de": "Welt",
+  "es": "Mundo",
+  "fr": "Monde",
+  "it": "Mondo",
+  "pl": "Świat",
+  "pt": "Mundo"
+ },
+ "Write a note, or tap the mic to dictate…": {
+  "de": "Schreib eine Notiz oder tippe aufs Mikrofon zum Diktieren…",
+  "es": "Escribe una nota o toca el micrófono para dictar…",
+  "fr": "Écrivez une note ou touchez le micro pour dicter…",
+  "it": "Scrivi una nota o tocca il microfono per dettare…",
+  "pl": "Napisz notatkę lub dotknij mikrofonu, aby dyktować…",
+  "pt": "Escreva uma nota ou toque no microfone para ditar…"
+ },
+ "Write a note, or tap 🎤 to dictate…": {
+  "de": "Schreib eine Notiz oder tippe 🎤 zum Diktieren…",
+  "es": "Escribe una nota o toca 🎤 para dictar…",
+  "fr": "Écrivez une note ou touchez 🎤 pour dicter…",
+  "it": "Scrivi una nota o tocca 🎤 per dettare…",
+  "pl": "Napisz notatkę lub dotknij 🎤, aby dyktować…",
+  "pt": "Escreva uma nota ou toque em 🎤 para ditar…"
+ },
+ "You can undo this for a few seconds.": {
+  "de": "Du kannst das einige Sekunden lang rückgängig machen.",
+  "es": "Puedes deshacerlo durante unos segundos.",
+  "fr": "Vous pouvez annuler pendant quelques secondes.",
+  "it": "Puoi annullare per qualche secondo.",
+  "pl": "Możesz to cofnąć przez kilka sekund.",
+  "pt": "Pode anular durante alguns segundos."
+ },
+ "Your iPhone and your Mac must be on the same network (for example your iPhone's hotspot), or connected with Tailscale.": {
+  "de": "iPhone und Mac müssen im selben Netz sein (zum Beispiel dem Hotspot des iPhones) oder über Tailscale verbunden.",
+  "es": "Tu iPhone y tu Mac deben estar en la misma red (por ejemplo, el punto de acceso del iPhone) o conectados con Tailscale.",
+  "fr": "Votre iPhone et votre Mac doivent être sur le même réseau (par exemple le partage de connexion de l'iPhone) ou reliés par Tailscale.",
+  "it": "iPhone e Mac devono essere sulla stessa rete (per esempio l'hotspot dell'iPhone) o collegati con Tailscale.",
+  "pl": "iPhone i Mac muszą być w tej samej sieci (np. hotspot iPhone'a) lub połączone przez Tailscale.",
+  "pt": "O iPhone e o Mac têm de estar na mesma rede (por exemplo o hotspot do iPhone) ou ligados com Tailscale."
+ },
+ "Your notes go back to how they were then. Notes written since are deleted. A backup of how they are now is made first, so you can undo this.": {
+  "de": "Deine Notizen kehren zu diesem Stand zurück. Später geschriebene werden gelöscht. Vorher wird der jetzige Stand gesichert, damit du es rückgängig machen kannst.",
+  "es": "Tus notas vuelven a como estaban. Las escritas después se eliminan. Antes se hace una copia de cómo están ahora, para que puedas deshacerlo.",
+  "fr": "Vos notes redeviennent comme elles étaient. Celles écrites depuis sont supprimées. Une sauvegarde de l'état actuel est faite d'abord, pour pouvoir annuler.",
+  "it": "Le note tornano com'erano allora. Quelle scritte dopo vengono eliminate. Prima viene fatto un backup di come sono ora, così puoi annullare.",
+  "pl": "Notatki wrócą do tamtego stanu. Napisane później zostaną usunięte. Najpierw powstanie kopia obecnego stanu, więc możesz to cofnąć.",
+  "pt": "As notas voltam a como estavam. As escritas depois são apagadas. Primeiro é feita uma cópia do estado atual, para poder anular."
+ },
+ "Your phone and your computer must be on the same network, or connected with Tailscale.": {
+  "de": "Handy und Computer müssen im selben Netz sein oder über Tailscale verbunden.",
+  "es": "Tu teléfono y tu ordenador deben estar en la misma red o conectados con Tailscale.",
+  "fr": "Votre téléphone et votre ordinateur doivent être sur le même réseau ou reliés par Tailscale.",
+  "it": "Telefono e computer devono essere sulla stessa rete o collegati con Tailscale.",
+  "pl": "Telefon i komputer muszą być w tej samej sieci lub połączone przez Tailscale.",
+  "pt": "O telemóvel e o computador têm de estar na mesma rede ou ligados com Tailscale."
+ },
+ "↺ Reopen": {
+  "de": "↺ Wieder öffnen",
+  "es": "↺ Reabrir",
+  "fr": "↺ Rouvrir",
+  "it": "↺ Riapri",
+  "pl": "↺ Otwórz ponownie",
+  "pt": "↺ Reabrir"
+ },
+ "✓ Mark done": {
+  "de": "✓ Als erledigt markieren",
+  "es": "✓ Marcar como hecha",
+  "fr": "✓ Marquer comme fait",
+  "it": "✓ Segna come fatta",
+  "pl": "✓ Oznacz jako zrobione",
+  "pt": "✓ Marcar como feita"
+ },
+ "🕑 Time": {
+  "de": "🕑 Uhrzeit",
+  "es": "🕑 Hora",
+  "fr": "🕑 Heure",
+  "it": "🕑 Ora",
+  "pl": "🕑 Godzina",
+  "pt": "🕑 Hora"
+ }
+}
