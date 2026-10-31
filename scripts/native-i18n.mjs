@@ -58,8 +58,8 @@ function wrap() {
       });
     });
     let after = lines.join('\n');
-    if (kotlin && after !== before && !after.includes('ai.record.core.tr') && !/^package ai\.record\.core$/m.test(after)) {
-      after = after.replace(/^(package [^\n]+\n)/, '$1\nimport ai.record.core.tr\n');
+    if (kotlin && after !== before && !/^import ai\.record\.core\.(tr|\*)$/m.test(after) && !/^package ai\.record\.core$/m.test(after)) {
+      after = after.replace(/^(package [^\n]+\n)/m, '$1\nimport ai.record.core.tr\n');
     }
     if (after !== before) {
       fs.writeFileSync(file, after);
