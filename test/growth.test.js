@@ -166,6 +166,19 @@ test('A/B tests: sticky variants before and after signing up, events, results; t
     // Plans by hand until payments exist.
     assert.equal((await s.api('admin/plan', json('POST', { email: 'tom@example.com', plan: 'family' }))).body.plan, 'family');
     assert.equal((await tom.api('plan')).body.premium, true);
+
+    // Costs this month: a plan given by hand brings no revenue; a Stripe one does.
+    s.store.db.prepare('INSERT INTO ai_calls (ts, user_id, kind, model, cost_usd, outcome) VALUES (?, ?, ?, ?, ?, ?)').run(Date.now(), tomId, 'organize', 'x', 0.5, 'ok');
+    let costs = (await s.api('admin/overview')).body.costs;
+    assert.equal(costs.payingUsers, 0);
+    assert.equal(costs.aiEur, 0.46);
+    assert.equal(costs.serverEur, 3.5);
+    s.store.setMeta(`stripe:customer:${tomId}`, 'cus_1');
+    costs = (await s.api('admin/overview')).body.costs;
+    assert.equal(costs.payingUsers, 1);
+    assert.equal(costs.revenueEur, 5.99);
+    assert.equal(costs.feesEur, 0.3);
+    assert.ok(costs.activeUsers >= 1 && costs.perActiveUserEur > 0);
   } finally {
     delete process.env.ALLOW_SIGNUP;
     s.close();

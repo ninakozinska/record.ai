@@ -48,6 +48,14 @@ function render(o) {
   $('#feedback').innerHTML = o.feedback.length
     ? o.feedback.map((f) => `<p><strong>${esc(f.email)}</strong> <span class="muted">· ${esc(new Date(f.ts).toLocaleString())} · ${esc(f.platform)}</span><br>${esc(f.text)}</p>`).join('')
     : '<p class="muted">No feedback yet.</p>';
+  const c = o.costs;
+  const eur = (x) => (x == null ? '–' : `€${x.toFixed(2)}`);
+  $('#costs').innerHTML = [
+    ['Month', c.month], ['Active people (30 days)', c.activeUsers], ['Paying households', c.payingUsers],
+    ['AI', eur(c.aiEur)], ['Server', eur(c.serverEur)], ['Payment fees', eur(c.feesEur)], ['Total costs', eur(c.totalEur)],
+    ['Revenue', eur(c.revenueEur)], ['Cost per active person', eur(c.perActiveUserEur)], ['AI per active person', eur(c.aiPerActiveUserEur)],
+    ['Gross margin', c.marginPct == null ? '–' : `${c.marginPct}%`],
+  ].map(([k, v]) => `<tr><th>${esc(k)}</th><td>${esc(v)}</td></tr>`).join('');
   $('#status').textContent = `Updated ${new Date().toLocaleTimeString()}.`;
 }
 

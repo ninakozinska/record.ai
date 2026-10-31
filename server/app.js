@@ -655,9 +655,34 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth, mail, bill
 
   // --- the owner's dashboard: numbers, A/B tests, what the optimizer did ---------------
   const adminOnly = (req, res, next) => (isAdmin(req.user) ? next() : res.status(404).json({ error: 'Not found' }));
+  // What running record.ai costs this month, per person (docs: "Path to €1M ARR").
+  const monthlyCosts = (now = Date.now()) => {
+    const env = process.env;
+    const num = (v, d) => (Number.isFinite(Number(v)) && v !== undefined && v !== '' ? Number(v) : d);
+    const eurPerUsd = num(env.EUR_PER_USD, 0.92);
+    const start = Date.UTC(new Date(now).getUTCFullYear(), new Date(now).getUTCMonth(), 1);
+    const aiUsd = store.db.prepare('SELECT COALESCE(SUM(cost_usd), 0) AS c FROM ai_calls WHERE ts >= ?').get(start).c;
+    const active = store.db.prepare('SELECT COUNT(DISTINCT user_id) AS n FROM events WHERE user_id IS NOT NULL AND ts >= ?').get(now - 30 * 864e5).n;
+    const price = { solo: num(env.PRICE_SOLO_EUR, 3.99), family: num(env.PRICE_FAMILY_EUR, 5.99) };
+    // Paying = a plan bought through Stripe (plans given by hand bring no money).
+    const paying = store.allUsers().filter((u) => price[store.planOf(u.id)] && store.getMeta(`stripe:customer:${u.id}`));
+    const revenueEur = paying.reduce((sum, u) => sum + price[store.planOf(u.id)], 0);
+    const aiEur = aiUsd * eurPerUsd;
+    const serverEur = num(env.SERVER_EUR_MONTH, 3.5);
+    const feesEur = revenueEur * num(env.PAYMENT_FEE_RATE, 0.05);
+    const totalEur = aiEur + serverEur + feesEur;
+    const round = (x) => Math.round(x * 100) / 100;
+    return {
+      month: new Date(start).toISOString().slice(0, 7), activeUsers: active, payingUsers: paying.length,
+      aiEur: round(aiEur), serverEur: round(serverEur), feesEur: round(feesEur), totalEur: round(totalEur), revenueEur: round(revenueEur),
+      perActiveUserEur: active ? round(totalEur / active) : null, aiPerActiveUserEur: active ? round(aiEur / active) : null,
+      marginPct: revenueEur ? Math.round((1 - totalEur / revenueEur) * 100) : null,
+    };
+  };
   app.get('/api/admin/overview', adminOnly, (req, res) => {
     optimizer.dailyReport();
     res.json({
+      costs: monthlyCosts(),
       kpis: optimizer.history(30),
       experiments: insights.experiments().map((e) => ({ ...insights.results(e), description: e.description, guardrails: e.guardrails, auto: e.auto })),
       optimizer: { debounceMs: organizer.debounceMs ?? 0, quality: optimizer.correctionRate(Date.now() - 7 * 864e5) },

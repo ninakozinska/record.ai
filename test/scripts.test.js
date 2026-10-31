@@ -113,3 +113,23 @@ test('Change AI: switching to Claude stores the cheap model and asks for a key i
   assert.match(env, /^ANTHROPIC_API_KEY=sk-ant-api03-TEST$/m);
   assert.equal((fs.statSync(path.join(sb.app, '.env')).mode & 0o077), 0, 'settings file is private to the user');
 });
+
+test('the demo account for app reviewers: Premium, example notes, never the owner', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'record-ai-demo-'));
+  const run = (...args) =>
+    execFileSync(process.execPath, ['--disable-warning=ExperimentalWarning', 'scripts/demo-account.mjs', ...args], {
+      cwd: ROOT, env: { ...process.env, DATA_DIR: dir }, encoding: 'utf8', stdio: 'pipe',
+    });
+  assert.throws(() => run('review@example.com', 'long enough pw'), /first account/);
+  openDb(dir).createUser({ email: 'nina@example.com', name: 'Nina', pwHash: 'x' });
+  assert.match(run('review@example.com', 'long enough pw'), /Demo account ready/);
+  assert.match(run('review@example.com', 'another long pw'), /Demo account ready/, 'runs again');
+  const store = openDb(dir);
+  const demo = store.findUserByEmail('review@example.com');
+  assert.equal(store.planOf(demo.id), 'family');
+  assert.ok(await verifyPassword('another long pw', store.passwordHash(demo.id)));
+  const notes = store.changesSince(demo.id, 0, { items: false }).filter((n) => !n.deleted);
+  assert.equal(notes.length, 5, 'the old examples were replaced');
+  assert.equal(store.items(notes.find((n) => n.title === 'Groceries').id).length, 4);
+  assert.notEqual(store.firstUserId(), demo.id);
+});
