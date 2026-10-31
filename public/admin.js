@@ -59,9 +59,55 @@ function render(o) {
   $('#status').textContent = `Updated ${new Date().toLocaleTimeString()}.`;
 }
 
+// Alpha invites: one link per tester.
+let invites = [];
+function renderInvites() {
+  const joined = invites.filter((i) => i.user).length;
+  const open = invites.filter((i) => !i.user && !i.revoked).length;
+  $('#inviteCount').textContent = invites.length ? `${joined} joined · ${open} waiting · ${invites.length} made` : 'No invites yet: sign-up is open as before.';
+  $('#invites').innerHTML = invites.length
+    ? '<tr><th>For</th><th>Link</th><th>Status</th><th></th></tr>' + invites.map((i) => `<tr><td>${esc(i.label || '–')}</td>
+      <td><code>${esc(i.link)}</code></td>
+      <td>${i.user ? `✓ ${esc(i.user.name)} (${esc(i.user.email)}), ${esc(new Date(i.used_at).toLocaleDateString())}` : i.revoked ? 'Withdrawn' : 'Waiting'}</td>
+      <td>${!i.user && !i.revoked ? `<button class="ghost" data-copy="${esc(i.link)}">Copy</button> <button class="ghost" data-revoke="${esc(i.code)}">Withdraw</button>` : ''}</td></tr>`).join('')
+    : '';
+}
+async function loadInvites() {
+  try {
+    invites = (await api('admin/invites')).invites;
+    renderInvites();
+  } catch { /* not the owner */ }
+}
+$('#inviteMake').onclick = async () => {
+  const labels = $('#inviteNames').value.split('\n').map((l) => l.trim()).filter(Boolean);
+  if (!labels.length) return alert('Write one name per line first.');
+  invites = (await api('admin/invites', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ labels, plan: $('#invitePlan').value }) })).invites;
+  $('#inviteNames').value = '';
+  renderInvites();
+};
+$('#inviteCopy').onclick = async () => {
+  const text = invites.filter((i) => !i.user && !i.revoked).map((i) => `${i.label || 'Invite'}: ${i.link}`).join('\n');
+  try {
+    await navigator.clipboard.writeText(text);
+    $('#inviteCount').textContent += ' · copied';
+  } catch {
+    prompt('Copy:', text);
+  }
+};
+$('#invites').addEventListener('click', async (e) => {
+  const copy = e.target.closest('[data-copy]');
+  const revoke = e.target.closest('[data-revoke]');
+  if (copy) await navigator.clipboard.writeText(copy.dataset.copy).catch(() => prompt('Copy:', copy.dataset.copy));
+  if (revoke && confirm('Withdraw this invite? The link stops working.')) {
+    invites = (await api(`admin/invites/${revoke.dataset.revoke}`, { method: 'DELETE' })).invites;
+    renderInvites();
+  }
+});
+
 async function load() {
   try {
     render(await api('admin/overview'));
+    loadInvites();
   } catch (err) {
     $('#status').textContent = err.status === 404 || err.status === 401 ? 'This page is only for the owner. Log in first.' : err.message;
   }

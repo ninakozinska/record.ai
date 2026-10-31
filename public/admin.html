@@ -36,6 +36,16 @@
   <section class="card exp"><h2>Last 30 days</h2><div class="scroll"><table class="data" id="kpis"></table></div></section>
   <section class="card exp"><h2>Coming Premium features: votes</h2><div class="scroll"><table class="data" id="interest"></table></div></section>
   <section class="card exp"><h2>Feedback</h2><div id="feedback"></div></section>
+  <section class="card exp"><h2>🎟 Alpha invites</h2>
+    <p class="muted">One link per tester, used once. As soon as the first invite exists, new accounts need an invite. Testers get the plan you choose.</p>
+    <div class="stack">
+      <textarea id="inviteNames" rows="5" placeholder="One name per line (25 names = 25 links)"></textarea>
+      <div class="row"><label class="muted">Plan for testers <select id="invitePlan"><option value="family">Family</option><option value="solo">Solo</option><option value="">Free</option></select></label>
+        <button id="inviteMake">Make invite links</button><button class="ghost" id="inviteCopy">Copy all open links</button></div>
+      <p class="muted" id="inviteCount"></p>
+      <div class="scroll"><table class="data" id="invites"></table></div>
+    </div>
+  </section>
   <section class="card exp"><h2>People and plans</h2>
     <p class="muted">Until payments exist, give Premium by hand (beta testers, family).</p>
     <div class="scroll"><table class="data" id="users"></table></div>

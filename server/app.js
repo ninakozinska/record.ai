@@ -779,6 +779,26 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth, mail, bill
   });
   app.post('/api/admin/optimize', adminOnly, (req, res) => res.json(optimizer.runAll()));
 
+  // Alpha: personal invite links, one per tester. Once there is one, sign-up is invite only.
+  const inviteView = (req) => (i) => ({
+    code: i.code, label: i.label, plan: i.plan, created_at: i.created_at, used_at: i.used_at, revoked: !!i.revoked,
+    user: i.used_by ? { name: i.user_name, email: i.user_email } : null, link: `${publicUrl(req)}/#invite=${i.code}`,
+  });
+  app.get('/api/admin/invites', adminOnly, (req, res) => res.json({ invites: store.invites().map(inviteView(req)) }));
+  app.post('/api/admin/invites', adminOnly, (req, res) => {
+    const labels = Array.isArray(req.body?.labels) ? req.body.labels.map((l) => String(l).trim()).filter(Boolean)
+      : Array.from({ length: Math.min(100, Math.max(1, Number(req.body?.count) || 1)) }, () => '');
+    if (!labels.length || labels.length > 100) return res.status(400).json({ error: 'Make between 1 and 100 invites at a time.' });
+    const plan = ['solo', 'family'].includes(req.body?.plan) ? req.body.plan : null;
+    store.createInvites(labels, plan);
+    insights.track('invites_made', { userId: req.user.id, props: { count: labels.length, plan } });
+    res.json({ invites: store.invites().map(inviteView(req)) });
+  });
+  app.delete('/api/admin/invites/:code', adminOnly, (req, res) => {
+    if (!store.revokeInvite(req.params.code)) return res.status(404).json({ error: 'Not found' });
+    res.json({ invites: store.invites().map(inviteView(req)) });
+  });
+
   // --- images ---------------------------------------------------------------
   // Photos. `?variant=thumb` is a small preview (about 320 px) made by the
   // client, so lists never download full-size photos.

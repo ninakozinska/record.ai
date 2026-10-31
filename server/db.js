@@ -193,6 +193,15 @@ function migrate(db) {
   if (!columns(db, 'notes').includes('done_by')) db.exec('ALTER TABLE notes ADD COLUMN done_by TEXT');
   // Devices that get notifications (Web Push).
   db.exec(`
+    CREATE TABLE IF NOT EXISTS invites (
+      code       TEXT PRIMARY KEY,
+      label      TEXT NOT NULL DEFAULT '',
+      plan       TEXT,
+      created_at INTEGER NOT NULL,
+      used_at    INTEGER,
+      used_by    TEXT,
+      revoked    INTEGER NOT NULL DEFAULT 0
+    );
     CREATE TABLE IF NOT EXISTS assistant_keys (
       id         TEXT PRIMARY KEY,
       user_id    TEXT NOT NULL,
@@ -595,6 +604,47 @@ class Store {
       )
       .all(userId)
       .map((r) => ({ ...rowToShare(r), owner: { id: r.owner_id, name: r.owner_name, email: r.owner_email } }));
+  }
+
+  // --- invites (alpha: one link per person) -----------------------------------
+
+  inviteCount() {
+    return this.db.prepare('SELECT COUNT(*) AS n FROM invites').get().n;
+  }
+
+  createInvites(labels, plan = null) {
+    return labels.map((label) => {
+      const code = crypto.randomBytes(9).toString('base64url');
+      this.db.prepare('INSERT INTO invites (code, label, plan, created_at) VALUES (?, ?, ?, ?)').run(code, String(label || '').slice(0, 80), plan, Date.now());
+      return code;
+    });
+  }
+
+  invites() {
+    return this.db.prepare(
+      `SELECT i.*, u.name AS user_name, u.email AS user_email FROM invites i LEFT JOIN users u ON u.id = i.used_by ORDER BY i.created_at, i.rowid`,
+    ).all();
+  }
+
+  /** Takes an unused invite for a new account (only one sign-up can take it). */
+  claimInvite(code) {
+    return this.db.prepare('UPDATE invites SET used_at = ? WHERE code = ? AND used_at IS NULL AND revoked = 0').run(Date.now(), String(code || '')).changes > 0;
+  }
+
+  releaseInvite(code) {
+    this.db.prepare('UPDATE invites SET used_at = NULL WHERE code = ? AND used_by IS NULL').run(String(code || ''));
+  }
+
+  /** The invite now belongs to this account; its plan (e.g. Family for alpha testers) comes with it. */
+  finishInvite(code, userId) {
+    const invite = this.db.prepare('SELECT * FROM invites WHERE code = ?').get(String(code || ''));
+    if (!invite) return;
+    this.db.prepare('UPDATE invites SET used_by = ? WHERE code = ?').run(userId, invite.code);
+    if (invite.plan) this.setPlan(userId, invite.plan);
+  }
+
+  revokeInvite(code) {
+    return this.db.prepare('UPDATE invites SET revoked = 1 WHERE code = ? AND used_at IS NULL').run(String(code || '')).changes > 0;
   }
 
   /** The people I share with or who share with me (with accounts), and me: who tasks can be for. */
