@@ -440,4 +440,10 @@ export default {
   "Done by {name}": "Fatto da {name}",
   "Giving tasks to others is part of the Family plan.": "Assegnare compiti ad altri fa parte del piano Famiglia.",
   "This person is not among the people you share with.": "Questa persona non è tra quelle con cui condividi.",
+  "📸 Turn into tasks": "📸 Trasforma in compiti",
+  "Find everything this letter or photo asks you to do, each with its date": "Trova tutto ciò che questa lettera o foto ti chiede di fare, ognuno con la sua data",
+  "Reading it…": "Sto leggendo…",
+  "{n} tasks added": {"one":"{n} compito aggiunto","other":"{n} compiti aggiunti"},
+  "Nothing to do in this one.": "Qui non c'è niente da fare.",
+  "Turning a letter into tasks is once a month on the free plan. Premium has it any time.": "Trasformare una lettera in compiti è possibile una volta al mese con il piano gratuito. Con Premium quando vuoi.",
 };

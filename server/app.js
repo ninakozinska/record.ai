@@ -483,6 +483,39 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth, mail, bill
     res.json({ rev: store.rev, results, notes });
   });
 
+  // "School letter → tasks": the tasks in a note become notes of their own, with
+  // their dates, in the same group. Free accounts: once a month.
+  const FREE_LETTERS = 1;
+  app.post('/api/notes/:id/tasks', async (req, res) => {
+    const note = store.get(req.params.id);
+    if (!note || note.deleted || note.user_id !== req.user.id || note.parent_id) return res.status(404).json({ error: 'Note not found' });
+    const month = new Date().toISOString().slice(0, 7);
+    const key = `letters:${month}:${req.user.id}`;
+    const used = Number(store.getMeta(key) || 0);
+    if (!premium(store.planOf(req.user.id)) && store.firstUserId() !== req.user.id && used >= FREE_LETTERS) {
+      return res.status(402).json({ error: 'Turning a letter into tasks is once a month on the free plan. Premium has it any time.' });
+    }
+    try {
+      const tasks = await organizer.extractTasks(note.id);
+      store.setMeta(key, String(used + 1));
+      const now = Date.now();
+      const ids = tasks.map((task, i) => {
+        const id = crypto.randomUUID();
+        const due = task.due_date ? (task.due_time ? `${task.due_date}T${task.due_time}` : task.due_date) : null;
+        store.upsertFromClient(req.user.id, {
+          id, text: task.details ? `${task.title}\n${task.details}` : task.title, created_at: now + i, edited_at: now + i,
+          ...(due ? { user_due: due } : {}),
+        });
+        onChange(store.applyAi(id, { status: 'done', title: task.title, group: note.group, priority: 'normal', tags: [], due_date: task.due_date, due_time: task.due_time }));
+        return id;
+      });
+      insights.track('letter_to_tasks', { userId: req.user.id, props: { tasks: ids.length, photos: note.images.length } });
+      res.json({ ids, tasks });
+    } catch (err) {
+      res.status(err.status || 500).json({ error: err.message });
+    }
+  });
+
   // Ask the AI to analyse one note again.
   app.post('/api/notes/:id/reanalyze', (req, res) => {
     const note = store.get(req.params.id);

@@ -18,6 +18,13 @@ const fake = {
     messages: {
       parse: async (p) => {
         const text = p.messages[0].content.at(-1).text;
+        // "Turn into tasks": two things to do, one with a time.
+        if (/<document/.test(text)) {
+          return { stop_reason: 'end_turn', parsed_output: { tasks: [
+            { title: 'Sign the trip form', due_date: '2030-03-06', due_time: null, details: null },
+            { title: 'Museum trip', due_date: '2030-03-12', due_time: '08:30', details: 'Packed lunch' },
+          ] } };
+        }
         const note = text.match(/<note[^>]*>\n([\s\S]*?)\n<\/note>/)[1];
         const urgent = /tomorrow|today/i.test(note);
         const shopping = /milk|eggs|buy/i.test(note);
@@ -385,6 +392,16 @@ try {
   await tom.waitForSelector(list);
   await tom.click('[data-mine]');
   console.log('✓ family hub: a task for Tom, and who ticked what');
+
+  // School letter → tasks: a long note becomes two dated tasks.
+  await desktop.fill('#composer textarea', 'Dear parents, on 12 March the class visits the museum. Please sign the form by 6 March and pack a lunch.');
+  await desktop.click('#composer [data-role=save]');
+  await desktop.waitForSelector('.note:has(h3:text("Dear parents, on 12 March the class vis")):not(:has(.ai-pending))');
+  await desktop.click('.note h3:text("Dear parents, on 12 March the class vis")');
+  await desktop.click('#editorTasks');
+  await desktop.waitForSelector('.note h3:text("Sign the trip form")');
+  await desktop.waitForSelector('.note:has(h3:text("Museum trip")) .due.at');
+  console.log('✓ school letter: turned into two tasks with dates');
 
   // Nina makes it view only: Tom can still read it but not tick anything.
   await desktop.click(`${list} h3`);

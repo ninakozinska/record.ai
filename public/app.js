@@ -402,6 +402,8 @@ const editor = {
     this.composer.text.readOnly = this.readOnly;
     $('#editorForm .overrides').hidden = shared;
     $('#editorReanalyze').hidden = shared;
+    // A letter, an invitation or a photo of one: worth turning into tasks.
+    $('#editorTasks').hidden = shared || this.readOnly || !(n.images.length || n.text.length > 60);
     $('#editorShare').hidden = shared;
     $('#editorDone').hidden = $('#editorSave').hidden = this.readOnly;
     $('#editorDelete').textContent = shared ? t('Leave') : t('Delete');
@@ -606,6 +608,27 @@ $('#editorDone').onclick = async () => {
   await editor.save();
   await local.save(editor.id, { done: !local.notes.get(editor.id).done });
   editor.dialog.close();
+};
+$('#editorTasks').onclick = async () => {
+  await editor.save();
+  const button = $('#editorTasks');
+  button.disabled = true;
+  try {
+    for (let i = 0; i < 20 && local.pending.has(editor.id); i++) {
+      await local.flush();
+      if (local.pending.has(editor.id)) await new Promise((r) => setTimeout(r, 250));
+    }
+    toast(t('Reading it…'));
+    const { ids } = await local.api(`notes/${editor.id}/tasks`, { method: 'POST' });
+    await local.pull();
+    toast(ids.length ? t('{n} tasks added', { n: ids.length }) : t('Nothing to do in this one.'));
+    track('letter_to_tasks_used', { tasks: ids.length });
+    editor.dialog.close();
+  } catch (err) {
+    toast(err.status ? err.message : t('You need to be online for this.'));
+  } finally {
+    button.disabled = false;
+  }
 };
 $('#editorReanalyze').onclick = async () => {
   await editor.save();

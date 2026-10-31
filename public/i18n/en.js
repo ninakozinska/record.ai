@@ -441,4 +441,10 @@ export default {
   "Done by {name}": "Done by {name}",
   "Giving tasks to others is part of the Family plan.": "Giving tasks to others is part of the Family plan.",
   "This person is not among the people you share with.": "This person is not among the people you share with.",
+  "📸 Turn into tasks": "📸 Turn into tasks",
+  "Find everything this letter or photo asks you to do, each with its date": "Find everything this letter or photo asks you to do, each with its date",
+  "Reading it…": "Reading it…",
+  "{n} tasks added": {"one":"{n} task added","other":"{n} tasks added"},
+  "Nothing to do in this one.": "Nothing to do in this one.",
+  "Turning a letter into tasks is once a month on the free plan. Premium has it any time.": "Turning a letter into tasks is once a month on the free plan. Premium has it any time.",
 };
