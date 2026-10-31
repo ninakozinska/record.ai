@@ -10,6 +10,8 @@ import { Organizer, LANGUAGES } from './organizer.js';
 import { authRoutes, requireUser, getToken } from './auth.js';
 import { Calendars } from './calendars.js';
 import { Reminders } from './reminders.js';
+import { Assistants } from './assistants.js';
+import { inWorld } from '../public/worlds.js';
 import { Insights, EVENT_NAME, ANON_ID } from './insights.js';
 import { Backups, premium } from './backups.js';
 import { Optimizer, costOf } from './optimizer.js';
@@ -129,6 +131,12 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth, mail, bill
     ? makeOrganizer({ store, imagesDir, onChange, onAiCall })
     : new Organizer({ store, imagesDir, onChange, onAiCall });
   const optimizer = new Optimizer({ store, insights, organizer });
+  // Notes as context for AI assistants (Claude, ChatGPT, Gemini…) over MCP.
+  const assistants = new Assistants({
+    store, organizer, onChange, tzOf: (userId) => calendars.tzOf(userId),
+    inWorld: (group, world, userId) => inWorld(group, world, JSON.parse(store.getMeta(`worlds:${userId}`) || '{}')),
+    track: (name, opts) => insights.track(name, opts),
+  });
   const backups = new Backups({ store, dataDir, imagesDir });
   if (process.env.OPTIMIZER !== 'off') {
     optimizer.start();
@@ -177,6 +185,9 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth, mail, bill
 
   // Calendly tells us about new bookings; it signs the exact bytes it sends.
   app.post('/api/calendars/calendly/webhook', express.raw({ type: '*/*', limit: '1mb' }), calendars.webhook());
+
+  // AI assistants connect here with their own key (docs/AI_ASSISTANTS.md).
+  app.use('/mcp', assistants.mcp());
 
   app.use(express.json({ limit: '25mb' }));
 
@@ -262,6 +273,7 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth, mail, bill
   app.use('/api', requireUser(store));
 
   app.use('/api/calendars', calendars.routes());
+  app.use('/api/assistants', assistants.routes());
 
   // Notifications: this device's subscription, the morning briefing, the allowance.
   const pushState = (userId) => ({
@@ -797,5 +809,5 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth, mail, bill
   });
 
   organizer.resumePending?.();
-  return { app, store, organizer, insights, optimizer, backups, errors, calendars, reminders };
+  return { app, store, organizer, insights, optimizer, backups, errors, calendars, reminders, assistants };
 }

@@ -657,6 +657,10 @@ try {
     await page.click('#accountBtn');
     await page.waitForSelector('#account[open] h3:text("Lingua")');
     await page.waitForSelector('#notifyBox h3:text("🔔 Notifiche")');
+    // A key for an AI assistant: the address to paste into Claude is shown once.
+    await page.click('#aiConnect');
+    await page.waitForSelector('#aiResult code:has-text("/mcp/rai_")');
+    await page.waitForSelector('#aiKeys li:has-text("Claude")');
     await Promise.all([page.waitForEvent('load'), page.selectOption('#langSelect', 'pl')]);
     await page.waitForSelector('#search[placeholder="Szukaj notatek…"]');
     assert.equal(await page.evaluate(() => fetch('api/language').then((r) => r.json()).then((r) => r.lang)), 'pl');

@@ -1417,6 +1417,8 @@ $('#accountBtn').onclick = async () => {
   loadPremium();
   loadCalendars();
   loadNotify();
+  loadAssistants();
+  $('#aiResult').hidden = true;
   $('#icloudForm').hidden = true;
   $('#calendarLink').hidden = true;
   $('#calendarShow').hidden = false;
@@ -1603,6 +1605,78 @@ $('#briefingTime').addEventListener('change', async (e) => {
   }
   loadNotify();
 });
+
+// AI assistants: a key for Claude, ChatGPT, Gemini… (MCP), or the notes copied as text.
+const AI_HOWTO = {
+  Claude: 'In Claude: Settings → Connectors → Add custom connector, and paste this address.',
+  ChatGPT: 'In ChatGPT, where your plan has custom connectors (developer mode): add a connector with this address, without sign-in.',
+  Gemini: 'In Gemini CLI: add it to settings.json under "mcpServers", as "httpUrl".',
+  Other: 'In any app that supports MCP: add a server with this address.',
+};
+async function loadAssistants() {
+  try {
+    const { keys } = await local.api('assistants');
+    $('#aiKeys').innerHTML = keys.map((k) => `<li><span class="who">${esc(k.name)} · ${esc(k.can_write ? t('reads and adds notes') : t('reads notes'))}${
+      k.last_used ? ` · ${esc(t('used {when}', { when: new Date(k.last_used).toLocaleDateString(lang) }))}` : ''}</span><button type="button" class="ghost" data-ai-remove="${esc(k.id)}">${esc(t('Remove'))}</button></li>`).join('');
+    $('#aiBox').hidden = false;
+  } catch {
+    $('#aiBox').hidden = true;
+  }
+}
+$('#aiConnect').onclick = async () => {
+  const name = $('#aiName').value;
+  try {
+    const r = await local.api('assistants', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, write: $('#aiWrite').checked }) });
+    $('#aiResult').hidden = false;
+    $('#aiResult').innerHTML = `<p>${esc(t(AI_HOWTO[name] || AI_HOWTO.Other))}</p><p><code>${esc(r.urlWithKey)}</code></p>
+      <div class="cal-buttons"><button type="button" class="ghost" id="aiCopyUrl">${esc(t('Copy link'))}</button></div>
+      <p class="muted">${esc(t('Shown only now. Anyone with this address can read your notes: keep it private, and remove the key here if it leaks.'))}</p>`;
+    $('#aiCopyUrl').onclick = async () => {
+      try {
+        await navigator.clipboard.writeText(r.urlWithKey);
+        toast(t('Link copied'));
+      } catch {
+        prompt(t('Copy this link:'), r.urlWithKey);
+      }
+    };
+    loadAssistants();
+  } catch (err) {
+    toast(err.status ? err.message : t('You need to be online for this.'));
+  }
+};
+$('#aiKeys').addEventListener('click', async (e) => {
+  const b = e.target.closest('[data-ai-remove]');
+  if (!b) return;
+  try {
+    await local.api(`assistants/${b.dataset.aiRemove}`, { method: 'DELETE' });
+    $('#aiResult').hidden = true;
+    loadAssistants();
+  } catch (err) {
+    toast(err.status ? err.message : t('You need to be online for this.'));
+  }
+});
+/** The open notes of the world on screen, as text an AI chat understands. */
+function notesForAi() {
+  const notes = local.list().map(forMe).filter((n) => !n.done && shownInWorld(n)).sort(sortNotes);
+  const line = (n) => {
+    const d = effectiveDue(n);
+    const when = d.due_date ? `, due ${d.due_date}${d.due_time ? ' ' + d.due_time : ''}` : '';
+    const items = local.items(n.id).map((i) => `  ${i.done ? '[x]' : '[ ]'} ${i.text}`);
+    const body = n.text && n.text.trim() !== (n.title || '').trim() ? n.text.split('\n').map((l) => `  ${l}`) : [];
+    return [`- ${n.title || n.text.split('\n')[0] || t('Note')} (${groupName(n.group)}, ${n.priority}${when})`, ...body, ...items].join('\n');
+  };
+  return `My notes from record.ai (today is ${new Date().toISOString().slice(0, 10)}):\n\n${notes.map(line).join('\n')}\n`;
+}
+$('#aiCopy').onclick = async () => {
+  const text = notesForAi();
+  try {
+    await navigator.clipboard.writeText(text);
+    toast(t('Notes copied: paste them into your AI chat'));
+  } catch {
+    prompt(t('Copy this link:'), text);
+  }
+  track('notes_copied_for_ai', {});
+};
 
 // Calendars both ways: Google, Outlook, Calendly, iCloud.
 const myTz = () => Intl.DateTimeFormat().resolvedOptions().timeZone;

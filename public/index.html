@@ -332,6 +332,21 @@
         </select>
         <p class="muted">What is due today and what is overdue, every morning at this time.</p>
       </div>
+      <div class="stack" id="aiBox">
+        <h3>🤖 AI assistants</h3>
+        <p class="muted">Let Claude, ChatGPT, Gemini or another AI assistant read your notes, so you can ask it about your week, plan with it, or turn a chat into notes.</p>
+        <ul id="aiKeys" class="identity-list"></ul>
+        <div class="cal-buttons">
+          <select id="aiName" aria-label="AI assistant">
+            <option>Claude</option><option>ChatGPT</option><option>Gemini</option><option value="Other">Other</option>
+          </select>
+          <label class="muted"><input type="checkbox" id="aiWrite"> Can add notes</label>
+          <button type="button" class="ghost" id="aiConnect">Connect</button>
+        </div>
+        <div id="aiResult" class="ai-box stack" hidden></div>
+        <p class="muted">Or copy your open notes and paste them into any AI chat:</p>
+        <div class="cal-buttons"><button type="button" class="ghost" id="aiCopy">📋 Copy my notes for an AI chat</button></div>
+      </div>
       <div id="myGroupsBox" class="stack" hidden>
         <h3>My groups</h3>
         <p class="muted">Groups you added. The AI keeps them and puts matching notes in them. Add more with ＋ Group above the notes.</p>
