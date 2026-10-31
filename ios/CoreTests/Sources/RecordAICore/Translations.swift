@@ -1,0 +1,1 @@
+../../../RecordAI.swiftpm/Translations.swift

@@ -70,3 +70,5 @@ jobs:
           xcodebuild -list
           xcodebuild -scheme record.ai -destination 'generic/platform=iOS Simulator' build CODE_SIGNING_ALLOWED=NO | tail -n 80
           exit ${PIPESTATUS[0]}
+      - name: Test the iPhone app's rules (worlds, translations)
+        run: swift test --package-path ios/CoreTests
