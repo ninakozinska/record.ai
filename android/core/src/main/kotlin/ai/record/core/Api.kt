@@ -152,6 +152,12 @@ class Api(val baseUrl: String, private val token: String?, private val client: O
 
     suspend fun reanalyze(id: String) { post("notes/$id/reanalyze", JsonObject(emptyMap())) }
 
+    /** The people tasks can be for. */
+    suspend fun people(): People = decode(call("people"))
+
+    /** "Turn into tasks": the things to do in a note's text and photos become notes. */
+    suspend fun extractTasks(id: String): TasksResult = decode(post("notes/$id/tasks", JsonObject(emptyMap())))
+
     suspend fun reorganize(): ReorganizeResult = decode(post("reorganize", JsonObject(emptyMap())))
 
     // --- sharing ---

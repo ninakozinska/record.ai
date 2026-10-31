@@ -363,6 +363,7 @@ final class NoteStore {
                 next.aiStatus = contentDiffers ? "pending" : s.aiStatus
                 next.aiError = s.aiError
                 next.rev = s.rev
+                next.doneBy = s.doneBy
                 s = next
             }
             notes[s.id] = s
@@ -442,6 +443,8 @@ final class NoteStore {
         if patch.keys.contains("user_group") { note.userGroup = patch["user_group"] as? String }
         if patch.keys.contains("user_priority") { note.userPriority = patch["user_priority"] as? String }
         if patch.keys.contains("user_due") { note.userDue = patch["user_due"] as? String }
+        if patch.keys.contains("remind") { note.remind = patch["remind"] as? Int }
+        if patch.keys.contains("assigned_to") { note.assignedTo = patch["assigned_to"] as? String }
         if let parent = patch["parent_id"] as? String { note.parentId = parent }
         note.editedAt = max(now, before.editedAt + 1)
         let isNew = notes[id] == nil
@@ -631,6 +634,21 @@ final class NoteStore {
         await flush()
         guard let api else { return }
         _ = try await api.request("notes/\(id)/reanalyze", method: "POST", json: [:])
+    }
+
+    /// The people tasks can be for: me, and everyone I share with.
+    func people() async -> People {
+        guard let api, let data = try? await api.request("people") else { return People(people: [], family: false) }
+        return (try? JSONDecoder.server.decode(People.self, from: data)) ?? People(people: [], family: false)
+    }
+
+    /// "Turn into tasks": sends the note, asks the server for its tasks, then fetches them.
+    func extractTasks(_ id: String) async throws -> Int {
+        await flush()
+        guard let api else { throw APIError.offline }
+        let result = try JSONDecoder.server.decode(TasksResult.self, from: try await api.request("notes/\(id)/tasks", method: "POST", json: [:]))
+        await flush()
+        return result.ids.count
     }
 
     func reorganize() async throws -> ReorganizeResult {

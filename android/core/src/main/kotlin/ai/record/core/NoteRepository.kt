@@ -311,7 +311,7 @@ class NoteRepository(
                     title = s.title, summary = s.summary, aiGroup = s.aiGroup, aiPriority = s.aiPriority,
                     priorityReason = s.priorityReason, tags = s.tags, dueDate = s.dueDate, dueTime = s.dueTime,
                     aiDueDate = s.aiDueDate, aiDueTime = s.aiDueTime, role = s.role, ownerName = s.ownerName, userId = s.userId,
-                    aiStatus = if (contentDiffers) "pending" else s.aiStatus, aiError = s.aiError, rev = s.rev,
+                    aiStatus = if (contentDiffers) "pending" else s.aiStatus, aiError = s.aiError, rev = s.rev, doneBy = s.doneBy,
                 )
             } else s
         }
@@ -377,6 +377,8 @@ class NoteRepository(
                 "user_group" -> note.copy(userGroup = (v as String?)?.takeIf { it.isNotBlank() })
                 "user_priority" -> note.copy(userPriority = v as String?)
                 "user_due" -> note.copy(userDue = v as String?)
+                "remind" -> note.copy(remind = (v as Number?)?.toInt())
+                "assigned_to" -> note.copy(assignedTo = v as String?)
                 "parent_id" -> note.copy(parentId = v as String?, aiStatus = "done")
                 else -> note
             }
@@ -507,7 +509,17 @@ class NoteRepository(
         api?.reanalyze(id)
     }
 
-    suspend fun reorganize(): ReorganizeResult = api?.reorganize() ?: throw ApiException.offline()
+    suspend fun people(): People = runCatching { api?.people() }.getOrNull() ?: People()
+
+    /** Sends the note first, then asks the server for its tasks; they arrive like any other notes. */
+    suspend fun extractTasks(id: String): Int {
+        flush()
+        val result = (api ?: throw ApiException.offline()).extractTasks(id)
+        flush()
+        return result.ids.size
+    }
+
+        suspend fun reorganize(): ReorganizeResult = api?.reorganize() ?: throw ApiException.offline()
 
     /** For tests and the background worker: wait until pending writes reach the disk. */
     suspend fun saveNow() = withContext(confined) { persistNow() }

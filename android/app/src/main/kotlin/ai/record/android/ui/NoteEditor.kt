@@ -1,6 +1,7 @@
 package ai.record.android.ui
 
 import ai.record.core.tr
+import ai.record.core.People
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -24,6 +25,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.material3.FilterChip
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -45,11 +49,17 @@ import kotlinx.coroutines.launch
 fun NoteEditor(repo: NoteRepository, state: UiState, id: String, onClose: () -> Unit) {
     val note = state.notes[id] ?: return onClose()
     val scope = rememberCoroutineScope()
+    val context = androidx.compose.ui.platform.LocalContext.current
     var text by remember(id) { mutableStateOf(note.text) }
     val images = remember(id) { mutableStateListOf<String>().apply { addAll(note.images) } }
     var group by remember(id) { mutableStateOf(note.userGroup.orEmpty()) }
     var priority by remember(id) { mutableStateOf(note.userPriority) }
     var due by remember(id) { mutableStateOf(note.userDue) }
+    var remind by remember(id) { mutableStateOf(note.remind) }
+    var assignee by remember(id) { mutableStateOf(note.assignedTo) }
+    var people by remember { mutableStateOf(People()) }
+    var working by remember { mutableStateOf(false) }
+    LaunchedEffect(id) { people = repo.people() }
     var sharing by remember { mutableStateOf(false) }
     val canEdit = note.canEdit
     var priorityMenu by remember { mutableStateOf(false) }
@@ -64,8 +74,10 @@ fun NoteEditor(repo: NoteRepository, state: UiState, id: String, onClose: () -> 
         if (g != note.userGroup) patch["user_group"] = g
         if (priority != note.userPriority) patch["user_priority"] = priority
         if (due != note.userDue) patch["user_due"] = due
+        if (remind != note.remind) patch["remind"] = remind
+        if (assignee != note.assignedTo) patch["assigned_to"] = assignee
         if (!canEdit) return
-        if (note.shared) patch -= setOf("user_group", "user_priority", "user_due")
+        if (note.shared) patch -= setOf("user_group", "user_priority", "user_due", "remind")
         if (patch.isNotEmpty()) repo.save(id, patch)
     }
 
@@ -111,9 +123,34 @@ fun NoteEditor(repo: NoteRepository, state: UiState, id: String, onClose: () -> 
                     note.images.forEach { NoteImage(repo, it, thumb = false, modifier = Modifier.fillMaxWidth()) }
                 }
 
-                ListItems(repo, state, id, canEdit)
+                ListItems(repo, state, id, canEdit, people.people)
 
                 DueEditor(note, due, enabled = canEdit && !note.shared) { due = it }
+
+                // A reminder, once the note has a date (sent as a notification by the server).
+                val hasDate = (if (due != null) due.orEmpty().take(10).ifBlank { null } else note.due) != null
+                if (canEdit && !note.shared && hasDate) {
+                    Text(tr("Reminder"), style = MaterialTheme.typography.labelLarge)
+                    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf<Pair<Int?, String>>(null to tr("No reminder"), 0 to tr("At the time"), 15 to tr("15 minutes before"),
+                            60 to tr("1 hour before"), 1440 to tr("1 day before")).forEach { (minutes, label) ->
+                            FilterChip(selected = remind == minutes, onClick = { remind = minutes }, label = { Text(label) })
+                        }
+                    }
+                }
+
+                // Family hub: who this is for (me, or someone I share with).
+                if (canEdit && people.people.size > 1) {
+                    Text(tr("👤 For"), style = MaterialTheme.typography.labelLarge)
+                    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilterChip(selected = assignee == null, onClick = { assignee = null }, label = { Text(tr("Anyone")) })
+                        people.people.forEach { p ->
+                            FilterChip(selected = assignee == p.id, onClick = {
+                                if (p.me || people.family) assignee = p.id else error = tr("Giving tasks to others is part of the Family plan.")
+                            }, label = { Text(if (p.me) tr("Me") else p.name) })
+                        }
+                    }
+                }
 
                 if (!note.shared) OutlinedTextField(
                     value = group,
@@ -143,6 +180,17 @@ fun NoteEditor(repo: NoteRepository, state: UiState, id: String, onClose: () -> 
                     repo.save(id, mapOf("done" to !note.done))
                     onClose()
                 }, modifier = Modifier.fillMaxWidth()) { Text(if (note.done) tr("Mark not done") else tr("✓ Mark done")) }
+                // A letter, an invitation or a photo of one: each thing to do becomes a note with its date.
+                if (!note.shared && (note.images.isNotEmpty() || note.text.length > 60)) OutlinedButton(enabled = !working, onClick = {
+                    saveChanges()
+                    working = true
+                    scope.launch {
+                        runCatching { repo.extractTasks(id) }
+                            .onSuccess { n -> toast(context, if (n == 0) tr("Nothing to do in this one.") else "✓ $n"); onClose() }
+                            .onFailure { error = it.message }
+                        working = false
+                    }
+                }, modifier = Modifier.fillMaxWidth()) { Text(tr("📸 Turn into tasks")) }
                 if (!note.shared) OutlinedButton(onClick = {
                     saveChanges()
                     scope.launch {
