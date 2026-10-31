@@ -190,6 +190,15 @@ function migrate(db) {
   if (!columns(db, 'notes').includes('remind')) db.exec('ALTER TABLE notes ADD COLUMN remind INTEGER');
   // Devices that get notifications (Web Push).
   db.exec(`
+    CREATE TABLE IF NOT EXISTS assistant_keys (
+      id         TEXT PRIMARY KEY,
+      user_id    TEXT NOT NULL,
+      name       TEXT NOT NULL,
+      token_hash TEXT NOT NULL UNIQUE,
+      can_write  INTEGER NOT NULL DEFAULT 0,
+      created_at INTEGER NOT NULL,
+      last_used  INTEGER
+    );
     CREATE TABLE IF NOT EXISTS push_subscriptions (
       endpoint   TEXT PRIMARY KEY,
       user_id    TEXT NOT NULL,
@@ -764,6 +773,7 @@ class Store {
       this.db.prepare('DELETE FROM calendar_events WHERE link_id IN (SELECT id FROM calendar_links WHERE user_id = ?)').run(userId);
       this.db.prepare('DELETE FROM calendar_links WHERE user_id = ?').run(userId);
       this.db.prepare('DELETE FROM push_subscriptions WHERE user_id = ?').run(userId);
+      this.db.prepare('DELETE FROM assistant_keys WHERE user_id = ?').run(userId);
       this.db.prepare('DELETE FROM sessions WHERE user_id = ?').run(userId);
       this.db.prepare("DELETE FROM assignments WHERE subject = ?").run(`u:${userId}`);
       this.db.prepare('UPDATE events SET user_id = NULL WHERE user_id = ?').run(userId);
