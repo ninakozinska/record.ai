@@ -12,12 +12,13 @@ export function tmpDir() {
 export async function start(opts = {}) {
   const dataDir = tmpDir();
   const client = opts.client;
-  const { app, store, organizer, insights, optimizer, backups, calendars } = createApp({
+  const { app, store, organizer, insights, optimizer, backups, calendars, reminders } = createApp({
     dataDir,
     oauth: opts.oauth,
     mail: opts.mail,
     ...(opts.billing ? { billing: opts.billing } : {}),
     ...(opts.calendars ? { calendars: opts.calendars } : {}),
+    ...(opts.reminders ? { reminders: opts.reminders } : {}),
     organizer: client
       ? (args) => new Organizer({ ...args, client, log: { error() {} } })
       : (args) => new Organizer({ ...args, log: { error() {} } }),
@@ -43,5 +44,5 @@ export async function start(opts = {}) {
     });
     user = r.body.user;
   }
-  return { api, store, organizer, insights, optimizer, backups, calendars, dataDir, user, base, cookie: () => cookie, close: () => server.close() };
+  return { api, store, organizer, insights, optimizer, backups, calendars, reminders, dataDir, user, base, cookie: () => cookie, close: () => server.close() };
 }

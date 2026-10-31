@@ -641,8 +641,22 @@ try {
     await page.waitForSelector('.note h3:text("Send the quarterly report tomorrow")');
     assert.equal(await page.getAttribute('#search', 'placeholder'), 'Cerca nelle note…');
     assert.equal(await page.evaluate(() => fetch('api/language').then((r) => r.json()).then((r) => r.lang)), 'it', 'the account learns the language');
+    // A reminder, set in the editor under the date.
+    const rid = await page.evaluate(async () => {
+      const id = crypto.randomUUID();
+      const now = Date.now();
+      await fetch(`api/notes/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: 'Call the plumber', user_due: '2030-01-02T10:00', created_at: now, edited_at: now }) });
+      return id;
+    });
+    await page.click('.note h3:text("Call the plumber")');
+    await page.waitForSelector('#remindRow:not([hidden])');
+    assert.equal(await page.textContent('#editorRemind option[value="15"]'), '15 minuti prima');
+    await page.selectOption('#editorRemind', '15');
+    await page.click('#editorSave');
+    await page.waitForFunction(async (id) => (await (await fetch('api/notes?since=0')).json()).notes.find((n) => n.id === id)?.remind === 15, rid);
     await page.click('#accountBtn');
     await page.waitForSelector('#account[open] h3:text("Lingua")');
+    await page.waitForSelector('#notifyBox h3:text("🔔 Notifiche")');
     await Promise.all([page.waitForEvent('load'), page.selectOption('#langSelect', 'pl')]);
     await page.waitForSelector('#search[placeholder="Szukaj notatek…"]');
     assert.equal(await page.evaluate(() => fetch('api/language').then((r) => r.json()).then((r) => r.lang)), 'pl');
@@ -650,7 +664,7 @@ try {
     await page.screenshot({ path: path.join(out, 'polish.png') });
     await ctx.close();
   }
-  console.log('✓ seven languages: Italian from the browser, Polish from the menu');
+  console.log('✓ seven languages: Italian from the browser, Polish from the menu; a reminder set in the editor');
 
   assert.deepEqual(errors, []);
   console.log('All e2e checks passed. Screenshots in', out);

@@ -406,6 +406,7 @@ const editor = {
     $('#editorDelete').textContent = shared ? t('Leave') : t('Delete');
     this.renderShared();
     this.due = n.user_due ?? null;
+    this.remind = n.remind ?? null;
     $('#editorDate').disabled = $('#editorTime').disabled = this.readOnly;
     this.renderWhen();
     $('#newItem').value = '';
@@ -427,6 +428,8 @@ const editor = {
     $('#whenAuto').hidden = !w.own;
     $('#whenClear').hidden = !w.date;
     $('#calActions').hidden = !w.date;
+    $('#remindRow').hidden = !w.date || this.readOnly;
+    $('#editorRemind').value = this.remind == null ? '' : String(this.remind);
     if (w.date) $('#calGoogle').href = googleCalendarUrl(this.noteForCalendar(), w);
   },
   noteForCalendar() {
@@ -472,6 +475,7 @@ const editor = {
     const p = $('#editorPriority').value || null;
     if (p !== (n.user_priority || null)) patch.user_priority = p;
     if (this.due !== (n.user_due ?? null)) patch.user_due = this.due;
+    if (this.remind !== (n.remind ?? null)) patch.remind = this.remind;
     if (Object.keys(patch).length) await local.save(this.id, patch);
   },
 };
@@ -495,6 +499,15 @@ for (const id of ['#editorDate', '#editorTime']) {
     editor.renderWhen();
   });
 }
+// A reminder: checks the free allowance, and turns notifications on for this device.
+$('#editorRemind').addEventListener('change', async (e) => {
+  const value = e.target.value === '' ? null : Number(e.target.value);
+  if (value != null && editor.remind == null && !(await reminderAllowed())) {
+    e.target.value = '';
+    return;
+  }
+  editor.remind = value;
+});
 $('#whenAuto').onclick = () => {
   editor.due = null;
   editor.renderWhen();
@@ -1403,6 +1416,7 @@ $('#accountBtn').onclick = async () => {
   loadAiUsage();
   loadPremium();
   loadCalendars();
+  loadNotify();
   $('#icloudForm').hidden = true;
   $('#calendarLink').hidden = true;
   $('#calendarShow').hidden = false;
@@ -1517,6 +1531,79 @@ function showCalendarLink({ url, webcal }) {
     }
   };
 }
+// Notifications: reminders and the morning briefing (Web Push).
+const pushSupported = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+const keyBytes = (b64) => Uint8Array.from(atob(b64.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - (b64.length % 4)) % 4)), (c) => c.charCodeAt(0));
+async function thisDeviceSubscription() {
+  if (!pushSupported()) return null;
+  try {
+    return await (await navigator.serviceWorker.ready).pushManager.getSubscription();
+  } catch {
+    return null;
+  }
+}
+async function enablePush(state) {
+  if (!pushSupported()) {
+    toast(t('Notifications need the app on your home screen (iPhone) or a recent browser.'));
+    return false;
+  }
+  if ((await Notification.requestPermission()) !== 'granted') {
+    toast(t("Notifications are blocked for record.ai in this browser's settings."));
+    return false;
+  }
+  const reg = await navigator.serviceWorker.ready;
+  const sub = (await reg.pushManager.getSubscription()) || (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(state.publicKey) }));
+  await local.api('push/subscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ subscription: sub.toJSON(), tz: myTz() }) });
+  toast(t('Notifications on'));
+  return true;
+}
+async function reminderAllowed() {
+  try {
+    const state = await local.api('push');
+    if (state.quota.left === 0) {
+      toast(t('Free plan: {n} reminders a month. Premium has as many as you like.', { n: state.quota.limit }));
+      return false;
+    }
+    if (!(await thisDeviceSubscription())) await enablePush(state);
+  } catch { /* offline: the server decides when it gets the note */ }
+  return true;
+}
+async function loadNotify() {
+  let state;
+  try {
+    state = await local.api('push');
+  } catch {
+    $('#notifyBox').hidden = true;
+    return;
+  }
+  $('#notifyBox').hidden = false;
+  const here = await thisDeviceSubscription();
+  const lines = [here ? t('🔔 On on this device') : t('Off on this device.')];
+  if (state.quota.limit) lines.push(t('Free plan: {left} of {limit} reminders left this month.', state.quota));
+  $('#notifyStatus').textContent = lines.join(' ');
+  $('#notifyOn').hidden = !!here;
+  $('#notifyTest').hidden = !here;
+  $('#briefingTime').value = state.briefing || '';
+}
+$('#notifyOn').onclick = async () => {
+  try {
+    await enablePush(await local.api('push'));
+  } catch (err) {
+    toast(err.status ? err.message : t('You need to be online for this.'));
+  }
+  loadNotify();
+};
+$('#notifyTest').onclick = () => local.api('push/test', { method: 'POST' }).catch(() => toast(t('You need to be online for this.')));
+$('#briefingTime').addEventListener('change', async (e) => {
+  try {
+    const state = await local.api('briefing', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ time: e.target.value || null }) });
+    if (e.target.value && !(await thisDeviceSubscription())) await enablePush(state);
+  } catch (err) {
+    toast(err.status ? err.message : t('You need to be online for this.'));
+  }
+  loadNotify();
+});
+
 // Calendars both ways: Google, Outlook, Calendly, iCloud.
 const myTz = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
 async function loadCalendars() {
@@ -1801,6 +1888,17 @@ render();
 renderStatus();
 // Coming back from "Continue with …": show what happened, then tidy the address bar.
 const back = new URLSearchParams(location.search);
+// From a notification: open its note once it is on this device.
+if (back.has('open')) {
+  const id = back.get('open');
+  history.replaceState(null, '', location.pathname);
+  let tries = 0;
+  const openWhenHere = () => {
+    if (local.notes.has(id)) editor.open(id);
+    else if (tries++ < 40) setTimeout(openWhenHere, 250);
+  };
+  openWhenHere();
+}
 if (back.has('calendar') || back.has('calendar_error')) {
   setTimeout(() => toast(back.get('calendar_error') || t('Calendar connected')), 300);
   history.replaceState(null, '', location.pathname);

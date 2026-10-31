@@ -25,6 +25,7 @@
     "@anthropic-ai/sdk": "^0.132.1",
     "compression": "^1.8.2",
     "express": "^5.2.1",
+    "web-push": "^3.6.7",
     "zod": "^4.6.5"
   },
   "devDependencies": {
