@@ -432,4 +432,12 @@ export default {
   "In any app that supports MCP: add a server with this address.": "In qualsiasi app che supporta MCP: aggiungi un server con questo indirizzo.",
   "Shown only now. Anyone with this address can read your notes: keep it private, and remove the key here if it leaks.": "Visibile solo ora. Chi ha questo indirizzo può leggere le tue note: tienilo riservato, e rimuovi la chiave qui se finisce in giro.",
   "Notes copied: paste them into your AI chat": "Note copiate: incollale nella tua chat AI",
+  "Anyone": "Chiunque",
+  "Me": "Io",
+  "👤 For me": "👤 Per me",
+  "For": "Per",
+  "👤 For": "👤 Per",
+  "Done by {name}": "Fatto da {name}",
+  "Giving tasks to others is part of the Family plan.": "Assegnare compiti ad altri fa parte del piano Famiglia.",
+  "This person is not among the people you share with.": "Questa persona non è tra quelle con cui condividi.",
 };

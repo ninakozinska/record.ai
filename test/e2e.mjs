@@ -374,6 +374,18 @@ try {
   await desktop.waitForSelector(`${list} .list-count:text("☑ 2/4")`);
   await tom.screenshot({ path: path.join(out, 'tom-shared-list.png') });
 
+  // Family hub: Nina gives "milk" to Tom, and sees that Tom ticked "bread".
+  await desktop.click(`${list} h3`);
+  await desktop.waitForSelector('#itemList li:has(input[value="bread"]) .who:text("✓ Tom")');
+  await desktop.waitForSelector('#itemList li:has(input[value="milk"]) [data-item-assign] option:text("Tom")', { state: 'attached' });
+  await desktop.selectOption('#itemList li:has(input[value="milk"]) [data-item-assign]', { label: 'Tom' });
+  await desktop.click('#editor [value=cancel]');
+  await tom.waitForSelector(`${list} li:has-text("milk") .who:text("👤 Me")`);
+  await tom.click('[data-mine]');
+  await tom.waitForSelector(list);
+  await tom.click('[data-mine]');
+  console.log('✓ family hub: a task for Tom, and who ticked what');
+
   // Nina makes it view only: Tom can still read it but not tick anything.
   await desktop.click(`${list} h3`);
   await desktop.click('#editorShare');

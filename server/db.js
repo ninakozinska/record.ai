@@ -188,6 +188,9 @@ function migrate(db) {
   if (!columns(db, 'notes').includes('source')) db.exec('ALTER TABLE notes ADD COLUMN source TEXT');
   // Reminder: minutes before the note's time (0 = at the time); NULL = none.
   if (!columns(db, 'notes').includes('remind')) db.exec('ALTER TABLE notes ADD COLUMN remind INTEGER');
+  // Family hub: who a note or list item is for, and who ticked it off.
+  if (!columns(db, 'notes').includes('assigned_to')) db.exec('ALTER TABLE notes ADD COLUMN assigned_to TEXT');
+  if (!columns(db, 'notes').includes('done_by')) db.exec('ALTER TABLE notes ADD COLUMN done_by TEXT');
   // Devices that get notifications (Web Push).
   db.exec(`
     CREATE TABLE IF NOT EXISTS assistant_keys (
@@ -283,6 +286,8 @@ function rowToNote(r) {
     parent_id: r.parent_id ?? null,
     source: r.source ?? null,
     remind: r.remind ?? null,
+    assigned_to: r.assigned_to ?? null,
+    done_by: r.done_by ?? null,
   };
 }
 
@@ -395,8 +400,8 @@ class Store {
       this.db
         .prepare(
           `INSERT INTO notes (id, user_id, parent_id, text, images, done, deleted, created_at, edited_at,
-             user_group, user_priority, user_due, remind, ai_status, rev)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+             user_group, user_priority, user_due, remind, assigned_to, done_by, ai_status, rev)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
         .run(
           input.id,
@@ -412,6 +417,8 @@ class Store {
           input.user_priority ?? null,
           input.user_due ?? null,
           input.remind ?? null,
+          input.assigned_to ?? null,
+          input.done ? userId : null,
           // Items aren't sent to the AI: only their list is.
           parentId ? 'done' : 'pending',
           rev,
@@ -421,7 +428,7 @@ class Store {
       this.db
         .prepare(
           `UPDATE notes SET text = ?, images = ?, done = ?, deleted = ?, edited_at = ?,
-             user_group = ?, user_priority = ?, user_due = ?, remind = ?,
+             user_group = ?, user_priority = ?, user_due = ?, remind = ?, assigned_to = ?, done_by = ?,
              ai_status = CASE WHEN ? AND parent_id IS NULL THEN 'pending' ELSE ai_status END,
              rev = ?
            WHERE id = ?`,
@@ -436,6 +443,9 @@ class Store {
           pick('user_priority') ?? null,
           pick('user_due') ?? null,
           pick('remind') ?? null,
+          pick('assigned_to') ?? null,
+          // Who ticked it off: whoever made it done; nobody once it is open again.
+          !pick('done') ? null : existing.done ? existing.done_by : userId,
           contentChanged ? 1 : 0,
           rev,
           input.id,
@@ -585,6 +595,16 @@ class Store {
       )
       .all(userId)
       .map((r) => ({ ...rowToShare(r), owner: { id: r.owner_id, name: r.owner_name, email: r.owner_email } }));
+  }
+
+  /** The people I share with or who share with me (with accounts), and me: who tasks can be for. */
+  circle(userId) {
+    const ids = this.db.prepare(
+      `SELECT user_id AS id FROM shares WHERE owner_id = ? AND user_id IS NOT NULL
+       UNION SELECT owner_id AS id FROM shares WHERE user_id = ?`,
+    ).all(userId, userId).map((r) => r.id);
+    return [userId, ...new Set(ids.filter((id) => id !== userId))].map((id) => this.getUser(id)).filter(Boolean)
+      .map((u) => ({ id: u.id, name: u.name, me: u.id === userId }));
   }
 
   shareCount(ownerId) {

@@ -352,3 +352,7 @@ a.btn { display: inline-flex; align-items: center; text-decoration: none; color:
 .legal-links a, .delete-account a { color: var(--muted); }
 .identity-list button.active { background: var(--accent); color: var(--accent-text); }
 .cal-buttons button { font-size: .9rem; padding: .45em .8em; }
+.who-badge { font-size: .8rem; padding: 1px 8px; border-radius: 999px; background: var(--chip, rgba(99,102,241,.12)); }
+.list-preview .who, .item .who { font-size: .78rem; color: var(--muted); white-space: nowrap; }
+.item-assign { max-width: 7.5em; }
+.assign-row { display: flex; gap: 8px; align-items: center; margin: 8px 0; }

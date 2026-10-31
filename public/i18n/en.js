@@ -433,4 +433,12 @@ export default {
   "In any app that supports MCP: add a server with this address.": "In any app that supports MCP: add a server with this address.",
   "Shown only now. Anyone with this address can read your notes: keep it private, and remove the key here if it leaks.": "Shown only now. Anyone with this address can read your notes: keep it private, and remove the key here if it leaks.",
   "Notes copied: paste them into your AI chat": "Notes copied: paste them into your AI chat",
+  "Anyone": "Anyone",
+  "Me": "Me",
+  "👤 For me": "👤 For me",
+  "For": "For",
+  "👤 For": "👤 For",
+  "Done by {name}": "Done by {name}",
+  "Giving tasks to others is part of the Family plan.": "Giving tasks to others is part of the Family plan.",
+  "This person is not among the people you share with.": "This person is not among the people you share with.",
 };
