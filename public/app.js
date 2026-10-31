@@ -679,7 +679,7 @@ const canEdit = (n) => n.role !== 'view';
 /** Notes shared with me show in their own group: the owner's groups are theirs. */
 const forMe = (n) => (n.role ? { ...n, group: SHARED_GROUP } : n);
 /** A group's name as shown: the two the app names itself are translated. */
-const groupName = (g) => (g === SHARED_GROUP || g === 'Inbox' ? t(g) : g);
+const groupName = (g) => (g === SHARED_GROUP || g === 'Inbox' || g === 'Calendar' ? t(g) : g);
 const sameGroup = (a, b) => a.toLowerCase() === b.toLowerCase();
 /** My shares that cover a note of mine: the note itself, or its group. */
 const sharesOf = (n) => (n.role ? [] : shares.mine.filter((s) => (s.kind === 'note' ? s.target === n.id : sameGroup(s.target, n.group))));
@@ -1402,6 +1402,8 @@ $('#accountBtn').onclick = async () => {
   loadSigninOptions();
   loadAiUsage();
   loadPremium();
+  loadCalendars();
+  $('#icloudForm').hidden = true;
   $('#calendarLink').hidden = true;
   $('#calendarShow').hidden = false;
   renderMyGroups();
@@ -1515,6 +1517,63 @@ function showCalendarLink({ url, webcal }) {
     }
   };
 }
+// Calendars both ways: Google, Outlook, Calendly, iCloud.
+const myTz = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
+async function loadCalendars() {
+  let data;
+  try {
+    data = await local.api('calendars');
+  } catch {
+    $('#calendarsBox').hidden = true;
+    return;
+  }
+  const { available, links } = data;
+  $('#calendarsBox').hidden = !available.length && !links.length;
+  $('#calendarFeedText').hidden = !$('#calendarsBox').hidden;
+  $('#calendarList').innerHTML = links.map((l) => `<li><span class="who">${esc(l.name)} · ${esc(l.account)}${
+    l.error ? `<br><small class="error">${esc(l.reconnect ? t('Please connect it again.') : l.error)}</small>` : ''}</span>${
+    l.canWrite ? `<button type="button" class="ghost${l.writes ? ' active' : ''}" data-cal-writes="${esc(l.id)}" title="${esc(t('Notes with a date go to this calendar'))}">${
+      l.writes ? `✍️ ${esc(t('Gets notes'))}` : esc(t('Send notes here'))}</button>` : ''}<button type="button" class="ghost" data-cal-remove="${esc(l.id)}" data-name="${esc(l.name)}">${esc(t('Disconnect'))}</button></li>`).join('');
+  $('#calendarConnect').innerHTML = available.map((p) => (p.id === 'icloud'
+    ? `<button type="button" class="ghost" data-cal-icloud>${esc(t('Connect {name}', { name: p.name }))}</button>`
+    : `<a class="btn ghost" href="api/calendars/${esc(p.id)}/connect?tz=${encodeURIComponent(myTz())}">${esc(t('Connect {name}', { name: p.name }))}</a>`)).join('');
+}
+$('#calendarsBox').addEventListener('click', async (e) => {
+  const writes = e.target.closest('[data-cal-writes]');
+  const remove = e.target.closest('[data-cal-remove]');
+  try {
+    if (e.target.closest('[data-cal-icloud]')) {
+      $('#icloudForm').hidden = !$('#icloudForm').hidden;
+      if (!$('#icloudForm').hidden) $('#icloudEmail').focus();
+    } else if (writes) {
+      await local.api(`calendars/${writes.dataset.calWrites}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ writes: true }) });
+      loadCalendars();
+    } else if (remove) {
+      if (!confirm(t('Disconnect {name}? Its meetings leave record.ai; the events record.ai made stay in the calendar.', { name: remove.dataset.name }))) return;
+      await local.api(`calendars/${remove.dataset.calRemove}`, { method: 'DELETE' });
+      loadCalendars();
+    }
+  } catch (err) {
+    toast(err.status ? err.message : t('You need to be online for this.'));
+  }
+});
+$('#icloudForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  try {
+    await local.api('calendars/icloud', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: $('#icloudEmail').value, password: $('#icloudPassword').value, tz: myTz() }),
+    });
+    $('#icloudForm').hidden = true;
+    $('#icloudPassword').value = '';
+    toast(t('Calendar connected'));
+    loadCalendars();
+  } catch (err) {
+    toast(err.status ? err.message : t('You need to be online for this.'));
+  }
+});
+
 $('#calendarShow').onclick = async () => {
   try {
     showCalendarLink(await local.api(`calendar-link?tz=${encodeURIComponent(Intl.DateTimeFormat().resolvedOptions().timeZone)}`));
@@ -1742,6 +1801,10 @@ render();
 renderStatus();
 // Coming back from "Continue with …": show what happened, then tidy the address bar.
 const back = new URLSearchParams(location.search);
+if (back.has('calendar') || back.has('calendar_error')) {
+  setTimeout(() => toast(back.get('calendar_error') || t('Calendar connected')), 300);
+  history.replaceState(null, '', location.pathname);
+}
 if (back.has('login_error') || back.has('linked')) {
   auth.error = back.get('login_error') || '';
   if (back.has('linked')) setTimeout(() => toast(t('Connected. You can now log in with it too.')), 300);

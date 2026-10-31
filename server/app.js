@@ -8,6 +8,7 @@ import compression from 'compression';
 import { openDb, PRIORITIES } from './db.js';
 import { Organizer, LANGUAGES } from './organizer.js';
 import { authRoutes, requireUser, getToken } from './auth.js';
+import { Calendars } from './calendars.js';
 import { Insights, EVENT_NAME, ANON_ID } from './insights.js';
 import { Backups, premium } from './backups.js';
 import { Optimizer, costOf } from './optimizer.js';
@@ -61,7 +62,7 @@ export function trustProxy(value) {
   return value;
 }
 
-export function createApp({ dataDir, organizer: makeOrganizer, oauth, mail, billing = makeBilling(), errors = errorReporter() } = {}) {
+export function createApp({ dataDir, organizer: makeOrganizer, oauth, mail, billing = makeBilling(), errors = errorReporter(), calendars: calendarOptions = {} } = {}) {
   const store = openDb(dataDir);
   const imagesDir = path.join(dataDir, 'images');
   fs.mkdirSync(imagesDir, { recursive: true });
@@ -83,7 +84,9 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth, mail, bill
   };
   // A changed note goes to its owner, to everyone it is shared with, and as a
   // removal notice to anyone who could see it before but no longer can.
+  let calendars = null;
   const onChange = (note) => {
+    calendars?.noteChanged(note);
     sendNote(note.user_id, note);
     const audience = store.audience(note);
     for (const [userId, role] of audience) {
@@ -100,6 +103,8 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth, mail, bill
       }
     }
   };
+  // Google Calendar, Outlook, Calendly and iCloud, both ways (docs/CALENDARS.md).
+  calendars = new Calendars({ store, onChange, ...calendarOptions });
   const broadcastStatus = (status) => {
     for (const set of clients.values()) for (const res of set) send(res, 'status', status);
   };
@@ -126,6 +131,7 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth, mail, bill
     // Daily backups for premium accounts: checked every hour, made once a day.
     setTimeout(() => backups.runDaily(), 30e3).unref();
     setInterval(() => backups.runDaily(), 3600e3).unref();
+    calendars.start();
   }
   const isAdmin = (user) =>
     store.firstUserId() === user.id ||
@@ -163,6 +169,9 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth, mail, bill
     }
     res.json({ received: true });
   });
+
+  // Calendly tells us about new bookings; it signs the exact bytes it sends.
+  app.post('/api/calendars/calendly/webhook', express.raw({ type: '*/*', limit: '1mb' }), calendars.webhook());
 
   app.use(express.json({ limit: '25mb' }));
 
@@ -228,7 +237,9 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth, mail, bill
     }
   };
   const calendarNotes = (userId) =>
-    store.changesSince(userId, 0, { items: false, shared: true }).filter((n) => !n.revoked && !n.deleted && !n.done && n.due_date);
+    store.changesSince(userId, 0, { items: false, shared: true })
+      // Meetings from a connected calendar are already in a calendar.
+      .filter((n) => !n.revoked && !n.deleted && !n.done && n.due_date && !n.source);
   const sendIcs = (res, ics, filename) => {
     res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
     res.setHeader('Cache-Control', 'no-cache');
@@ -244,6 +255,8 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth, mail, bill
   });
 
   app.use('/api', requireUser(store));
+
+  app.use('/api/calendars', calendars.routes());
 
   const calendarLink = (req) => {
     const token = store.getMeta(`cal_token:${req.user.id}`);
@@ -718,5 +731,5 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth, mail, bill
   });
 
   organizer.resumePending?.();
-  return { app, store, organizer, insights, optimizer, backups, errors };
+  return { app, store, organizer, insights, optimizer, backups, errors, calendars };
 }

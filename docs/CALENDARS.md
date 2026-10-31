@@ -49,9 +49,8 @@ If you don't have one yet, create it now. It will serve both.
    - **Audience**: **External**. Under **Test users**, add your Gmail address, your
      partner's address and those of your first beta testers (up to 100).
    - **Data access → Add or remove scopes**: tick
-     `.../auth/calendar.events` (see, change and delete events) and
-     `.../auth/calendar.calendarlist.readonly` (see the list of calendars).
-     If one isn't in the list, paste it in **Manually add scopes** as
+     `.../auth/calendar.events` (see, change and delete events in your calendars).
+     If it isn't in the list, paste it in **Manually add scopes** as
      `https://www.googleapis.com/auth/calendar.events`. Click **Update**, then **Save**.
 4. **Clients** (or **Credentials**): open your **Web application** client, or
    **Create client → Web application** if you have none.

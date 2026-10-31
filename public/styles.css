@@ -350,3 +350,5 @@ a.btn { display: inline-flex; align-items: center; text-decoration: none; color:
 .interest [data-interest].chosen { border-color: var(--accent); color: var(--accent); font-weight: 600; }
 .legal-links { text-align: center; font-size: .8rem; margin: 0; }
 .legal-links a, .delete-account a { color: var(--muted); }
+.identity-list button.active { background: var(--accent); color: var(--accent-text); }
+.cal-buttons button { font-size: .9rem; padding: .45em .8em; }
