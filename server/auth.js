@@ -71,7 +71,8 @@ export function getToken(req) {
 export function signupPolicy(store) {
   if (store.userCount() === 0) return { open: true, needsCode: false, firstAccount: true };
   if (process.env.ALLOW_SIGNUP === 'true') return { open: true, needsCode: false, firstAccount: false };
-  if (process.env.SIGNUP_CODE) return { open: true, needsCode: true, firstAccount: false };
+  // Invite only: a shared code, or personal invite links made in the dashboard.
+  if (process.env.SIGNUP_CODE || store.inviteCount?.() > 0) return { open: true, needsCode: true, firstAccount: false };
   return { open: false, needsCode: false, firstAccount: false };
 }
 
@@ -98,12 +99,14 @@ export function authRoutes({ store, imagesDir, throttle = new Throttle(), oauth 
   const createAccount = (profile, invite) => {
     const policy = signupPolicy(store);
     if (!policy.open) throw new OAuthError('New accounts are not allowed on this server. Ask its owner for an invite.');
-    if (policy.needsCode && invite !== process.env.SIGNUP_CODE) {
+    const personal = policy.needsCode && !(process.env.SIGNUP_CODE && invite === process.env.SIGNUP_CODE);
+    if (personal && !store.claimInvite(invite)) {
       throw new OAuthError('This server needs an invite code. Choose "Create an account", enter the code, then use the button again.');
     }
     const email = profile.email || `${String(profile.id).replace(/[^A-Za-z0-9._-]/g, '')}.${profile.provider}${NO_EMAIL}`;
     const name = String(profile.name || '').trim() || (profile.email ? profile.email.split('@')[0] : 'record.ai user');
     const user = store.createUser({ email, name: name.slice(0, 80), pwHash: '', imagesDir });
+    if (personal) store.finishInvite(invite, user.id);
     onSignup(user, { method: profile.provider });
     return user;
   };
@@ -130,22 +133,30 @@ export function authRoutes({ store, imagesDir, throttle = new Throttle(), oauth 
     const { name, email, password, code } = req.body || {};
     const policy = signupPolicy(store);
     if (!policy.open) return res.status(403).json({ error: 'New accounts are not allowed on this server. Ask its owner for an invite.' });
-    if (policy.needsCode && String(code || '') !== process.env.SIGNUP_CODE) {
-      return res.status(403).json({ error: 'The invite code is not correct.' });
-    }
+    const shared = !!process.env.SIGNUP_CODE && String(code || '') === process.env.SIGNUP_CODE;
     if (!String(name || '').trim()) return res.status(400).json({ error: 'Please enter your name.' });
     if (!EMAIL.test(String(email || '').trim())) return res.status(400).json({ error: 'Please enter a valid email address.' });
     if (String(password || '').length < MIN_PASSWORD) {
       return res.status(400).json({ error: `The password needs at least ${MIN_PASSWORD} characters.` });
     }
     if (store.findUserByEmail(email)) return res.status(409).json({ error: 'An account with this email already exists. Log in instead.' });
-    const user = store.createUser({
-      email: String(email),
-      name: String(name).slice(0, 80),
-      pwHash: await hashPassword(String(password)),
-      imagesDir,
-    });
-    onSignup(user, { method: 'email', anonId: req.get('x-anon-id') });
+    // A personal invite is taken now, so two people can't sign up with the same link.
+    const personal = policy.needsCode && !shared;
+    if (personal && !store.claimInvite(code)) return res.status(403).json({ error: 'The invite code is not correct.' });
+    let user;
+    try {
+      user = store.createUser({
+        email: String(email),
+        name: String(name).slice(0, 80),
+        pwHash: await hashPassword(String(password)),
+        imagesDir,
+      });
+    } catch (err) {
+      if (personal) store.releaseInvite(code);
+      throw err;
+    }
+    if (personal) store.finishInvite(code, user.id);
+    onSignup(user, { method: 'email', anonId: req.get('x-anon-id'), invite: personal });
     startSession(req, res, user);
   });
 

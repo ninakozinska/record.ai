@@ -1338,8 +1338,11 @@ const auth = {
       this.policy = this.policy || { open: false };
     }
     // From the landing page's "Start free": the sign-up form, when sign-ups are open.
-    const wantsSignup = location.hash === '#signup' && this.policy.open;
+    // From a personal invite link (#invite=…): the sign-up form, with the code filled in.
+    const invite = location.hash.match(/^#invite=([A-Za-z0-9_-]+)$/)?.[1];
+    const wantsSignup = (location.hash === '#signup' || !!invite) && this.policy.open;
     this.show(this.policy.firstAccount || wantsSignup ? 'signup' : 'login');
+    if (invite) $('#loginCode').value = invite;
   },
   show(mode) {
     this.mode = mode;
