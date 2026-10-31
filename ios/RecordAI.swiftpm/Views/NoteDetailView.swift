@@ -15,6 +15,10 @@ struct NoteDetailView: View {
     @State private var info: String?
     @State private var due: String?
     @State private var sharing = false
+    @State private var remind = -1            // -1 = no reminder
+    @State private var assignee = ""          // "" = anyone
+    @State private var people = People(people: [], family: false)
+    @State private var working = false
 
     private var canEdit: Bool { note?.canEdit ?? true }
     private var isShared: Bool { note?.isShared ?? false }
@@ -64,6 +68,27 @@ struct NoteDetailView: View {
                 }
                 ListItemsSection(listId: noteId, canEdit: canEdit)
                 if let note { DueSection(note: note, due: $due, canEdit: canEdit && !isShared) }
+                // A reminder, once the note has a date (sent as a notification by the server).
+                if let note, canEdit, !isShared, (due.map { $0.isEmpty ? nil : $0 } ?? note.dueDay) != nil {
+                    Section {
+                        Picker(tr("Reminder"), selection: $remind) {
+                            Text(tr("No reminder")).tag(-1)
+                            Text(tr("At the time")).tag(0)
+                            Text(tr("15 minutes before")).tag(15)
+                            Text(tr("1 hour before")).tag(60)
+                            Text(tr("1 day before")).tag(1440)
+                        }
+                    }
+                }
+                // Family hub: who this is for (me, or someone I share with).
+                if canEdit, people.people.count > 1 {
+                    Section {
+                        Picker(tr("👤 For"), selection: $assignee) {
+                            Text(tr("Anyone")).tag("")
+                            ForEach(people.people) { p in Text(p.me == true ? tr("Me") : p.name).tag(p.id) }
+                        }
+                    }
+                }
                 if !isShared { Section {
                     TextField(groupPlaceholder, text: $group)
                     Picker(tr("Priority"), selection: $priority) {
@@ -81,6 +106,21 @@ struct NoteDetailView: View {
                         store.save(id: noteId, patch: ["done": !(note?.done ?? false)])
                         dismiss()
                     } }
+                    // A letter, an invitation or a photo of one: each thing to do becomes a note with its date.
+                    if !isShared, let note, !note.images.isEmpty || note.text.count > 60 { Button(tr("📸 Turn into tasks")) {
+                        saveChanges()
+                        working = true
+                        Task {
+                            do {
+                                let n = try await store.extractTasks(noteId)
+                                working = false
+                                if n == 0 { info = tr("Nothing to do in this one.") } else { dismiss() }
+                            } catch {
+                                working = false
+                                info = error.localizedDescription
+                            }
+                        }
+                    }.disabled(working) }
                     if !isShared { Button(tr("Re-analyze with AI")) {
                         saveChanges()
                         Task {
@@ -124,6 +164,7 @@ struct NoteDetailView: View {
             }
             .sheet(isPresented: $sharing) { ShareView(kind: "note", target: noteId, label: note?.displayTitle ?? tr("Note")) }
             .onAppear(perform: load)
+            .task { people = await store.people() }
         }
     }
 
@@ -148,6 +189,8 @@ struct NoteDetailView: View {
         group = note.userGroup ?? ""
         priority = note.userPriority ?? ""
         due = note.userDue
+        remind = note.remind ?? -1
+        assignee = note.assignedTo ?? ""
         loaded = true
     }
 
@@ -160,7 +203,14 @@ struct NoteDetailView: View {
         if g != (note.userGroup ?? "") { patch["user_group"] = g.isEmpty ? NSNull() : g }
         if priority != (note.userPriority ?? "") { patch["user_priority"] = priority.isEmpty ? NSNull() : priority }
         if due != note.userDue { patch["user_due"] = due.map { $0 as Any } ?? NSNull() }
-        if note.isShared { for k in ["user_group", "user_priority", "user_due"] { patch[k] = nil } }
+        if remind != (note.remind ?? -1) { patch["remind"] = remind < 0 ? NSNull() : remind }
+        let who = assignee.isEmpty ? nil : assignee
+        if who != note.assignedTo {
+            let isMe = people.people.first { $0.id == who }?.me == true
+            if who == nil || isMe || people.family == true { patch["assigned_to"] = who.map { $0 as Any } ?? NSNull() }
+            else { info = tr("Giving tasks to others is part of the Family plan.") }
+        }
+        if note.isShared { for k in ["user_group", "user_priority", "user_due", "remind"] { patch[k] = nil } }
         if !patch.isEmpty { store.save(id: noteId, patch: patch) }
     }
 }

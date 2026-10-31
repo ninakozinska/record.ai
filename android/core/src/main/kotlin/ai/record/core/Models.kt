@@ -53,6 +53,11 @@ data class Note(
     @SerialName("ai_status") val aiStatus: String? = null,
     @SerialName("ai_error") val aiError: String? = null,
     val rev: Long? = null,
+    /** Reminder: minutes before the note's time (0 = at the time); null = none. */
+    val remind: Int? = null,
+    /** Family hub: who the note or item is for, and who ticked it off (account ids). */
+    @SerialName("assigned_to") val assignedTo: String? = null,
+    @SerialName("done_by") val doneBy: String? = null,
 ) {
     /** The person's group if they chose one, else the AI's, else "Inbox". */
     val group: String get() = if (role != null) SHARED_GROUP else userGroup?.takeIf { it.isNotBlank() } ?: aiGroup?.takeIf { it.isNotBlank() } ?: "Inbox"
@@ -100,6 +105,13 @@ data class Note(
 }
 
 @Serializable data class AuthResult(val token: String, val user: User)
+
+/** Someone tasks can be for: me, or a person I share with. */
+@Serializable data class Person(val id: String, val name: String, val me: Boolean = false)
+@Serializable data class People(val people: List<Person> = emptyList(), val family: Boolean = false)
+
+/** The notes made from a letter or photo ("Turn into tasks"). */
+@Serializable data class TasksResult(val ids: List<String> = emptyList())
 
 @Serializable data class AiStatus(
     val enabled: Boolean,

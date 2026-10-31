@@ -53,6 +53,11 @@ struct Note: Codable, Identifiable, Equatable {
     var ownerName: String?
     /// I can no longer see this note: remove it from the phone.
     var revoked: Bool?
+    /// Reminder: minutes before the note's time (0 = at the time); nil = none.
+    var remind: Int? = nil
+    /// Family hub: who the note or item is for, and who ticked it off (account ids).
+    var assignedTo: String? = nil
+    var doneBy: String? = nil
 
     /// Shared with me by someone else.
     var isShared: Bool { role != nil }
@@ -118,6 +123,7 @@ extension Note {
         case id, text, images, done, deleted, createdAt, editedAt, userGroup, userPriority, title, summary
         case aiGroup, aiPriority, priorityReason, tags, dueDate, aiStatus, aiError, rev
         case dueTime, userDue, aiDueDate, aiDueTime, parentId, userId, role, ownerName, revoked
+        case remind, assignedTo, doneBy
     }
 
     /// Tolerant: a "no longer shared" marker from the server has only id, rev and the flags.
@@ -151,6 +157,9 @@ extension Note {
         role = try c.decodeIfPresent(String.self, forKey: .role)
         ownerName = try c.decodeIfPresent(String.self, forKey: .ownerName)
         revoked = try c.decodeIfPresent(Bool.self, forKey: .revoked)
+        remind = try c.decodeIfPresent(Int.self, forKey: .remind)
+        assignedTo = try c.decodeIfPresent(String.self, forKey: .assignedTo)
+        doneBy = try c.decodeIfPresent(String.self, forKey: .doneBy)
     }
 }
 
@@ -229,6 +238,23 @@ struct AccountInfo: Codable {
 struct AuthResult: Codable {
     var token: String
     var user: User
+}
+
+/// Someone tasks can be for: me, or a person I share with.
+struct Person: Codable, Identifiable, Equatable {
+    var id: String
+    var name: String
+    var me: Bool?
+}
+
+struct People: Codable {
+    var people: [Person]
+    var family: Bool?
+}
+
+/// The notes made from a letter or photo ("Turn into tasks").
+struct TasksResult: Codable {
+    var ids: [String]
 }
 
 struct NotesPage: Codable {

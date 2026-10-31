@@ -1,6 +1,7 @@
 package ai.record.android.ui
 
 import ai.record.core.tr
+import ai.record.core.Person
 
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
@@ -52,7 +53,9 @@ import java.time.temporal.ChronoUnit
 
 /** A list's items: tick them, add more, remove them. View-only lists can't be changed. */
 @Composable
-fun ListItems(repo: NoteRepository, state: UiState, listId: String, canEdit: Boolean) {
+fun ListItems(repo: NoteRepository, state: UiState, listId: String, canEdit: Boolean, people: List<Person> = emptyList()) {
+    // Family hub: who an item is for, and who ticked it off.
+    fun nameOf(id: String?) = people.firstOrNull { it.id == id }?.let { if (it.me) tr("Me") else it.name }
     var newItem by remember(listId) { mutableStateOf("") }
     var paste by remember { mutableStateOf<List<String>?>(null) }
     val items = state.items(listId)
@@ -66,6 +69,8 @@ fun ListItems(repo: NoteRepository, state: UiState, listId: String, canEdit: Boo
                 Checkbox(checked = item.done, enabled = canEdit, onCheckedChange = { repo.setDone(item.id, it) })
                 Text(item.text, Modifier.weight(1f), textDecoration = if (item.done) TextDecoration.LineThrough else null,
                     color = if (item.done) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface)
+                val who = if (item.done) nameOf(item.doneBy)?.let { "✓ $it" } else nameOf(item.assignedTo)?.let { "👤 $it" }
+                if (who != null) Text(who, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 if (canEdit) {
                     IconButton(onClick = { repo.save(item.id, mapOf("deleted" to true)) }) {
                         Icon(Icons.Filled.Close, tr("Remove item"), Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
