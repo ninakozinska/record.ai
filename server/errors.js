@@ -25,7 +25,7 @@ export function errorReporter({ env = process.env, fetch = globalThis.fetch, log
         timestamp: Date.now() / 1000,
         platform: 'node',
         level: 'error',
-        server_name: 'record.ai',
+        server_name: 'SortNotes',
         release: env.FLY_IMAGE_REF || env.RELEASE || undefined,
         environment: env.NODE_ENV || 'production',
         tags: { route: route || 'background', ...tags },
@@ -44,7 +44,7 @@ export function errorReporter({ env = process.env, fetch = globalThis.fetch, log
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-sentry-envelope',
-          'X-Sentry-Auth': `Sentry sentry_version=7, sentry_key=${dsn.key}, sentry_client=record.ai/1.0`,
+          'X-Sentry-Auth': `Sentry sentry_version=7, sentry_key=${dsn.key}, sentry_client=SortNotes/1.0`,
         },
         body,
       }).then((r) => r.ok, () => false);

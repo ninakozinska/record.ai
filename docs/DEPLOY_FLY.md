@@ -1,4 +1,4 @@
-# Put record.ai online with Fly.io
+# Put SortNotes online with Fly.io
 
 Your notes then live on a small server in Frankfurt, reachable from anywhere at `https://<your-app>.fly.dev`. Your Mac no longer needs to be on.
 
@@ -11,13 +11,13 @@ Fly bills pay-as-you-go to a credit card. The AI (Claude Haiku) is billed separa
 
 You type a few commands into **Terminal**. Copy each line, paste it into Terminal, and press **Enter**.
 
-## 0. Get the newest record.ai on your Mac
+## 0. Get the newest SortNotes on your Mac
 
 The Fly.io settings (`fly.toml`) arrived after your last update.
 
 1. Download https://github.com/ninakozinska/record.ai/archive/refs/heads/claude/notes-app.zip and unzip it.
 2. Open the new folder, select everything (⌘A), and copy it (⌘C).
-3. Open your **record.ai-claude-notes-app** folder and paste (⌘V). Choose **Apply to all → Replace**.
+3. Open your **SortNotes-claude-notes-app** folder and paste (⌘V). Choose **Apply to all → Replace**.
 
 ## 1. Install the Fly tool and log in
 
@@ -38,7 +38,7 @@ Signing up opens Chrome. Create the account, or use `fly auth login` if you alre
 ## 2. Create the app and its disk
 
 ```
-cd ~/record.ai-claude-notes-app
+cd ~/SortNotes-claude-notes-app
 ```
 ```
 fly apps create record-ai-nina
@@ -58,15 +58,15 @@ If Fly warns that one volume alone has no copy on another machine, type `y`. You
 fly deploy --remote-only
 ```
 
-This takes 2–4 minutes; Fly builds the app on its own computers. When it says the machine is healthy, open **https://record-ai-nina.fly.dev**. You'll see record.ai asking you to create an account. **Don't create one yet** if you're moving your notes in the next step.
+This takes 2–4 minutes; Fly builds the app on its own computers. When it says the machine is healthy, open **https://record-ai-nina.fly.dev**. You'll see SortNotes asking you to create an account. **Don't create one yet** if you're moving your notes in the next step.
 
 ## 4. Move your notes from your Mac
 
-1. **Stop record.ai on your Mac:** close its Terminal window. This makes sure the notes file is complete.
+1. **Stop SortNotes on your Mac:** close its Terminal window. This makes sure the notes file is complete.
 2. In Terminal, pack your notes and photos into one file:
 
    ```
-   COPYFILE_DISABLE=1 tar -czf ~/record-data.tar.gz -C ~/record.ai-claude-notes-app/data .
+   COPYFILE_DISABLE=1 tar -czf ~/record-data.tar.gz -C ~/SortNotes-claude-notes-app/data .
    ```
 
 3. Send that file to the server:
@@ -93,7 +93,7 @@ From now on, use the online address everywhere. Don't keep adding notes on the M
 
 ## 5. Turn on the AI (Claude)
 
-Online, the free Ollama AI can't run; the server is far too small. record.ai uses **Claude Haiku**, Anthropic's fast and cheap model.
+Online, the free Ollama AI can't run; the server is far too small. SortNotes uses **Claude Haiku**, Anthropic's fast and cheap model.
 
 1. At https://console.anthropic.com, add a little credit (the minimum is fine) and create an API key.
 2. In Terminal, run the line below with your own key. **Never paste the key into a chat.**
@@ -114,7 +114,7 @@ The app restarts by itself and starts organizing notes.
 Today, an update means running `fly deploy --remote-only` again from the app folder. To let GitHub do it after every change, once the tests pass:
 
 1. In Terminal, run `fly tokens create deploy --app record-ai-nina` and copy the long token it prints.
-2. On GitHub, go to **record.ai → Settings → Secrets and variables → Actions → New repository secret**. Name it `FLY_API_TOKEN`, paste the token, and save.
+2. On GitHub, go to **SortNotes → Settings → Secrets and variables → Actions → New repository secret**. Name it `FLY_API_TOKEN`, paste the token, and save.
 
 The workflow `.github/workflows/deploy-fly.yml` then deploys every change that reaches `main`.
 

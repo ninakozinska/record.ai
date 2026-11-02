@@ -55,7 +55,7 @@ import java.util.UUID
 
 /**
  * Text, dictation, camera and photo library. Used for new notes and in the editor.
- * Dictation and the camera use the phone's own apps, so record.ai needs no
+ * Dictation and the camera use the phone's own apps, so SortNotes needs no
  * microphone or camera permission.
  */
 @Composable

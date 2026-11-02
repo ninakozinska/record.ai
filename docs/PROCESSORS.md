@@ -1,4 +1,4 @@
-# Who processes personal data for record.ai (GDPR)
+# Who processes personal data for SortNotes (GDPR)
 
 The record of processors that the GDPR asks for (Article 28 and 30), and what is
 still to sign. The privacy policy (public/legal/privacy.html) names the same list.
@@ -14,7 +14,7 @@ service's dashboard.
 | Sentry | Server error reports | Account number, where the error happened | EU region possible | [Choose the EU region when creating the account; accept the DPA] |
 | Apple, Google, Mozilla push services | Deliver notifications | A device address; the text is encrypted end to end | Worldwide | [Not processors of content (encrypted); mention in the policy, as done] |
 
-**Not processors** (the person connects their own account, and record.ai acts on
+**Not processors** (the person connects their own account, and SortNotes acts on
 their instruction): Google Calendar, Microsoft Outlook, Calendly, iCloud, and the
 "Continue with Google / Apple / GitHub" sign-ins.
 

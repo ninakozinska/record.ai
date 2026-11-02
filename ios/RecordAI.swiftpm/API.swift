@@ -5,10 +5,10 @@ struct APIError: LocalizedError {
     var message: String
     var errorDescription: String? { message }
 
-    static let offline = APIError(status: 0, message: "Cannot reach your record.ai server. Is your Mac on, with record.ai running?")
+    static let offline = APIError(status: 0, message: "Cannot reach your SortNotes server. Is your Mac on, with SortNotes running?")
 }
 
-/// Talks to the record.ai server (the same API the web app uses).
+/// Talks to the SortNotes server (the same API the web app uses).
 struct API {
     var baseURL: URL
     var token: String?
@@ -90,12 +90,12 @@ struct API {
         _ = try await request("public/events", method: "POST", json: ["anon": anonId, "platform": "ios", "events": events])
     }
 
-    /// Checks that the address really is a record.ai server.
+    /// Checks that the address really is a SortNotes server.
     func checkServer() async throws {
         let data = try await request("health")
         let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
         if obj?["ok"] as? Bool != true {
-            throw APIError(status: 0, message: "That address answers, but it isn't a record.ai server.")
+            throw APIError(status: 0, message: "That address answers, but it isn't a SortNotes server.")
         }
     }
 

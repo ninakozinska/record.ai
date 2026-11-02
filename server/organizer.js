@@ -23,7 +23,7 @@ const listItemsBlock = (items) => (items.length
   : '');
 
 /** The person's own groups: the AI must use these exact names when a note fits. */
-/** The languages record.ai speaks (its interface, and the AI's group names). */
+/** The languages SortNotes speaks (its interface, and the AI's group names). */
 export const LANGUAGES = { en: 'English', it: 'Italian', fr: 'French', es: 'Spanish', pt: 'Portuguese', de: 'German', pl: 'Polish' };
 const languageLine = (lang) => (LANGUAGES[lang]
   ? `The person's language: ${LANGUAGES[lang]}. Name any new group in ${LANGUAGES[lang]}.\n`
@@ -492,8 +492,8 @@ function isBillingError(err) {
 export function friendlyError(err, provider) {
   if (err instanceof LocalAiError) {
     return err.kind === 'not-running'
-      ? 'The free local AI (Ollama) is not running. Open the Ollama app, then restart record.ai.'
-      : `The local AI model "${ollamaModel()}" is not downloaded yet. Restart record.ai to download it.`;
+      ? 'The free local AI (Ollama) is not running. Open the Ollama app, then restart SortNotes.'
+      : `The local AI model "${ollamaModel()}" is not downloaded yet. Restart SortNotes to download it.`;
   }
   if (provider === 'anthropic') {
     if (isBillingError(err)) return 'Your Anthropic account has no credit. Add credit at console.anthropic.com → Plans & Billing, then click Re-analyze.';

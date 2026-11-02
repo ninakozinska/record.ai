@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// First screen: where is the record.ai server (the Mac)?
+/// First screen: where is the SortNotes server (the Mac)?
 struct ConnectView: View {
     @Environment(NoteStore.self) private var store
     @State private var address = ""
@@ -17,7 +17,7 @@ struct ConnectView: View {
                             .foregroundStyle(.indigo)
                         Text(tr("Connect to your notes"))
                             .font(.title2.bold())
-                        Text(tr("Enter the address of your record.ai server. On your Mac, open record.ai in the browser and tap your initials (top right): the address is shown there."))
+                        Text(tr("Enter the address of your SortNotes server. On your Mac, open SortNotes in the browser and tap your initials (top right): the address is shown there."))
                             .foregroundStyle(.secondary)
                     }
                     .padding(.vertical, 8)
@@ -45,7 +45,7 @@ struct ConnectView: View {
                     Text(tr("Your iPhone and your Mac must be on the same network (for example your iPhone's hotspot), or connected with Tailscale."))
                 }
             }
-            .navigationTitle("record.ai")
+            .navigationTitle("SortNotes")
         }
     }
 

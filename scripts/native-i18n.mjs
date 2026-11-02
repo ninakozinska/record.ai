@@ -29,7 +29,7 @@ const files = (entries, ext) => entries.flatMap((e) => {
 const sources = () => [...files(SWIFT_DIRS, '.swift'), ...files(KOTLIN_DIRS, '.kt')];
 
 const LITERAL = /(?<![\w"])"((?:[^"\\\n]|\\.)*)"/g;
-const NOT_WORDS = new Set(['Bearer', 'Authorization', 'Content-Type', 'GET', 'POST', 'PUT', 'DELETE', 'JSON', 'UTF-8', 'record.ai']);
+const NOT_WORDS = new Set(['Bearer', 'Authorization', 'Content-Type', 'GET', 'POST', 'PUT', 'DELETE', 'JSON', 'UTF-8', 'SortNotes']);
 
 /** Words a person reads, not a key, a format or a name in the code. */
 function isWords(s) {

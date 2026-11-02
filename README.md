@@ -1,4 +1,4 @@
-# record.ai
+# SortNotes
 
 Notes you **type, dictate, or photograph**. They sync across your phone, your computer, and the web, and **AI organizes them for you** (Claude online, or a free model running on your own computer): it gives each note a title, a priority (urgent, high, normal, low), a topic group, tags and a due date.
 
@@ -31,7 +31,7 @@ Notes you **type, dictate, or photograph**. They sync across your phone, your co
 3. Double-click **`Start record.ai.command`**. The first time, macOS blocks it. Click **Done**, then go to System Settings → Privacy & Security → **Open Anyway**.
    It installs what it needs, asks which AI to use, starts the server and opens the app. On the first visit, create your account.
    Keep the Terminal window open while you use the app. Close it to stop.
-4. **Phone:** install [Tailscale](https://tailscale.com/download) on the Mac and the phone, signed in to the same account, then start record.ai again.
+4. **Phone:** install [Tailscale](https://tailscale.com/download) on the Mac and the phone, signed in to the same account, then start SortNotes again.
    The Terminal window shows an `https://….ts.net` address to open on your phone.
 
 **Which AI?** The first start asks you. Double-click **`Change AI.command`** at any time to switch:
@@ -88,8 +88,8 @@ Open your server's URL, log in, then:
 | Device | How |
 |---|---|
 | iPhone / iPad | Safari → Share → **Add to Home Screen** |
-| Android | Chrome → ⋮ → **Install app**. Afterwards you can share text from other apps straight into record.ai. |
-| Windows / macOS / Linux | Chrome or Edge → install icon in the address bar (or ⋮ → **Install record.ai**) |
+| Android | Chrome → ⋮ → **Install app**. Afterwards you can share text from other apps straight into SortNotes. |
+| Windows / macOS / Linux | Chrome or Edge → install icon in the address bar (or ⋮ → **Install SortNotes**) |
 | Any browser | Just use the website |
 
 ## Accounts
@@ -122,7 +122,7 @@ Open your server's URL, log in, then:
 | `ADMIN_EMAILS` | *(none)* | Comma-separated emails that may open the dashboard (/admin.html) besides the owner (the first account). |
 | `OPTIMIZER` | *(on)* | `off` stops the hourly optimization loops and the daily backups. See [docs/OPTIMIZATION.md](docs/OPTIMIZATION.md). |
 | `AI_UNLIMITED` | *(none)* | Comma-separated emails that have no monthly AI limit either. |
-| `RESEND_API_KEY`, `MAIL_FROM` | *(none)* | Sends "Forgot your password?" emails through [Resend](https://resend.com) (`MAIL_FROM` like `record.ai <hello@your-domain>`, on a domain verified there). Without them the reset link is only written to the server log. |
+| `RESEND_API_KEY`, `MAIL_FROM` | *(none)* | Sends "Forgot your password?" emails through [Resend](https://resend.com) (`MAIL_FROM` like `SortNotes <hello@your-domain>`, on a domain verified there). Without them the reset link is only written to the server log. |
 | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_SOLO`, `STRIPE_PRICE_FAMILY` | *(none)* | Opens payments for Solo and Family through Stripe. Step by step: [docs/PAYMENTS.md](docs/PAYMENTS.md). |
 | `PUBLIC_URL` | *(the address used)* | The app's public address, used in emailed links (e.g. `https://record-ai-nina.fly.dev`). |
 | `PORT` | `3000` | HTTP port. |

@@ -1,4 +1,4 @@
-# Developing record.ai
+# Developing SortNotes
 
 ## How the parts fit
 

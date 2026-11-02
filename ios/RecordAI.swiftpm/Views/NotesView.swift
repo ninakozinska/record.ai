@@ -104,7 +104,7 @@ struct NotesView: View {
                 await store.pull()
                 await store.flush()
             }
-            .navigationTitle("record.ai")
+            .navigationTitle("SortNotes")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) { syncDot }

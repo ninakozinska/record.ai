@@ -1,4 +1,4 @@
-# record.ai server API
+# SortNotes server API
 
 The web app (`public/`) and the iPhone app (`ios/`) use this HTTP API. All bodies are JSON unless noted. Times are milliseconds since 1970.
 
@@ -14,7 +14,7 @@ Sessions expire after 400 days without use. The server stores only a SHA-256 has
 
 | Method | Path | Body | Answer |
 |---|---|---|---|
-| GET | `/api/health` | | `{"ok":true,"app":"record.ai"}` |
+| GET | `/api/health` | | `{"ok":true,"app":"SortNotes"}` |
 | GET | `/api/auth/state` | | `{"user": {id,name,email} \| null, "signup": {"open","needsCode","firstAccount"}}` |
 | POST | `/api/auth/signup` | `{name, email, password, code?}` | `{token, user}`; 400 invalid input, 403 sign-up closed or wrong invite code, 409 email taken |
 | POST | `/api/auth/login` | `{email, password}` | `{token, user}`; 401 wrong email or password; 429 after 10 failures in 15 minutes (per IP and per email) |

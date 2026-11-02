@@ -1,6 +1,6 @@
-# record.ai for iPhone
+# SortNotes for iPhone
 
-A native iPhone app (SwiftUI) for your record.ai notes. It connects to the same server as the web app and uses the same account.
+A native iPhone app (SwiftUI) for your SortNotes notes. It connects to the same server as the web app and uses the same account.
 
 - Write notes, **dictate** them (Apple speech recognition, on the iPhone when supported), **take photos** or pick them from your library.
 - Notes sorted by **priority** or **groups**, with search, group filters, swipe to mark done or delete.
@@ -19,11 +19,11 @@ You need a Mac with **Xcode**. Xcode is free, but it's a big download, so use Wi
 3. **On the iPhone, turn on Developer Mode:** Settings → **Privacy & Security** → **Developer Mode** → On. The iPhone restarts.
 4. **Connect the iPhone to the Mac with a cable** (only needed the first time). On the iPhone, tap **Trust**.
 5. In Finder, open the project folder → **ios** → double-click **RecordAI.swiftpm**. It opens in Xcode.
-6. In Xcode's left sidebar, click **record.ai**, then the **Signing & Capabilities** tab. Under **Team**, choose your name (**Personal Team**).
+6. In Xcode's left sidebar, click **SortNotes**, then the **Signing & Capabilities** tab. Under **Team**, choose your name (**Personal Team**).
    If Xcode says the bundle identifier is not available, change `com.ninakozinska.recordai` to something unique, such as `com.yourname.recordai`.
 7. At the top of the Xcode window, pick **your iPhone** as the device, then press **▶ (Run)**.
 8. The first time, the iPhone says **"Untrusted Developer"**. On the iPhone, go to Settings → **General** → **VPN & Device Management** → your Apple ID → **Trust**. Then press ▶ again.
-9. In the app, enter your server address. To find it, open record.ai in the browser on your Mac and tap your initials (top right). Then log in.
+9. In the app, enter your server address. To find it, open SortNotes in the browser on your Mac and tap your initials (top right). Then log in.
 
 **With a free Apple ID, the app stops opening after 7 days.** Connect the iPhone and press ▶ in Xcode again; your notes stay. A paid Apple Developer account ($99/year) makes it last a year and lets you share the app through TestFlight.
 

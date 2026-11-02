@@ -1,13 +1,13 @@
 # Your notes in Claude, ChatGPT, Gemini and other AI assistants
 
-record.ai can give an AI assistant your notes as context, so you can ask it
+SortNotes can give an AI assistant your notes as context, so you can ask it
 "What's on this week?", "Plan Saturday around the kids' activities", or "Turn
 this conversation into notes". It works with any assistant that supports MCP
 (the Model Context Protocol), and there is a copy button for those that don't.
 
 ## Connect an assistant (two minutes)
 
-1. In record.ai, tap your initials → **🤖 AI assistants**.
+1. In SortNotes, tap your initials → **🤖 AI assistants**.
 2. Pick the assistant. Tick **Can add notes** only if it should also write notes.
 3. Tap **Connect**. An address ending in a key (`…/mcp/rai_…`) is shown **once**: copy it.
 4. Paste it into the assistant:
@@ -31,13 +31,13 @@ The menus of these assistants change often; if a step has moved, look for "conne
 | `search_notes` | Find notes by words in the title, text, group or list items |
 | `get_note` | One note in full, with its list |
 | `list_groups` | The groups and how many open notes each has |
-| `add_note` | Write a note (only with a key that may add notes); record.ai's AI then sorts it |
+| `add_note` | Write a note (only with a key that may add notes); SortNotes's AI then sorts it |
 
 It sees your own notes and the ones shared with you, never anyone else's.
 
 ## Safety
 
-- The key is shown once; record.ai keeps only a fingerprint of it.
+- The key is shown once; SortNotes keeps only a fingerprint of it.
 - Anyone with the address can read your notes. Keep it private; remove the key under 🤖 AI assistants if it leaks, and it stops working at once.
 - Each key shows when it was last used. Make one key per assistant, so you can remove one without the others.
 - What the assistant does with your notes is under its own terms (Anthropic, OpenAI, Google…).

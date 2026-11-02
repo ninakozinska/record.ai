@@ -51,6 +51,6 @@ test('the reset email is in the account\'s language, else the browser\'s', async
   assert.equal(mailLanguage(null, 'fr-CH, fr;q=0.9, en;q=0.8'), 'fr');
   assert.equal(mailLanguage(null, 'ja-JP'), 'en');
   const it = resetEmail('it', { name: 'Nina', link: 'https://x/#reset=abc' });
-  assert.equal(it.subject, 'Reimposta la password di record.ai');
+  assert.equal(it.subject, 'Reimposta la password di SortNotes');
   assert.match(it.text, /^Ciao Nina,[\s\S]*https:\/\/x\/#reset=abc/);
 });

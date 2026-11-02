@@ -44,7 +44,7 @@ struct AccountView: View {
                     } header: {
                         Text(tr("Sign-in options"))
                     } footer: {
-                        Text(tr("To connect more, open record.ai in a browser and tap your initials."))
+                        Text(tr("To connect more, open SortNotes in a browser and tap your initials."))
                     }
                 }
                 Section {
@@ -178,7 +178,7 @@ struct AccountView: View {
     private var logoutQuestion: String {
         store.unsent > 0
             ? "\(store.unsent) change(s) haven't reached the server yet and will be lost. Log out anyway?"
-            : tr("Log out of record.ai on this iPhone?")
+            : tr("Log out of SortNotes on this iPhone?")
     }
 
     private func changePassword() {

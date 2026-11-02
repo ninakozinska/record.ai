@@ -231,21 +231,21 @@
   "pl": "Usuwa na zawsze konto, wszystkie notatki i zdjęcia oraz kopie.",
   "pt": "Apaga para sempre a sua conta, todas as notas e fotos, e as cópias."
  },
- "Enter the address of your record.ai server. On your Mac, open record.ai in the browser and tap your initials (top right): the address is shown there.": {
-  "de": "Gib die Adresse deines record.ai-Servers ein. Öffne record.ai auf dem Mac im Browser und tippe auf deine Initialen (oben rechts): Dort steht die Adresse.",
-  "es": "Escribe la dirección de tu servidor record.ai. En tu Mac, abre record.ai en el navegador y toca tus iniciales (arriba a la derecha): ahí está la dirección.",
-  "fr": "Saisissez l'adresse de votre serveur record.ai. Sur votre Mac, ouvrez record.ai dans le navigateur et touchez vos initiales (en haut à droite) : l'adresse y figure.",
-  "it": "Inserisci l'indirizzo del tuo server record.ai. Sul Mac, apri record.ai nel browser e tocca le tue iniziali (in alto a destra): l'indirizzo è lì.",
-  "pl": "Wpisz adres serwera record.ai. Na Macu otwórz record.ai w przeglądarce i dotknij inicjałów (u góry po prawej): tam jest adres.",
-  "pt": "Escreva o endereço do seu servidor record.ai. No Mac, abra o record.ai no navegador e toque nas suas iniciais (em cima à direita): o endereço aparece lá."
+ "Enter the address of your SortNotes server. On your Mac, open SortNotes in the browser and tap your initials (top right): the address is shown there.": {
+  "de": "Gib die Adresse deines SortNotes-Servers ein. Öffne SortNotes auf dem Mac im Browser und tippe auf deine Initialen (oben rechts): Dort steht die Adresse.",
+  "es": "Escribe la dirección de tu servidor SortNotes. En tu Mac, abre SortNotes en el navegador y toca tus iniciales (arriba a la derecha): ahí está la dirección.",
+  "fr": "Saisissez l'adresse de votre serveur SortNotes. Sur votre Mac, ouvrez SortNotes dans le navigateur et touchez vos initiales (en haut à droite) : l'adresse y figure.",
+  "it": "Inserisci l'indirizzo del tuo server SortNotes. Sul Mac, apri SortNotes nel browser e tocca le tue iniziali (in alto a destra): l'indirizzo è lì.",
+  "pl": "Wpisz adres serwera SortNotes. Na Macu otwórz SortNotes w przeglądarce i dotknij inicjałów (u góry po prawej): tam jest adres.",
+  "pt": "Escreva o endereço do seu servidor SortNotes. No Mac, abra o SortNotes no navegador e toque nas suas iniciais (em cima à direita): o endereço aparece lá."
  },
- "Enter the address of your record.ai server. On your computer, open record.ai in the browser and tap your initials (top right): the address is shown there.": {
-  "de": "Gib die Adresse deines record.ai-Servers ein. Öffne record.ai auf dem Computer im Browser und tippe auf deine Initialen (oben rechts): Dort steht die Adresse.",
-  "es": "Escribe la dirección de tu servidor record.ai. En tu ordenador, abre record.ai en el navegador y toca tus iniciales (arriba a la derecha): ahí está la dirección.",
-  "fr": "Saisissez l'adresse de votre serveur record.ai. Sur votre ordinateur, ouvrez record.ai dans le navigateur et touchez vos initiales (en haut à droite) : l'adresse y figure.",
-  "it": "Inserisci l'indirizzo del tuo server record.ai. Sul computer, apri record.ai nel browser e tocca le tue iniziali (in alto a destra): l'indirizzo è lì.",
-  "pl": "Wpisz adres serwera record.ai. Na komputerze otwórz record.ai w przeglądarce i dotknij inicjałów (u góry po prawej): tam jest adres.",
-  "pt": "Escreva o endereço do seu servidor record.ai. No computador, abra o record.ai no navegador e toque nas suas iniciais (em cima à direita): o endereço aparece lá."
+ "Enter the address of your SortNotes server. On your computer, open SortNotes in the browser and tap your initials (top right): the address is shown there.": {
+  "de": "Gib die Adresse deines SortNotes-Servers ein. Öffne SortNotes auf dem Computer im Browser und tippe auf deine Initialen (oben rechts): Dort steht die Adresse.",
+  "es": "Escribe la dirección de tu servidor SortNotes. En tu ordenador, abre SortNotes en el navegador y toca tus iniciales (arriba a la derecha): ahí está la dirección.",
+  "fr": "Saisissez l'adresse de votre serveur SortNotes. Sur votre ordinateur, ouvrez SortNotes dans le navigateur et touchez vos initiales (en haut à droite) : l'adresse y figure.",
+  "it": "Inserisci l'indirizzo del tuo server SortNotes. Sul computer, apri SortNotes nel browser e tocca le tue iniziali (in alto a destra): l'indirizzo è lì.",
+  "pl": "Wpisz adres serwera SortNotes. Na komputerze otwórz SortNotes w przeglądarce i dotknij inicjałów (u góry po prawej): tam jest adres.",
+  "pt": "Escreva o endereço do seu servidor SortNotes. No computador, abra o SortNotes no navegador e toque nas suas iniciais (em cima à direita): o endereço aparece lá."
  },
  "Everyone you add sees every note in this group, also ones added later.": {
   "de": "Alle, die du hinzufügst, sehen jede Notiz dieser Gruppe, auch spätere.",
@@ -319,21 +319,21 @@
   "pl": "Zaloguj się tym samym e-mailem i hasłem co na komputerze.",
   "pt": "Entre com o mesmo email e palavra-passe do computador."
  },
- "Log out of record.ai on this iPhone?": {
-  "de": "Auf diesem iPhone von record.ai abmelden?",
-  "es": "¿Cerrar sesión de record.ai en este iPhone?",
-  "fr": "Se déconnecter de record.ai sur cet iPhone ?",
-  "it": "Uscire da record.ai su questo iPhone?",
-  "pl": "Wylogować się z record.ai na tym iPhonie?",
-  "pt": "Sair do record.ai neste iPhone?"
+ "Log out of SortNotes on this iPhone?": {
+  "de": "Auf diesem iPhone von SortNotes abmelden?",
+  "es": "¿Cerrar sesión de SortNotes en este iPhone?",
+  "fr": "Se déconnecter de SortNotes sur cet iPhone ?",
+  "it": "Uscire da SortNotes su questo iPhone?",
+  "pl": "Wylogować się z SortNotes na tym iPhonie?",
+  "pt": "Sair do SortNotes neste iPhone?"
  },
- "Log out of record.ai on this phone?": {
-  "de": "Auf diesem Handy von record.ai abmelden?",
-  "es": "¿Cerrar sesión de record.ai en este teléfono?",
-  "fr": "Se déconnecter de record.ai sur ce téléphone ?",
-  "it": "Uscire da record.ai su questo telefono?",
-  "pl": "Wylogować się z record.ai na tym telefonie?",
-  "pt": "Sair do record.ai neste telemóvel?"
+ "Log out of SortNotes on this phone?": {
+  "de": "Auf diesem Handy von SortNotes abmelden?",
+  "es": "¿Cerrar sesión de SortNotes en este teléfono?",
+  "fr": "Se déconnecter de SortNotes sur ce téléphone ?",
+  "it": "Uscire da SortNotes su questo telefono?",
+  "pl": "Wylogować się z SortNotes na tym telefonie?",
+  "pt": "Sair do SortNotes neste telemóvel?"
  },
  "Log out?": {
   "de": "Abmelden?",
@@ -719,13 +719,13 @@
   "pl": "Godzina",
   "pt": "Hora"
  },
- "To connect more, open record.ai in a browser and tap your initials.": {
-  "de": "Um weitere zu verbinden, öffne record.ai im Browser und tippe auf deine Initialen.",
-  "es": "Para conectar más, abre record.ai en un navegador y toca tus iniciales.",
-  "fr": "Pour en connecter d'autres, ouvrez record.ai dans un navigateur et touchez vos initiales.",
-  "it": "Per collegarne altri, apri record.ai in un browser e tocca le tue iniziali.",
-  "pl": "Aby połączyć więcej, otwórz record.ai w przeglądarce i dotknij inicjałów.",
-  "pt": "Para ligar mais, abra o record.ai num navegador e toque nas suas iniciais."
+ "To connect more, open SortNotes in a browser and tap your initials.": {
+  "de": "Um weitere zu verbinden, öffne SortNotes im Browser und tippe auf deine Initialen.",
+  "es": "Para conectar más, abre SortNotes en un navegador y toca tus iniciales.",
+  "fr": "Pour en connecter d'autres, ouvrez SortNotes dans un navigateur et touchez vos initiales.",
+  "it": "Per collegarne altri, apri SortNotes in un browser e tocca le tue iniziali.",
+  "pl": "Aby połączyć więcej, otwórz SortNotes w przeglądarce i dotknij inicjałów.",
+  "pt": "Para ligar mais, abra o SortNotes num navegador e toque nas suas iniciais."
  },
  "Type your email above, then tap this again.": {
   "de": "Gib oben deine E-Mail ein und tippe dann noch einmal hier.",

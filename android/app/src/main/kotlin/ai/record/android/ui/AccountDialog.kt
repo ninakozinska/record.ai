@@ -83,7 +83,7 @@ fun AccountDialog(repo: NoteRepository, state: UiState, onClose: () -> Unit) {
                             }) { Text(tr("Disconnect"), color = MaterialTheme.colorScheme.error) }
                         }
                     }
-                    Text(tr("To connect more, open record.ai in a browser and tap your initials."), style = MaterialTheme.typography.bodySmall)
+                    Text(tr("To connect more, open SortNotes in a browser and tap your initials."), style = MaterialTheme.typography.bodySmall)
                 }
                 HorizontalDivider()
                 Text(if (hasPassword) tr("Change password") else tr("Set a password"), style = MaterialTheme.typography.titleSmall)
@@ -150,7 +150,7 @@ fun AccountDialog(repo: NoteRepository, state: UiState, onClose: () -> Unit) {
             onDismissRequest = { confirmLogout = false },
             title = { Text(tr("Log out?")) },
             text = {
-                Text(if (state.unsent > 0) "${state.unsent} change(s) haven't reached the server yet and will be lost." else tr("Log out of record.ai on this phone?"))
+                Text(if (state.unsent > 0) "${state.unsent} change(s) haven't reached the server yet and will be lost." else tr("Log out of SortNotes on this phone?"))
             },
             confirmButton = {
                 TextButton(onClick = {

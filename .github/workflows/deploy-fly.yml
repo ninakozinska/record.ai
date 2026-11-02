@@ -1,4 +1,4 @@
-# Puts record.ai online on Fly.io after every change to main, once the tests pass.
+# Puts SortNotes online on Fly.io after every change to main, once the tests pass.
 # Turned on by adding a FLY_API_TOKEN secret to the repository (docs/DEPLOY_FLY.md);
 # without it, this does nothing.
 name: Deploy to Fly.io

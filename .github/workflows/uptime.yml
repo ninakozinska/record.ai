@@ -1,5 +1,5 @@
-# Is record.ai up? Checked every 15 minutes from GitHub, for free. When it is
-# down, an issue "record.ai is down" opens (GitHub emails you); when it is
+# Is SortNotes up? Checked every 15 minutes from GitHub, for free. When it is
+# down, an issue "SortNotes is down" opens (GitHub emails you); when it is
 # back, the issue closes. Set the APP_URL variable (Settings → Secrets and
 # variables → Actions → Variables) when you move to your own domain.
 name: Uptime
@@ -33,7 +33,7 @@ jobs:
           open=$(gh issue list --label down --state open --json number --jq '.[0].number')
           if [ "$UP" = "false" ] && [ -z "$open" ]; then
             gh label create down --color B60205 --description "The app is not answering" --force
-            gh issue create --label down --title "record.ai is down" --body "The health check at $URL/api/health did not answer three times in a row ($(date -u '+%Y-%m-%d %H:%M UTC')). Check the Fly.io dashboard or run: fly status, fly logs. This issue closes by itself when the app answers again."
+            gh issue create --label down --title "SortNotes is down" --body "The health check at $URL/api/health did not answer three times in a row ($(date -u '+%Y-%m-%d %H:%M UTC')). Check the Fly.io dashboard or run: fly status, fly logs. This issue closes by itself when the app answers again."
           elif [ "$UP" = "true" ] && [ -n "$open" ]; then
             gh issue close "$open" --comment "Back up at $(date -u '+%Y-%m-%d %H:%M UTC')."
           fi

@@ -73,7 +73,7 @@ final class NoteStore {
 
     private static var folder: URL {
         let url = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("record.ai", isDirectory: true)
+            .appendingPathComponent("SortNotes", isDirectory: true)
         try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
         return url
     }

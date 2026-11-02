@@ -22,7 +22,7 @@ final class Dictation {
     func start() async {
         errorMessage = nil
         guard await Self.permissionsGranted() else {
-            errorMessage = "Allow Microphone and Speech Recognition for record.ai in Settings to dictate."
+            errorMessage = "Allow Microphone and Speech Recognition for SortNotes in Settings to dictate."
             return
         }
         guard let recognizer, recognizer.isAvailable else {

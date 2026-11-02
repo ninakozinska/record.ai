@@ -136,11 +136,11 @@ const escHtml = (s) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 function backToApp(res, url) {
   const href = escHtml(url);
   res.set('Cache-Control', 'no-store').type('html').send(`<!doctype html><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1"><title>record.ai</title>
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>SortNotes</title>
 <meta http-equiv="refresh" content="0;url=${href}">
 <body style="font:17px system-ui;text-align:center;padding:48px 16px">
-<p>Returning to record.ai…</p>
-<p><a id="go" href="${href}" style="display:inline-block;padding:12px 20px;border-radius:10px;background:#4f46e5;color:#fff;text-decoration:none">Open record.ai</a></p>
+<p>Returning to SortNotes…</p>
+<p><a id="go" href="${href}" style="display:inline-block;padding:12px 20px;border-radius:10px;background:#4f46e5;color:#fff;text-decoration:none">Open SortNotes</a></p>
 <script>location.href = document.getElementById('go').href;</script>
 </body>`);
 }
@@ -219,7 +219,7 @@ export function oauthRoutes({ store, env = process.env, fetch: fetchImpl = fetch
       const owner = store.identityUser(id, profile.id);
       if (flow.linkUserId) {
         if (owner && owner.id !== flow.linkUserId) {
-          throw new OAuthError(`This ${PROVIDERS[id].name} account is already used by another record.ai account.`);
+          throw new OAuthError(`This ${PROVIDERS[id].name} account is already used by another SortNotes account.`);
         }
         store.addIdentity(flow.linkUserId, id, profile.id, profile.email);
         return finish(res, flow, { linked: id });
@@ -310,7 +310,7 @@ export function oauthRoutes({ store, env = process.env, fetch: fetchImpl = fetch
 
     const get = async (url) => {
       const r = await fetchImpl(url, {
-        headers: { Authorization: `Bearer ${tokens.access_token}`, Accept: 'application/json', 'User-Agent': 'record.ai' },
+        headers: { Authorization: `Bearer ${tokens.access_token}`, Accept: 'application/json', 'User-Agent': 'SortNotes' },
       });
       if (!r.ok) throw new Error(`profile request ${r.status}`);
       return r.json();

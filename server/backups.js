@@ -193,7 +193,7 @@ function tarHeader(name, size) {
 function markdown(snap) {
   const lists = snap.notes.filter((n) => !n.parent_id);
   const itemsOf = (id) => snap.notes.filter((n) => n.parent_id === id);
-  const lines = [`# My record.ai notes`, '', `Exported ${new Date(snap.created_at).toISOString().slice(0, 10)}, ${lists.length} notes.`, ''];
+  const lines = [`# My SortNotes notes`, '', `Exported ${new Date(snap.created_at).toISOString().slice(0, 10)}, ${lists.length} notes.`, ''];
   for (const n of lists) {
     const heading = n.title || n.text.split('\n')[0] || 'Note';
     lines.push(`## ${n.done ? '[done] ' : ''}${heading}`);
