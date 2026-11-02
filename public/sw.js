@@ -54,7 +54,7 @@ self.addEventListener('push', (e) => {
       return {};
     }
   })();
-  e.waitUntil(self.registration.showNotification(d.title || 'record.ai', {
+  e.waitUntil(self.registration.showNotification(d.title || 'SortNotes', {
     body: d.body || '', tag: d.tag, data: { url: d.url || './' }, icon: 'icons/icon-192.png', badge: 'icons/icon-192.png',
   }));
 });

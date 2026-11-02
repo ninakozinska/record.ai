@@ -23,7 +23,7 @@ export async function ensureOllamaModel({ log = console, waitSeconds = 30 } = {}
     tags = await reachable();
   }
   if (!tags) {
-    log.warn('WARNING: the local AI (Ollama) is not running. Open the Ollama app, then restart record.ai.');
+    log.warn('WARNING: the local AI (Ollama) is not running. Open the Ollama app, then restart SortNotes.');
     return false;
   }
   const have = (tags.models || []).some((m) => m.name === model || m.model === model || m.name === `${model}:latest`);
@@ -67,7 +67,7 @@ export async function ensureOllamaModel({ log = console, waitSeconds = 30 } = {}
     }
     throw new Error('download ended unexpectedly');
   } catch (err) {
-    log.warn(`WARNING: could not download the local AI model (${err.message}). Check your internet connection and restart record.ai.`);
+    log.warn(`WARNING: could not download the local AI model (${err.message}). Check your internet connection and restart SortNotes.`);
     return false;
   }
 }

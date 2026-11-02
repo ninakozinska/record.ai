@@ -32,7 +32,7 @@ process.on('uncaughtException', (err) => {
 });
 
 app.listen(port, () => {
-  console.log(`record.ai listening on http://localhost:${port}`);
+  console.log(`SortNotes listening on http://localhost:${port}`);
   console.log(`data directory: ${dataDir}`);
   const ai = organizer.status;
   console.log(ai.enabled ? `AI: ${ai.provider === 'ollama' ? 'free local AI' : 'Claude'} (${ai.model})` : 'AI: off');

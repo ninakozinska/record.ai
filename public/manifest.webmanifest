@@ -1,6 +1,6 @@
 {
-  "name": "record.ai",
-  "short_name": "record.ai",
+  "name": "SortNotes",
+  "short_name": "SortNotes",
   "description": "Notes you type, dictate or photograph — organized automatically by AI.",
   "start_url": "./",
   "scope": "./",

@@ -19,7 +19,7 @@ dependencies {
 }
 
 tasks.test {
-    // The integration test starts the real record.ai server with Node.js.
+    // The integration test starts the real SortNotes server with Node.js.
     systemProperty("recordai.root", rootProject.projectDir.parentFile.absolutePath)
     testLogging { events("passed", "failed", "skipped"); exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL }
 }

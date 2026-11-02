@@ -1,13 +1,13 @@
 # Shared helpers for the double-click Mac launchers. Sourced, not run.
 
 alert() {
-  osascript -e "display alert \"record.ai\" message \"$1\"" >/dev/null 2>&1
+  osascript -e "display alert \"SortNotes\" message \"$1\"" >/dev/null 2>&1
 }
 
 ask() { # ask "<question>" [hidden] -> prints the answer, fails on Cancel
   local hidden=""
   [ "$2" = "hidden" ] && hidden="with hidden answer"
-  osascript -e "text returned of (display dialog \"$1\" default answer \"\" $hidden with title \"record.ai\")" 2>/dev/null
+  osascript -e "text returned of (display dialog \"$1\" default answer \"\" $hidden with title \"SortNotes\")" 2>/dev/null
 }
 
 setting() { # setting KEY -> value from .env
@@ -30,7 +30,7 @@ choose_ai() { # asks which AI to use and saves it; fails on Cancel
 
 • Claude online (cheap) — smarter. Costs a few cents per 100 notes; needs an Anthropic API key with credit.
 
-• No AI — notes are saved but not sorted." buttons {"No AI", "Claude online (cheap)", "Free on this Mac"} default button 3 with title "record.ai")' 2>/dev/null) || return 1
+• No AI — notes are saved but not sorted." buttons {"No AI", "Claude online (cheap)", "Free on this Mac"} default button 3 with title "SortNotes")' 2>/dev/null) || return 1
   case "$choice" in
     "Free on this Mac")
       set_setting AI_PROVIDER ollama
@@ -53,7 +53,7 @@ start_ollama() { # makes sure the Ollama app is installed and running
   if [ -d /Applications/Ollama.app ]; then
     open -ga Ollama
   elif ! command -v ollama >/dev/null 2>&1; then
-    alert "The free AI needs the Ollama app. Its download page will open now: download it, open it once (move it to Applications if asked), then double-click 'Start record.ai' again.
+    alert "The free AI needs the Ollama app. Its download page will open now: download it, open it once (move it to Applications if asked), then double-click 'Start SortNotes' again.
 
 To change your choice instead, double-click 'Change AI'."
     open "https://ollama.com/download"
@@ -61,7 +61,7 @@ To change your choice instead, double-click 'Change AI'."
   fi
 }
 
-stop_server() { # stops a running record.ai on port $PORT
+stop_server() { # stops a running SortNotes on port $PORT
   local pids
   pids=$(lsof -tiTCP:"$PORT" -sTCP:LISTEN 2>/dev/null)
   [ -n "$pids" ] && kill $pids && sleep 1

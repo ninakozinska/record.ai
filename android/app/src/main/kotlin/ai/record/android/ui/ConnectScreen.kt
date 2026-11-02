@@ -32,7 +32,7 @@ import androidx.compose.ui.unit.dp
 import ai.record.core.NoteRepository
 import kotlinx.coroutines.launch
 
-/** First screen: where is the record.ai server? */
+/** First screen: where is the SortNotes server? */
 @Composable
 fun ConnectScreen(repo: NoteRepository) {
     var address by remember { mutableStateOf("") }
@@ -54,7 +54,7 @@ fun ConnectScreen(repo: NoteRepository) {
         Icon(Icons.Filled.Edit, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
         Text(tr("Connect to your notes"), style = MaterialTheme.typography.headlineSmall)
         Text(
-            tr("Enter the address of your record.ai server. On your computer, open record.ai in the browser and tap your initials (top right): the address is shown there."),
+            tr("Enter the address of your SortNotes server. On your computer, open SortNotes in the browser and tap your initials (top right): the address is shown there."),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         OutlinedTextField(

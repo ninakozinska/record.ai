@@ -104,7 +104,7 @@ export function authRoutes({ store, imagesDir, throttle = new Throttle(), oauth 
       throw new OAuthError('This server needs an invite code. Choose "Create an account", enter the code, then use the button again.');
     }
     const email = profile.email || `${String(profile.id).replace(/[^A-Za-z0-9._-]/g, '')}.${profile.provider}${NO_EMAIL}`;
-    const name = String(profile.name || '').trim() || (profile.email ? profile.email.split('@')[0] : 'record.ai user');
+    const name = String(profile.name || '').trim() || (profile.email ? profile.email.split('@')[0] : 'SortNotes user');
     const user = store.createUser({ email, name: name.slice(0, 80), pwHash: '', imagesDir });
     if (personal) store.finishInvite(invite, user.id);
     onSignup(user, { method: profile.provider });

@@ -129,12 +129,12 @@ test('Google both ways: meetings come in, dated notes go out, moves and deletion
     meeting = t.store.get(meeting.id);
     assert.equal(meeting.due_time, '11:30');
 
-    // Moved in record.ai: the event follows, keeping its length.
+    // Moved in SortNotes: the event follows, keeping its length.
     await t.api(`notes/${N1}`, { method: 'PUT', body: JSON.stringify({ user_due: `${day}T17:00`, edited_at: now + 1000 }) });
     await t.calendars.sync(link.id);
     assert.deepEqual(g.events.get(sent.id).start, { dateTime: `${day}T17:00:00`, timeZone: TZ });
 
-    // Deleted in record.ai: record.ai's event goes; deleting the meeting note leaves the meeting in Google.
+    // Deleted in SortNotes: SortNotes's event goes; deleting the meeting note leaves the meeting in Google.
     await t.api(`notes/${N1}`, { method: 'PUT', body: JSON.stringify({ deleted: true, edited_at: now + 2000 }) });
     await t.api(`notes/${meeting.id}`, { method: 'PUT', body: JSON.stringify({ deleted: true, edited_at: now + 2000 }) });
     await t.calendars.sync(link.id);
@@ -160,7 +160,7 @@ test('Google both ways: meetings come in, dated notes go out, moves and deletion
     const ics = await (await fetch(feed.body.url)).text();
     assert.ok(!ics.includes('Lunch'));
 
-    // Disconnecting takes the meetings out of record.ai.
+    // Disconnecting takes the meetings out of SortNotes.
     assert.equal((await t.api(`calendars/${link.id}`, { method: 'DELETE' })).status, 200);
     assert.equal(notes(t).filter((n) => !n.deleted).length, 0);
     assert.deepEqual((await t.api('calendars')).body.links, []);

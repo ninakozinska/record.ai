@@ -53,11 +53,11 @@ function event(n, { tz, link, items = [] }) {
   return lines;
 }
 
-export function toIcs(notes, { name = 'record.ai', tz, link, itemsOf = () => [] } = {}) {
+export function toIcs(notes, { name = 'SortNotes', tz, link, itemsOf = () => [] } = {}) {
   const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//record.ai//Notes//EN',
+    'PRODID:-//SortNotes//Notes//EN',
     'CALSCALE:GREGORIAN',
     'METHOD:PUBLISH',
     `X-WR-CALNAME:${escape(name)}`,

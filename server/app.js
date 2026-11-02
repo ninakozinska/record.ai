@@ -191,7 +191,7 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth, mail, bill
 
   app.use(express.json({ limit: '25mb' }));
 
-  app.get('/api/health', (req, res) => res.json({ ok: true, app: 'record.ai' }));
+  app.get('/api/health', (req, res) => res.json({ ok: true, app: 'SortNotes' }));
   app.use('/api/auth', authRoutes({
     store, imagesDir, oauth, mail,
     onSignup: (user, { method, anonId }) => {
@@ -267,7 +267,7 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth, mail, bill
     const userId = token.length > 20 ? store.getMeta(`cal_user:${token}`) : null;
     if (!userId || !store.getUser(userId)) return res.status(404).send('This calendar link is no longer active.');
     const tz = store.getMeta(`cal_tz:${userId}`);
-    sendIcs(res, toIcs(calendarNotes(userId), { name: 'record.ai', tz, link: publicUrl(req), itemsOf: (id) => store.items(id) }));
+    sendIcs(res, toIcs(calendarNotes(userId), { name: 'SortNotes', tz, link: publicUrl(req), itemsOf: (id) => store.items(id) }));
   });
 
   app.use('/api', requireUser(store));
@@ -300,7 +300,7 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth, mail, bill
     res.json(pushState(req.user.id));
   });
   app.post('/api/push/test', async (req, res) => {
-    const sent = await reminders.push(req.user.id, { title: 'record.ai', body: '🔔 ✓', url: './', tag: 'test' });
+    const sent = await reminders.push(req.user.id, { title: 'SortNotes', body: '🔔 ✓', url: './', tag: 'test' });
     res.json({ sent });
   });
   app.put('/api/briefing', (req, res) => {
@@ -445,7 +445,7 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth, mail, bill
       // A task given to someone else: a notification on their devices.
       if (note.assigned_to && note.assigned_to !== userId && note.assigned_to !== before?.assigned_to && !note.done) {
         const list = note.parent_id ? store.get(note.parent_id) : note;
-        reminders.push(note.assigned_to, { title: `👤 ${store.getUser(userId)?.name || 'record.ai'}`, body: noteTitle(note), url: `./?open=${list.id}`, tag: `task-${note.id}` }).catch(() => {});
+        reminders.push(note.assigned_to, { title: `👤 ${store.getUser(userId)?.name || 'SortNotes'}`, body: noteTitle(note), url: `./?open=${list.id}`, tag: `task-${note.id}` }).catch(() => {});
         insights.track('task_assigned', { userId, props: { item: !!note.parent_id } });
       }
       // What people do (never what they write), for the dashboard and the A/B tests.
@@ -719,7 +719,7 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth, mail, bill
 
   // --- the owner's dashboard: numbers, A/B tests, what the optimizer did ---------------
   const adminOnly = (req, res, next) => (isAdmin(req.user) ? next() : res.status(404).json({ error: 'Not found' }));
-  // What running record.ai costs this month, per person (docs: "Path to €1M ARR").
+  // What running SortNotes costs this month, per person (docs: "Path to €1M ARR").
   const monthlyCosts = (now = Date.now()) => {
     const env = process.env;
     const num = (v, d) => (Number.isFinite(Number(v)) && v !== undefined && v !== '' ? Number(v) : d);

@@ -35,7 +35,7 @@ export class Reminders {
     this.vapid = this.keys();
     this.send = send || ((sub, payload) => webpush.sendNotification(sub, JSON.stringify(payload), {
       TTL: 3600,
-      vapidDetails: { subject: `mailto:${(env.MAIL_FROM || '').match(/[^<\s]+@[^>\s]+/)?.[0] || 'support@record.ai'}`, ...this.vapid },
+      vapidDetails: { subject: `mailto:${(env.MAIL_FROM || '').match(/[^<\s]+@[^>\s]+/)?.[0] || 'support@sortnotes.com'}`, ...this.vapid },
     }));
   }
 

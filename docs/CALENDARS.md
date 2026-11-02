@@ -1,6 +1,6 @@
 # Turning on two-way calendars (P0-5)
 
-record.ai will connect to **Google Calendar (Gmail)**, **Outlook and Microsoft 365**,
+SortNotes will connect to **Google Calendar (Gmail)**, **Outlook and Microsoft 365**,
 **Calendly** and **Apple iCloud**. Each person connects their own calendar from the
 account menu:
 
@@ -8,7 +8,7 @@ account menu:
 - A note with a date goes into the calendar they chose, and changes flow both ways.
 - Calendly bookings arrive as notes. Calendly only sends; nothing is written back to it.
 
-Only one part is yours: registering record.ai with Google, Microsoft and Calendly,
+Only one part is yours: registering SortNotes with Google, Microsoft and Calendly,
 and putting their keys on the server. Apple needs nothing from you. Claude builds
 the rest. All of it is free.
 
@@ -40,10 +40,10 @@ You can use the same Google project as "Continue with Google" (docs/SOCIAL_LOGIN
 If you don't have one yet, create it now. It will serve both.
 
 1. Go to [console.cloud.google.com](https://console.cloud.google.com). At the top,
-   pick the project, or create one called **record.ai**.
+   pick the project, or create one called **SortNotes**.
 2. **APIs & Services → Library**: search **Google Calendar API**, open it, click **Enable**.
 3. **Google Auth Platform** (older screens: **OAuth consent screen**):
-   - **Branding**: app name *record.ai*, your support email. App home page and
+   - **Branding**: app name *SortNotes*, your support email. App home page and
      privacy policy: `https://record-ai-nina.fly.dev/` and
      `https://record-ai-nina.fly.dev/legal/privacy.html`.
    - **Audience**: **External**. Under **Test users**, add your Gmail address, your
@@ -74,8 +74,8 @@ You can use the same app registration as "Continue with Microsoft", if you made 
 1. Go to [entra.microsoft.com](https://entra.microsoft.com) and sign in with a Microsoft
    account. If it asks you to create a directory or a free Azure account, do it: the
    free account may ask for a card but does not charge for this.
-2. **Applications → App registrations**. Open the record.ai app, or **New registration**:
-   - Name: *record.ai*
+2. **Applications → App registrations**. Open the SortNotes app, or **New registration**:
+   - Name: *SortNotes*
    - Supported account types: **Accounts in any organizational directory and personal
      Microsoft accounts**
    - Redirect URI: **Web**, `https://record-ai-nina.fly.dev/api/calendars/microsoft/callback`
@@ -102,28 +102,28 @@ without it.
 1. Go to [developer.calendly.com](https://developer.calendly.com) and log in with
    your Calendly account (a free one works).
 2. Choose **Create a new app** (under My Apps):
-   - Name: *record.ai*
+   - Name: *SortNotes*
    - Kind of app: **Web**
    - Environment: **Production** (Sandbox only allows `localhost` addresses)
    - Redirect URI: `https://record-ai-nina.fly.dev/api/calendars/calendly/callback`
 3. Save. Calendly then shows three values: **Client ID**, **Client secret** and
    **Webhook signing key**. Copy all three now; the secret and the signing key are shown once.
 
-There's no webhook to add by hand: record.ai subscribes to new and cancelled bookings
+There's no webhook to add by hand: SortNotes subscribes to new and cancelled bookings
 for each person when they connect.
 
 **To know.** Calendly sends bookings as they happen only for people on a **paid
 Calendly plan** (Standard or higher; check Calendly's current plans). For people on
-the free plan, record.ai checks for new bookings every 15 minutes instead.
+the free plan, SortNotes checks for new bookings every 15 minutes instead.
 
 ## 4. Apple iCloud (nothing to do)
 
 Apple has no developer sign-up for iCloud calendars. When someone connects iCloud,
-record.ai shows them three steps:
+SortNotes shows them three steps:
 
 1. Open [account.apple.com](https://account.apple.com).
 2. **Sign-In and Security → App-Specific Passwords → +**.
-3. Paste that password into record.ai. It only opens their calendars, and they can
+3. Paste that password into SortNotes. It only opens their calendars, and they can
    revoke it there at any time.
 
 Two-factor authentication must be on, as it is on almost every Apple account.

@@ -3,13 +3,13 @@
 Draft for the B2B track (launch checklist item 31). Prices and the pilot terms
 are proposals until you decide when to start; [brackets] are yours to fill.
 
-## record.ai for working parents: a benefit people use every day
+## SortNotes for working parents: a benefit people use every day
 
 **The problem.** Working parents carry two to-do lists in their head: the
 job's and the family's. The mental load costs focus at work, and it is a top
 reason parents, mostly mothers, cut hours or leave.
 
-**What record.ai does.** One app for work and family. People write, dictate or
+**What SortNotes does.** One app for work and family. People write, dictate or
 photograph anything: the AI sorts it into priorities, groups and dates, and
 puts it next to their meetings (Google, Outlook, iCloud, Calendly). Lists are
 shared with a partner in real time. A morning briefing shows the day.

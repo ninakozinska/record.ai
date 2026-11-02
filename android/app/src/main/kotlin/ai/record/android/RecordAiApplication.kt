@@ -19,7 +19,7 @@ class RecordAiApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         repository = NoteRepository(
-            storage = FileStorage(File(filesDir, "record.ai")),
+            storage = FileStorage(File(filesDir, "SortNotes")),
             secrets = KeystoreSecretStore(this),
             scope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
         )

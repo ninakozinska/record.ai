@@ -1,6 +1,6 @@
 #!/bin/bash
 # Double-click to choose which AI organizes your notes (free on this Mac,
-# Claude online, or none). Restarts record.ai with the new choice.
+# Claude online, or none). Restarts SortNotes with the new choice.
 
 cd "$(dirname "$0")" || exit 1
 source scripts/mac-common.sh
@@ -10,6 +10,6 @@ PORT=${PORT:-3000}
 export PORT
 
 choose_ai || exit 0
-echo "Saved. Restarting record.ai…"
+echo "Saved. Restarting SortNotes…"
 stop_server
 exec "./Start record.ai.command"

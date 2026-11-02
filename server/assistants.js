@@ -51,7 +51,7 @@ const TOOLS = [
   },
   {
     name: 'add_note',
-    description: 'Write a new note. record.ai\'s own AI gives it a title, group, priority and date. Lines starting with "- " become a checklist. Only for keys that may add notes.',
+    description: 'Write a new note. SortNotes\'s own AI gives it a title, group, priority and date. Lines starting with "- " become a checklist. Only for keys that may add notes.',
     inputSchema: {
       type: 'object',
       properties: { text: { type: 'string', description: 'The note' }, due: { type: 'string', description: 'Optional date YYYY-MM-DD or YYYY-MM-DDTHH:MM' } },
@@ -157,7 +157,7 @@ export class Assistants {
       return `Today is ${today}.\n\nDue today:\n${show(due, 'Nothing.')}\n\nOverdue:\n${show(late, 'Nothing.')}`;
     }
     if (name === 'add_note') {
-      if (!key.can_write) throw new Error('This key can only read notes. Make a key that may add notes in record.ai (your initials → AI assistants).');
+      if (!key.can_write) throw new Error('This key can only read notes. Make a key that may add notes in SortNotes (your initials → AI assistants).');
       const text = String(args.text || '').trim().slice(0, 5000);
       if (!text) throw new Error('text is required');
       const due = args.due == null ? undefined : String(args.due);
@@ -167,7 +167,7 @@ export class Assistants {
       const { note } = this.store.upsertFromClient(userId, { id, text, created_at: now, edited_at: now, ...(due ? { user_due: due } : {}) });
       this.onChange(note);
       this.organizer.enqueue(id);
-      return `Added the note [${id}]. record.ai will give it a title, group and priority in a few seconds.`;
+      return `Added the note [${id}]. SortNotes will give it a title, group and priority in a few seconds.`;
     }
     throw new Error(`Unknown tool: ${name}`);
   }
@@ -190,8 +190,8 @@ export class Assistants {
         return reply({
           protocolVersion: PROTOCOLS.includes(asked) ? asked : PROTOCOLS[0],
           capabilities: { tools: {} },
-          serverInfo: { name: 'record.ai', version: '1.0.0' },
-          instructions: 'The person\'s notes from record.ai: work and family to-dos, lists, appointments and ideas, sorted by an AI into groups, priorities and dates. Use today or list_notes for an overview, search_notes to find something, get_note for the full note.',
+          serverInfo: { name: 'SortNotes', version: '1.0.0' },
+          instructions: 'The person\'s notes from SortNotes: work and family to-dos, lists, appointments and ideas, sorted by an AI into groups, priorities and dates. Use today or list_notes for an overview, search_notes to find something, get_note for the full note.',
         });
       }
       case 'ping':
@@ -220,8 +220,8 @@ export class Assistants {
     const handle = (req, res) => {
       const key = this.keyFor(req);
       if (!key) {
-        res.setHeader('WWW-Authenticate', 'Bearer realm="record.ai"');
-        return res.status(401).json({ jsonrpc: '2.0', id: null, error: { code: -32001, message: 'Add your record.ai key: Authorization: Bearer rai_…, or the address with the key at the end.' } });
+        res.setHeader('WWW-Authenticate', 'Bearer realm="SortNotes"');
+        return res.status(401).json({ jsonrpc: '2.0', id: null, error: { code: -32001, message: 'Add your SortNotes key: Authorization: Bearer rai_…, or the address with the key at the end.' } });
       }
       const body = req.body;
       const answers = (Array.isArray(body) ? body : [body]).map((m) => this.answer(key, m)).filter(Boolean);

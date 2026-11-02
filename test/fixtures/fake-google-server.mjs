@@ -1,4 +1,4 @@
-// A record.ai server whose "Google" is fake, for testing the phone apps'
+// A SortNotes server whose "Google" is fake, for testing the phone apps'
 // "Continue with Google" without a Google account. Usage:
 //   PORT=4000 DATA_DIR=/tmp/x node test/fixtures/fake-google-server.mjs
 // The fake Google signs in sub "google-nina" / nina@example.com (verified).

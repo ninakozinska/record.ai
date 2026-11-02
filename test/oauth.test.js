@@ -227,7 +227,7 @@ test('GitHub uses the verified primary email', async () => {
     await signIn(b, fake, 'github');
     assert.equal((await stateOf(b)).user.id, s.user.id);
     const github = fake.calls.find((c) => c.url === 'https://api.github.com/user');
-    assert.equal(github.init.headers['User-Agent'], 'record.ai');
+    assert.equal(github.init.headers['User-Agent'], 'SortNotes');
   } finally {
     s.close();
   }

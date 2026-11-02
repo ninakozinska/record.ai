@@ -1,12 +1,12 @@
-# record.ai for Android
+# SortNotes for Android
 
-A native Android app (Kotlin, Jetpack Compose) for your record.ai notes. It connects to the same server as the web app and the iPhone app, with the same account.
+A native Android app (Kotlin, Jetpack Compose) for your SortNotes notes. It connects to the same server as the web app and the iPhone app, with the same account.
 
 - Write notes, **dictate** them (Android's speech recognition), **take photos** or pick them from your gallery.
 - Notes sorted by **priority** or **groups**, with search and group filters.
 - Open a note to edit it, see what the AI found, or choose the group and priority yourself.
 - **Always in sync:** while the app is open, changes from your other devices appear within a moment. **Works offline:** notes and photos are saved on the phone and sent as soon as the network is back, even if the app is closed.
-- **Share into record.ai:** share text from any app to make a note.
+- **Share into SortNotes:** share text from any app to make a note.
 - **Light on battery and data:** one request sends all your edits and fetches all changes; lists download small photo previews only; the live connection closes when the app is in the background.
 - Your login is kept encrypted with the phone's Android Keystore.
 
@@ -19,7 +19,7 @@ Requires Android 8.0 or newer.
 1. On the phone, open **github.com/ninakozinska/record.ai** → **Actions** → the latest green **Tests** run.
 2. Under **Artifacts**, download **record-ai-android** (you need to be logged in to GitHub). It's a zip; open it and tap the `.apk` file inside.
 3. Android asks to allow installing apps from this source (Chrome or Files). Tap **Settings**, turn it on, go back and tap **Install**.
-4. Open record.ai, enter your server address (in the web app on your Mac, tap your initials to see it), and log in.
+4. Open SortNotes, enter your server address (in the web app on your Mac, tap your initials to see it), and log in.
 
 To update, install a newer `.apk` the same way. Your notes stay.
 

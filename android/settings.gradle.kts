@@ -1,4 +1,4 @@
-// record.ai for Android.
+// SortNotes for Android.
 //  - core: data, sync and server connection (plain Kotlin, tested on any computer)
 //  - app:  the Android screens (needs the Android SDK, e.g. Android Studio)
 pluginManagement {
@@ -15,7 +15,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "record.ai"
+rootProject.name = "SortNotes"
 include(":core")
 
 // The app module needs the Android SDK. Without it (for example on a build

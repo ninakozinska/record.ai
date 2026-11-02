@@ -1,6 +1,6 @@
 # Measuring and optimization
 
-record.ai measures what people do (never what they write), runs A/B tests on
+SortNotes measures what people do (never what they write), runs A/B tests on
 the web and in the phone apps, and runs optimization loops every hour that
 lower costs and raise revenue without lowering quality. The owner sees
 everything at **/admin.html** (the 📊 Dashboard link under your initials).

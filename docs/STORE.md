@@ -9,7 +9,7 @@ a short description (Google Play, 80 characters) and a full description
 
 | Question | Answer |
 |---|---|
-| App name | record.ai |
+| App name | SortNotes |
 | Category | Productivity (second: Lifestyle) |
 | Price | Free, with in-app subscriptions Solo and Family |
 | Age rating | 4+ (Apple) / Everyone (Google): no violence, no user-to-stranger chat; sharing is only with people you type in |
@@ -44,7 +44,7 @@ encrypted in transit (HTTPS). People can delete their data in the app.
 
 Google also asks: data is encrypted in transit (yes); people can ask for deletion
 (yes, in the app and at the deletion URL); data is shared with third parties (no:
-Anthropic, Fly.io, Stripe, Resend and Sentry are processors working for record.ai,
+Anthropic, Fly.io, Stripe, Resend and Sentry are processors working for SortNotes,
 which Google does not count as sharing).
 
 Apple asks about the microphone, speech recognition and camera: dictation and photos of notes, only when the person taps them. The purpose strings are already in the iPhone app (ios/RecordAI.swiftpm/Package.swift): "Dictate notes with your voice.", "Turn what you say into note text." and "Take photos to add to your notes."
@@ -58,7 +58,7 @@ Apple asks about the microphone, speech recognition and camera: dictation and ph
 - **Short description:** Write it down, AI sorts it: notes, lists and dates for work and family.
 - **Full description:**
 
-  Work and family, in one place. Write a note, dictate it or snap a photo of the school letter: record.ai gives it a clear title, a group, a priority and its date, so the urgent things are always on top.
+  Work and family, in one place. Write a note, dictate it or snap a photo of the school letter: SortNotes gives it a clear title, a group, a priority and its date, so the urgent things are always on top.
 
   • Lists you can tick: start lines with "- " or paste a list
   • Share a list or a whole group with your partner, live on every device
@@ -77,7 +77,7 @@ Apple asks about the microphone, speech recognition and camera: dictation and ph
 - **Descrizione breve:** Scrivilo, l'AI lo ordina: note, liste e date per lavoro e famiglia.
 - **Descrizione completa:**
 
-  Lavoro e famiglia, in un unico posto. Scrivi una nota, dettala o fotografa l'avviso della scuola: record.ai le dà un titolo chiaro, un gruppo, una priorità e la sua data, così le cose urgenti sono sempre in cima.
+  Lavoro e famiglia, in un unico posto. Scrivi una nota, dettala o fotografa l'avviso della scuola: SortNotes le dà un titolo chiaro, un gruppo, una priorità e la sua data, così le cose urgenti sono sempre in cima.
 
   • Liste da spuntare: inizia le righe con "- " o incolla una lista
   • Condividi una lista o un intero gruppo con il partner, in tempo reale su ogni dispositivo
@@ -96,7 +96,7 @@ Apple asks about the microphone, speech recognition and camera: dictation and ph
 - **Description courte :** Notez-le, l'IA trie : notes, listes et dates pour le travail et la famille.
 - **Description complète :**
 
-  Travail et famille, au même endroit. Écrivez une note, dictez-la ou photographiez le mot de l'école : record.ai lui donne un titre clair, un groupe, une priorité et sa date, pour que l'urgent soit toujours en haut.
+  Travail et famille, au même endroit. Écrivez une note, dictez-la ou photographiez le mot de l'école : SortNotes lui donne un titre clair, un groupe, une priorité et sa date, pour que l'urgent soit toujours en haut.
 
   • Des listes à cocher : commencez les lignes par « - » ou collez une liste
   • Partagez une liste ou tout un groupe avec votre partenaire, en direct sur tous les appareils
@@ -115,7 +115,7 @@ Apple asks about the microphone, speech recognition and camera: dictation and ph
 - **Descripción breve:** Apúntalo y la IA lo ordena: notas, listas y fechas para trabajo y familia.
 - **Descripción completa:**
 
-  Trabajo y familia, en un solo lugar. Escribe una nota, díctala o haz una foto de la circular del colegio: record.ai le pone un título claro, un grupo, una prioridad y su fecha, para que lo urgente esté siempre arriba.
+  Trabajo y familia, en un solo lugar. Escribe una nota, díctala o haz una foto de la circular del colegio: SortNotes le pone un título claro, un grupo, una prioridad y su fecha, para que lo urgente esté siempre arriba.
 
   • Listas para marcar: empieza las líneas con "- " o pega una lista
   • Comparte una lista o un grupo entero con tu pareja, en directo en todos los dispositivos
@@ -134,7 +134,7 @@ Apple asks about the microphone, speech recognition and camera: dictation and ph
 - **Descrição curta:** Escreva e a IA organiza: notas, listas e datas para trabalho e família.
 - **Descrição completa:**
 
-  Trabalho e família, num só lugar. Escreva uma nota, dite-a ou fotografe o recado da escola: o record.ai dá-lhe um título claro, um grupo, uma prioridade e a sua data, para o urgente ficar sempre em cima.
+  Trabalho e família, num só lugar. Escreva uma nota, dite-a ou fotografe o recado da escola: o SortNotes dá-lhe um título claro, um grupo, uma prioridade e a sua data, para o urgente ficar sempre em cima.
 
   • Listas para marcar: comece as linhas com "- " ou cole uma lista
   • Partilhe uma lista ou um grupo inteiro com o seu par, em tempo real em todos os dispositivos
@@ -153,7 +153,7 @@ Apple asks about the microphone, speech recognition and camera: dictation and ph
 - **Kurzbeschreibung:** Aufschreiben, die KI sortiert: Notizen, Listen, Termine für Job und Familie.
 - **Beschreibung:**
 
-  Arbeit und Familie an einem Ort. Schreib eine Notiz, diktiere sie oder fotografiere den Elternbrief: record.ai gibt ihr einen klaren Titel, eine Gruppe, eine Priorität und ihr Datum, damit Dringendes immer oben steht.
+  Arbeit und Familie an einem Ort. Schreib eine Notiz, diktiere sie oder fotografiere den Elternbrief: SortNotes gibt ihr einen klaren Titel, eine Gruppe, eine Priorität und ihr Datum, damit Dringendes immer oben steht.
 
   • Listen zum Abhaken: Zeilen mit „- “ beginnen oder eine Liste einfügen
   • Eine Liste oder eine ganze Gruppe mit dem Partner teilen, live auf jedem Gerät
@@ -172,7 +172,7 @@ Apple asks about the microphone, speech recognition and camera: dictation and ph
 - **Krótki opis:** Zapisz, AI poukłada: notatki, listy i daty do pracy i dla rodziny.
 - **Pełny opis:**
 
-  Praca i rodzina w jednym miejscu. Napisz notatkę, podyktuj ją albo zrób zdjęcie pisma ze szkoły: record.ai nada jej jasny tytuł, grupę, priorytet i datę, więc pilne sprawy są zawsze na górze.
+  Praca i rodzina w jednym miejscu. Napisz notatkę, podyktuj ją albo zrób zdjęcie pisma ze szkoły: SortNotes nada jej jasny tytuł, grupę, priorytet i datę, więc pilne sprawy są zawsze na górze.
 
   • Listy do odhaczania: zacznij wiersze od „- ” albo wklej listę
   • Udostępnij listę lub całą grupę partnerowi, na żywo na każdym urządzeniu

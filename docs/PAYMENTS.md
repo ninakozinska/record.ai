@@ -1,6 +1,6 @@
 # Turning on payments (Stripe)
 
-record.ai sells Solo (€3.99/month) and Family (€5.99/month) through
+SortNotes sells Solo (€3.99/month) and Family (€5.99/month) through
 [Stripe](https://stripe.com). People pay on Stripe's own page, so card
 numbers never reach the server. Until the four settings below are set,
 nothing is sold: "Get Premium" only counts who would buy (`upgrade_click`).
@@ -11,8 +11,8 @@ nothing is sold: "Get Premium" only counts who would buy (`upgrade_click`).
    (needs your business set up first: see the launch checklist).
    Start in **Test mode** (the switch at the top) to try it without real money.
 2. **Products → Add product**, twice:
-   - "record.ai Solo", recurring, monthly, €3.99
-   - "record.ai Family", recurring, monthly, €5.99
+   - "SortNotes Solo", recurring, monthly, €3.99
+   - "SortNotes Family", recurring, monthly, €5.99
 
    Copy each **price id** (it starts with `price_`).
 3. **Developers → API keys**: copy the **Secret key** (`sk_test_…`, later `sk_live_…`).

@@ -29,12 +29,12 @@ import kotlin.coroutines.resumeWithException
 
 class ApiException(val status: Int, message: String) : Exception(message) {
     companion object {
-        fun offline() = ApiException(0, "Cannot reach your record.ai server. Is your computer on, with record.ai running?")
+        fun offline() = ApiException(0, "Cannot reach your SortNotes server. Is your computer on, with SortNotes running?")
     }
 }
 
 /**
- * Talks to the record.ai server. One shared OkHttpClient reuses connections
+ * Talks to the SortNotes server. One shared OkHttpClient reuses connections
  * and transparently asks for gzip-compressed answers.
  */
 class Api(val baseUrl: String, private val token: String?, private val client: OkHttpClient = sharedClient) {
@@ -103,7 +103,7 @@ class Api(val baseUrl: String, private val token: String?, private val client: O
 
     suspend fun checkServer() {
         val ok = runCatching { json.parseToJsonElement(call("health").decodeToString()).jsonObject["ok"]?.jsonPrimitive?.content }.getOrNull()
-        if (ok != "true") throw ApiException(0, "That address answers, but it isn't a record.ai server.")
+        if (ok != "true") throw ApiException(0, "That address answers, but it isn't a SortNotes server.")
     }
 
     suspend fun authState(): AuthState = decode(call("auth/state"))

@@ -1,4 +1,4 @@
-# record.ai on Fly.io. Step by step: docs/DEPLOY_FLY.md
+# SortNotes on Fly.io. Step by step: docs/DEPLOY_FLY.md
 # If the app name is taken, choose another one in `fly apps create` and put
 # it in `app` and `PUBLIC_URL` below.
 app = 'record-ai-nina'

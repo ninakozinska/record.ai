@@ -1,6 +1,6 @@
 # Sign in with Google, Apple, Microsoft, Facebook, LinkedIn, X and GitHub
 
-record.ai can show **"Continue with …"** buttons in the web app, the iPhone app and the Android app. Each button appears once you've registered record.ai with that company and put two keys in the settings. You can turn on just one provider, or all of them.
+SortNotes can show **"Continue with …"** buttons in the web app, the iPhone app and the Android app. Each button appears once you've registered SortNotes with that company and put two keys in the settings. You can turn on just one provider, or all of them.
 
 All of these registrations are **free**, except Apple: Sign in with Apple needs the paid Apple Developer Program ($99/year).
 
@@ -16,7 +16,7 @@ Good options:
 - **Tailscale** (free): your `https://….ts.net` address. It only works on your own devices that have Tailscale.
 - **Online hosting** with your own domain, e.g. `https://notes.yourname.com`. Do this before inviting other people.
 
-Write your address into the settings file (`.env` in the record.ai folder):
+Write your address into the settings file (`.env` in the SortNotes folder):
 
 ```
 PUBLIC_URL=https://your-mac.tail1234.ts.net
@@ -34,11 +34,11 @@ Below, **`<address>`** means this address. For each provider, the "redirect URL"
 | X (Twitter) | `<address>/api/auth/oauth/x/callback` |
 | GitHub | `<address>/api/auth/oauth/github/callback` |
 
-After adding keys to `.env`, **restart record.ai**. The server's start-up message lists the sign-in options that are on.
+After adding keys to `.env`, **restart SortNotes**. The server's start-up message lists the sign-in options that are on.
 
 ## Google
 
-1. Go to [console.cloud.google.com](https://console.cloud.google.com) and sign in. Create a project, e.g. "record.ai".
+1. Go to [console.cloud.google.com](https://console.cloud.google.com) and sign in. Create a project, e.g. "SortNotes".
 2. Open **Google Auth Platform** (or **APIs & Services → OAuth consent screen**) and fill in the app name and your email. Choose **External** users.
 3. Go to **Clients** (or **Credentials → Create credentials → OAuth client ID**) and choose **Web application**.
 4. Under **Authorized redirect URIs**, add the Google redirect URL from the table. Click **Create**.
@@ -56,7 +56,7 @@ After adding keys to `.env`, **restart record.ai**. The server's start-up messag
 3. Open the new Services ID, tick **Sign in with Apple**, and click **Configure**. Pick your app's main App ID. Under **Domains**, add your address without `https://`. Under **Return URLs**, add the Apple redirect URL from the table.
 4. **Keys → +**. Name it, tick **Sign in with Apple**, configure it with the same App ID, and download the `.p8` file. Apple lets you download it **only once**. Note the **Key ID**.
 5. Your **Team ID** is shown at the top right of the developer site.
-6. Put the `.p8` file in the record.ai folder, then add to `.env`:
+6. Put the `.p8` file in the SortNotes folder, then add to `.env`:
    ```
    APPLE_CLIENT_ID=com.yourname.recordai.web
    APPLE_TEAM_ID=…
@@ -92,7 +92,7 @@ The App Store requires Sign in with Apple in any iPhone app that offers Google, 
 
 ## LinkedIn
 
-1. Go to [linkedin.com/developers/apps](https://www.linkedin.com/developers/apps) → **Create app**. LinkedIn asks for a company page. You can create a simple page for record.ai.
+1. Go to [linkedin.com/developers/apps](https://www.linkedin.com/developers/apps) → **Create app**. LinkedIn asks for a company page. You can create a simple page for SortNotes.
 2. On the **Products** tab, add **Sign In with LinkedIn using OpenID Connect**.
 3. On the **Auth** tab, add the LinkedIn redirect URL under **Authorized redirect URLs**, then copy the **Client ID** and **Primary Client Secret**:
    ```
@@ -126,8 +126,8 @@ X doesn't share email addresses, so an account made with X has no email. That's 
 
 ## How accounts are matched
 
-- **The same person, any button.** If Google, Apple, LinkedIn or GitHub confirms an email that already has a record.ai account, that account is used. Signing in with Google doesn't create a second account.
-- **No takeovers.** Microsoft, Facebook and X don't guarantee that an email really belongs to the person. If their email matches an existing account, record.ai asks them to log in the usual way first, then connect the provider under their initials → **Sign-in options**.
+- **The same person, any button.** If Google, Apple, LinkedIn or GitHub confirms an email that already has a SortNotes account, that account is used. Signing in with Google doesn't create a second account.
+- **No takeovers.** Microsoft, Facebook and X don't guarantee that an email really belongs to the person. If their email matches an existing account, SortNotes asks them to log in the usual way first, then connect the provider under their initials → **Sign-in options**.
 - **New accounts follow the same rules as email sign-up.** The very first account is always allowed. After that, someone new needs `ALLOW_SIGNUP=true` or the invite code (`SIGNUP_CODE`). With an invite code, they choose "Create an account", type the code, then tap the provider's button.
 - **Connecting more providers** happens in the web app: tap your initials → **Sign-in options → Connect**. You can disconnect any of them, as long as one way to log in is left. An account made with a provider can also set a password there.
 
@@ -135,4 +135,4 @@ X doesn't share email addresses, so an account made with X has no email. That's 
 
 - **Phone apps:** the provider's page opens in the system browser (on iPhone, Apple's secure sign-in sheet). It comes back to the app with a one-time code that expires in 2 minutes. The code only works together with a secret that never leaves the phone, so another app that catches it can't use it.
 - **Tamper protection:** every sign-in uses a random `state` value, and PKCE where the provider supports it. A sign-in left unfinished for more than 10 minutes expires.
-- **What record.ai keeps:** only the provider's account number for you and your email. It never sees or stores your Google, Apple or other password, and it doesn't keep the providers' access tokens.
+- **What SortNotes keeps:** only the provider's account number for you and your email. It never sees or stores your Google, Apple or other password, and it doesn't keep the providers' access tokens.
