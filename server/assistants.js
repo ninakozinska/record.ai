@@ -50,6 +50,29 @@ const TOOLS = [
     inputSchema: { type: 'object', properties: {} },
   },
   {
+    name: 'suggest_todos',
+    description: 'Send to-dos from this conversation to the person\'s Suggested inbox in SortNotes. They are not added as notes until the person reviews and adds them. Use it when the person asks to send, save or keep the to-dos or action items from the chat. Only for keys that may add notes; part of Premium.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        todos: {
+          type: 'array', maxItems: 10,
+          items: {
+            type: 'object',
+            properties: {
+              title: { type: 'string', description: 'What to do, short and concrete' },
+              due: { type: 'string', description: 'Optional date YYYY-MM-DD or YYYY-MM-DDTHH:MM' },
+              details: { type: 'string', description: 'Optional one line of details' },
+              reason: { type: 'string', description: 'Optional: why, in a few words' },
+            },
+            required: ['title'],
+          },
+        },
+      },
+      required: ['todos'],
+    },
+  },
+  {
     name: 'add_note',
     description: 'Write a new note. SortNotes\'s own AI gives it a title, group, priority and date. Lines starting with "- " become a checklist. Only for keys that may add notes.',
     inputSchema: {
@@ -156,6 +179,14 @@ export class Assistants {
       const late = sorted(lists.filter((n) => !n.done && n.due_date && n.due_date < today));
       return `Today is ${today}.\n\nDue today:\n${show(due, 'Nothing.')}\n\nOverdue:\n${show(late, 'Nothing.')}`;
     }
+    if (name === 'suggest_todos') {
+      if (!key.can_write) throw new Error('This key can only read notes. Make a key that may add notes in SortNotes (your initials → AI assistants).');
+      if (!this.suggestions) throw new Error('Suggestions are not available.');
+      if (!this.suggestions.premium(userId)) throw new Error('Sending to-dos from AI chats is part of SortNotes Premium.');
+      const kept = this.suggestions.fromAssistant(userId, args.todos, key.name);
+      if (!kept.length) return 'Nothing new to send: these to-dos are already in SortNotes or were dismissed before.';
+      return `Sent ${kept.length} to-do${kept.length === 1 ? '' : 's'} to the Suggested inbox in SortNotes. The person reviews them there before they become notes.`;
+    }
     if (name === 'add_note') {
       if (!key.can_write) throw new Error('This key can only read notes. Make a key that may add notes in SortNotes (your initials → AI assistants).');
       const text = String(args.text || '').trim().slice(0, 5000);
@@ -176,7 +207,7 @@ export class Assistants {
 
   /** What this key may do: reading always; adding notes only when it was made for that. */
   tools(key) {
-    return key.can_write ? TOOLS : TOOLS.filter((t) => t.name !== 'add_note');
+    return key.can_write ? TOOLS : TOOLS.filter((t) => t.name !== 'add_note' && t.name !== 'suggest_todos');
   }
 
   answer(key, msg) {

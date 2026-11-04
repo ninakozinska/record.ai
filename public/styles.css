@@ -358,3 +358,12 @@ a.btn { display: inline-flex; align-items: center; text-decoration: none; color:
 .assign-row { display: flex; gap: 8px; align-items: center; margin: 8px 0; }
 .today { position: relative; }
 .today .read-day { position: absolute; top: 6px; right: 6px; padding: 2px 8px; }
+
+/* Suggested to-dos */
+.today.suggest { border-color: var(--accent, #4f46e5); }
+.suggest-actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.suggest-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+.suggest-item { border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; display: grid; gap: 8px; }
+.suggest-item.top { border-color: var(--accent, #4f46e5); }
+button.small { padding: 4px 10px; font-size: .85rem; }
+.file-btn { cursor: pointer; display: inline-flex; gap: 6px; align-items: center; padding: 8px 12px; border: 1px solid var(--border); border-radius: 10px; }

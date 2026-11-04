@@ -646,7 +646,7 @@ export class Calendars {
           this.db.prepare('DELETE FROM calendar_events WHERE link_id = ? AND external_id = ?').run(linkId, m.external_id);
           counts.removed++;
         } else {
-          // Someone deleted SortNotes's event in the calendar: the note stays, and isn't sent again.
+          // Someone deleted SortNotes' event in the calendar: the note stays, and isn't sent again.
           this.db.prepare("UPDATE calendar_events SET event_sig = '(gone)' WHERE link_id = ? AND external_id = ?").run(linkId, m.external_id);
         }
       }
