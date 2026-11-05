@@ -8,6 +8,7 @@ import compression from 'compression';
 import { openDb, PRIORITIES } from './db.js';
 import { Organizer, LANGUAGES } from './organizer.js';
 import { authRoutes, requireUser, getToken } from './auth.js';
+import { Suggestions } from './suggestions.js';
 import { Calendars } from './calendars.js';
 import { Reminders } from './reminders.js';
 import { Assistants } from './assistants.js';
@@ -137,6 +138,13 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth, mail, bill
     inWorld: (group, world, userId) => inWorld(group, world, JSON.parse(store.getMeta(`worlds:${userId}`) || '{}')),
     track: (name, opts) => insights.track(name, opts),
   });
+  // Suggested to-dos from meetings, notes and AI chats, waiting for review.
+  const suggestions = new Suggestions({
+    store, organizer, onChange, tzOf: (userId) => calendars.tzOf(userId),
+    push: (userId, payload) => reminders.push(userId, payload),
+    track: (name, opts) => insights.track(name, opts),
+  });
+  assistants.suggestions = suggestions;
   const backups = new Backups({ store, dataDir, imagesDir });
   if (process.env.OPTIMIZER !== 'off') {
     optimizer.start();
@@ -145,6 +153,7 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth, mail, bill
     setInterval(() => backups.runDaily(), 3600e3).unref();
     calendars.start();
     reminders.start();
+    suggestions.start();
   }
   const isAdmin = (user) =>
     store.firstUserId() === user.id ||
@@ -276,6 +285,7 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth, mail, bill
   // The people tasks can be for: me, and everyone I share with or who shares with me.
   app.get('/api/people', (req, res) => res.json({ people: store.circle(req.user.id), family: store.planOf(req.user.id) === 'family' || store.firstUserId() === req.user.id }));
   app.use('/api/assistants', assistants.routes());
+  app.use('/api/suggestions', suggestions.router());
 
   // Notifications: this device's subscription, the morning briefing, the allowance.
   const pushState = (userId) => ({
@@ -881,5 +891,5 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth, mail, bill
   });
 
   organizer.resumePending?.();
-  return { app, store, organizer, insights, optimizer, backups, errors, calendars, reminders, assistants };
+  return { app, store, organizer, insights, optimizer, backups, errors, calendars, reminders, assistants, suggestions };
 }

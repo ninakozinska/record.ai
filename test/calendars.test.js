@@ -134,7 +134,7 @@ test('Google both ways: meetings come in, dated notes go out, moves and deletion
     await t.calendars.sync(link.id);
     assert.deepEqual(g.events.get(sent.id).start, { dateTime: `${day}T17:00:00`, timeZone: TZ });
 
-    // Deleted in SortNotes: SortNotes's event goes; deleting the meeting note leaves the meeting in Google.
+    // Deleted in SortNotes: SortNotes' event goes; deleting the meeting note leaves the meeting in Google.
     await t.api(`notes/${N1}`, { method: 'PUT', body: JSON.stringify({ deleted: true, edited_at: now + 2000 }) });
     await t.api(`notes/${meeting.id}`, { method: 'PUT', body: JSON.stringify({ deleted: true, edited_at: now + 2000 }) });
     await t.calendars.sync(link.id);

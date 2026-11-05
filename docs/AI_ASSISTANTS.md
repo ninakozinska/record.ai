@@ -31,7 +31,8 @@ The menus of these assistants change often; if a step has moved, look for "conne
 | `search_notes` | Find notes by words in the title, text, group or list items |
 | `get_note` | One note in full, with its list |
 | `list_groups` | The groups and how many open notes each has |
-| `add_note` | Write a note (only with a key that may add notes); SortNotes's AI then sorts it |
+| `add_note` | Write a note (only with a key that may add notes); SortNotes' AI then sorts it |
+| `suggest_todos` | Send the to-dos from a chat to the Suggested inbox, where the person reviews them (a key that may add notes; Premium) |
 
 It sees your own notes and the ones shared with you, never anyone else's.
 

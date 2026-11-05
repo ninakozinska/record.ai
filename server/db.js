@@ -244,6 +244,26 @@ function migrate(db) {
       PRIMARY KEY (link_id, external_id)
     );
     CREATE INDEX IF NOT EXISTS calendar_events_note ON calendar_events(note_id);
+    CREATE TABLE IF NOT EXISTS suggestions (
+      id           TEXT PRIMARY KEY,
+      user_id      TEXT NOT NULL,
+      title        TEXT NOT NULL,
+      details      TEXT,
+      due_date     TEXT,
+      due_time     TEXT,
+      priority     TEXT NOT NULL DEFAULT 'normal',
+      reason       TEXT,
+      source       TEXT NOT NULL,
+      source_ref   TEXT,
+      source_label TEXT,
+      top          INTEGER NOT NULL DEFAULT 0,
+      status       TEXT NOT NULL DEFAULT 'open',
+      note_id      TEXT,
+      fingerprint  TEXT NOT NULL,
+      created_at   INTEGER NOT NULL,
+      decided_at   INTEGER
+    );
+    CREATE INDEX IF NOT EXISTS suggestions_user ON suggestions(user_id, status);
   `);
 }
 
@@ -844,6 +864,7 @@ class Store {
       this.db.prepare('DELETE FROM calendar_links WHERE user_id = ?').run(userId);
       this.db.prepare('DELETE FROM push_subscriptions WHERE user_id = ?').run(userId);
       this.db.prepare('DELETE FROM assistant_keys WHERE user_id = ?').run(userId);
+      this.db.prepare('DELETE FROM suggestions WHERE user_id = ?').run(userId);
       this.db.prepare('DELETE FROM sessions WHERE user_id = ?').run(userId);
       this.db.prepare("DELETE FROM assignments WHERE subject = ?").run(`u:${userId}`);
       this.db.prepare('UPDATE events SET user_id = NULL WHERE user_id = ?').run(userId);

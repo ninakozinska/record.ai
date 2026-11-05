@@ -18,6 +18,13 @@ const fake = {
     messages: {
       parse: async (p) => {
         const text = p.messages[0].content.at(-1).text;
+        // Suggested to-dos: the top one of the day, from the meeting-like note, and one more.
+        if (/propose the few things they should DO/.test(p.system)) {
+          return { stop_reason: 'end_turn', parsed_output: { suggestions: [
+            { title: 'Bring the car seat for Mia', due_date: null, due_time: null, priority: 'high', reason: 'pick-up at 16:00', source: 'notes', top: true },
+            { title: 'Renew the library books', due_date: null, due_time: null, priority: 'low', reason: 'due this week', source: 'notes', top: false },
+          ] } };
+        }
         // "Turn into tasks": two things to do, one with a time.
         if (/<document/.test(text)) {
           return { stop_reason: 'end_turn', parsed_output: { tasks: [
@@ -535,6 +542,22 @@ try {
   await desktop.click('#editorSave');
   await desktop.screenshot({ path: path.join(out, 'desktop-today.png') });
   console.log('✓ today at the top: what is due, with times');
+
+  // Suggested to-dos: the top one of the day on top, the rest in the inbox; Add makes a note, Dismiss removes.
+  await desktop.evaluate(() => fetch('api/suggestions/run', { method: 'POST' }));
+  await desktop.evaluate(() => window.dispatchEvent(new Event('focus')));
+  await desktop.waitForSelector('.today.suggest:has-text("Bring the car seat for Mia")');
+  await desktop.screenshot({ path: path.join(out, 'desktop-suggested.png') });
+  await desktop.click('.today.suggest [data-suggest-open]');
+  await desktop.waitForSelector('#suggested[open] .suggest-item:has-text("Renew the library books")');
+  await desktop.screenshot({ path: path.join(out, 'desktop-suggested-inbox.png') });
+  await desktop.click('#suggested .suggest-item:has-text("Renew the library books") [data-suggest-dismiss]');
+  await desktop.waitForSelector('#suggested .suggest-item:has-text("Renew the library books")', { state: 'detached' });
+  await desktop.click('#suggestedClose');
+  await desktop.click('.today.suggest [data-suggest-add]');
+  await desktop.waitForSelector('.note:has-text("Bring the car seat for Mia")');
+  assert.equal(await desktop.isVisible('.today.suggest'), false, 'nothing left to review');
+  console.log('✓ suggested to-dos: the top one of the day, add and dismiss');
 
   // Premium backups (the owner has Premium): back up, delete a note, restore it.
   await desktop.fill('#composer textarea', 'Passport renewal form');

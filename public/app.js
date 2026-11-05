@@ -1106,7 +1106,7 @@ function renderNow() {
     </div>`;
     if (ui.showDone) html += section(t('Done'), done, { showGroup: true }, 'done-section');
   }
-  $('#list').innerHTML = welcomeCard(everything) + (q || ui.group ? '' : todayCard(all)) + html;
+  $('#list').innerHTML = welcomeCard(everything) + (q || ui.group ? '' : suggestCard() + todayCard(all)) + html;
   // This month's AI sortings are used up: say so once, above the notes.
   const limited = everything.find((n) => !n.role && n.ai_status === 'limit');
   $('#limitBanner').hidden = !limited;
@@ -1497,6 +1497,8 @@ $('#accountBtn').onclick = async () => {
   loadCalendars();
   loadNotify();
   loadAssistants();
+  loadSuggestions().then(fillSuggestSettings);
+  fillSuggestSettings();
   $('#aiResult').hidden = true;
   renderVoices();
   $('#icloudForm').hidden = true;
@@ -1701,6 +1703,127 @@ document.addEventListener('click', (e) => {
   if (synth()?.speaking) return synth().cancel();
   speak(spokenDay());
 });
+
+// Suggested to-dos: the AI proposes, the person decides (server/suggestions.js).
+let suggestions = [];
+let suggestState = { premium: false, settings: { on: true, time: '07:00' } };
+async function loadSuggestions() {
+  if (!local.user) return;
+  try {
+    const r = await local.api('suggestions');
+    suggestions = r.suggestions;
+    suggestState = { premium: r.premium, settings: r.settings };
+    render();
+    renderSuggested();
+  } catch { /* offline: keep what we had */ }
+}
+function suggestCard() {
+  if (!suggestions.length) return '';
+  const top = suggestions.find((s) => s.top);
+  const others = suggestions.length - (top ? 1 : 0);
+  const more = others ? `<button class="link-btn" data-suggest-open>${esc(t(top ? 'More suggestions: {n}' : 'Suggested to-dos to review: {n}', { n: others }))}</button>` : '';
+  if (!top) return `<section class="today suggest" aria-label="${esc(t('Suggested'))}"><p>✨ ${more}</p></section>`;
+  return `<section class="today suggest" aria-label="${esc(t('Suggested'))}">
+    <p>⭐ <b>${esc(t('Your top to-do today:'))}</b> ${esc(top.title)}${top.reason ? ` <span class="muted">· ${esc(top.reason)}</span>` : ''}</p>
+    <p class="suggest-actions"><button class="ghost small" data-suggest-add="${esc(top.id)}">${esc(t('Add'))}</button><button class="ghost small" data-suggest-dismiss="${esc(top.id)}">${esc(t('Dismiss'))}</button>${more}</p>
+  </section>`;
+}
+function renderSuggested() {
+  const list = $('#suggestedList');
+  if (!list) return;
+  $('#suggestedEmpty').hidden = suggestions.length > 0;
+  list.innerHTML = suggestions.map((s) => {
+    const due = s.due_date ? `${new Date(`${s.due_date}T12:00`).toLocaleDateString(lang, { weekday: 'short', day: 'numeric', month: 'short' })}${s.due_time ? ` · ${s.due_time}` : ''}` : '';
+    return `<li class="suggest-item${s.top ? ' top' : ''}">
+      <div><b>${s.top ? '⭐ ' : ''}${esc(s.title)}</b>${due ? ` <span class="muted">📅 ${esc(due)}</span>` : ''}
+        <br><span class="muted">${esc(t('From:'))} ${esc(s.source_label || t('your notes'))}${s.reason ? ` · ${esc(s.reason)}` : ''}</span></div>
+      <div class="suggest-actions">
+        <button class="primary small" data-suggest-add="${esc(s.id)}">${esc(t('Add'))}</button>
+        <button class="ghost small" data-suggest-edit="${esc(s.id)}">${esc(t('Edit and add'))}</button>
+        <button class="ghost small" data-suggest-dismiss="${esc(s.id)}">${esc(t('Dismiss'))}</button>
+      </div>
+    </li>`;
+  }).join('');
+}
+async function decideSuggestion(id, action, body) {
+  try {
+    const r = await local.api(`suggestions/${id}/${action}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) });
+    suggestions = r.suggestions;
+    render();
+    renderSuggested();
+    if (action === 'add') toast(t('Added to your notes'));
+    track(action === 'add' ? 'suggestion_add_tap' : 'suggestion_dismiss_tap', {});
+  } catch (err) {
+    toast(err.message);
+  }
+}
+document.addEventListener('click', (e) => {
+  const add = e.target.closest('[data-suggest-add]');
+  if (add) return decideSuggestion(add.dataset.suggestAdd, 'add');
+  const edit = e.target.closest('[data-suggest-edit]');
+  if (edit) {
+    const s = suggestions.find((x) => x.id === edit.dataset.suggestEdit);
+    const title = s && prompt(t('Edit the to-do'), s.title);
+    if (title && title.trim()) decideSuggestion(s.id, 'add', { title: title.trim() });
+    return;
+  }
+  const dismiss = e.target.closest('[data-suggest-dismiss]');
+  if (dismiss) return decideSuggestion(dismiss.dataset.suggestDismiss, 'dismiss');
+  if (e.target.closest('[data-suggest-open]')) {
+    renderSuggested();
+    $('#suggested').showModal();
+  }
+});
+$('#suggestedClose').onclick = () => $('#suggested').close();
+$('#suggestNow').onclick = async () => {
+  $('#suggestNow').disabled = true;
+  try {
+    const r = await local.api('suggestions/run', { method: 'POST' });
+    suggestions = r.suggestions;
+    render();
+    renderSuggested();
+    if (!suggestions.length) toast(t('Nothing to review right now.'));
+  } catch (err) {
+    toast(err.message);
+  } finally {
+    $('#suggestNow').disabled = false;
+  }
+};
+$('#chatUpload').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if (!file) return;
+  if (!suggestState.premium) return toast(t('To-dos from AI chats are part of Premium.'));
+  try {
+    const text = await file.text();
+    const r = await local.api('suggestions/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text, name: file.name }) });
+    suggestions = r.suggestions;
+    render();
+    renderSuggested();
+    toast(t('Suggested to-dos from the chat: {n}', { n: r.added }));
+  } catch (err) {
+    toast(err.message);
+  }
+});
+function fillSuggestSettings() {
+  $('#suggestOn').checked = suggestState.settings.on;
+  $('#suggestTime').value = suggestState.settings.time;
+  $('#suggestTime').disabled = !suggestState.settings.on;
+}
+async function saveSuggestSettings() {
+  try {
+    const r = await local.api('suggestions/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ on: $('#suggestOn').checked, time: $('#suggestTime').value }) });
+    suggestState.settings = r.settings;
+    fillSuggestSettings();
+  } catch (err) {
+    toast(err.message);
+  }
+}
+$('#suggestOn').addEventListener('change', saveSuggestSettings);
+$('#suggestTime').addEventListener('change', saveSuggestSettings);
+local.addEventListener('started', loadSuggestions);
+window.addEventListener('focus', loadSuggestions);
+setInterval(loadSuggestions, 10 * 60e3);
 
 // Notifications: reminders and the morning briefing (Web Push).
 const pushSupported = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
@@ -2144,6 +2267,13 @@ if (back.has('open')) {
     else if (tries++ < 40) setTimeout(openWhenHere, 250);
   };
   openWhenHere();
+}
+if (back.has('suggested')) {
+  history.replaceState(null, '', location.pathname);
+  loadSuggestions().then(() => {
+    renderSuggested();
+    $('#suggested').showModal();
+  });
 }
 if (back.has('calendar') || back.has('calendar_error')) {
   setTimeout(() => toast(back.has('calendar_error') ? t(back.get('calendar_error')) : t('Calendar connected')), 300);

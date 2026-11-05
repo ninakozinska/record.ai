@@ -96,6 +96,27 @@ const TASKS_SYSTEM = `You read a letter, notice, invitation, timetable, receipt 
 - details: one line with what to bring, how much, or where; null when there is nothing to add.
 - At most 20 tasks. If there is nothing to do, return an empty list.`;
 
+// Suggested to-dos: from meetings, documents and AI chats, what the person
+// should do. They wait in the Suggested inbox until the person adds them.
+const SuggestionList = z.object({
+  suggestions: z.array(z.object({
+    title: z.string().describe('What to do, short and concrete, in the language of the source'),
+    due_date: z.string().nullable().describe('YYYY-MM-DD, or null'),
+    due_time: z.string().nullable().describe('HH:MM (24 h), or null'),
+    priority: z.enum(['urgent', 'high', 'normal', 'low']),
+    reason: z.string().describe('A few words on why, citing the source ("the agenda asks you to bring the budget")'),
+    source: z.string().describe('The [id] of the item it comes from, or "notes"'),
+    top: z.boolean().describe('true for the single most important to-do of the day'),
+  })).max(8),
+});
+
+const SUGGEST_SYSTEM = `You help a busy working parent start the day. From their meetings, documents and chats, propose the few things they should DO, as short to-dos.
+- Only actions: prepare, bring, reply, sign, pay, book, buy, call, send. Skip information that needs nothing from the person.
+- Never repeat something already in their open notes, and never propose anything like the items they dismissed before.
+- Dates: resolve "tomorrow", "next Friday", "by the 15th" from today's date. due_time only when a time is given.
+- Write each title in the language of its source. The reason is a few words, saying where it comes from.
+- Mark exactly one suggestion as top: the one that matters most today. If nothing is worth doing, return an empty list; when unsure, leave it out.`;
+
 const SYSTEM = `You organize a person's personal notes (typed, dictated, or photos).
 Priorities:
 - urgent: needs action today or is time-critical / has a deadline within ~2 days
@@ -288,6 +309,20 @@ export class Organizer {
       const time = (t) => (/^([01]\d|2[0-3]):[0-5]\d$/.test(t || '') ? t : null);
       return tasks.map((t) => ({ title: String(t.title).trim().slice(0, 200), due_date: date(t.due_date), due_time: date(t.due_date) ? time(t.due_time) : null, details: t.details ? String(t.details).trim().slice(0, 300) : null }))
         .filter((t) => t.title);
+    } catch (err) {
+      if (meter.usage) this.onAiCall({ ...meter, outcome: 'error' });
+      throw Object.assign(new Error(friendlyError(err, this.provider)), { status: 502 });
+    }
+  }
+
+  /** Suggested to-dos from the given material (meetings, notes, a chat). Does not count against the monthly sortings. */
+  async suggest({ userId, text, kind = 'suggestions' }) {
+    if (!this.enabled) throw Object.assign(new Error('AI is not configured'), { status: 503 });
+    const meter = { kind, userId, started: Date.now() };
+    try {
+      const { suggestions } = await this.ask({ text, schema: SuggestionList, effort: 'low', maxTokens: 3000, meter, system: SUGGEST_SYSTEM });
+      this.onAiCall({ ...meter, outcome: 'used' });
+      return suggestions;
     } catch (err) {
       if (meter.usage) this.onAiCall({ ...meter, outcome: 'error' });
       throw Object.assign(new Error(friendlyError(err, this.provider)), { status: 502 });

@@ -166,6 +166,24 @@
     </form>
   </dialog>
 
+  <!-- Suggested to-dos: from meetings, notes and AI chats, waiting for review. -->
+  <dialog id="suggested" class="sheet">
+    <div class="sheet-inner">
+      <div class="sheet-head">
+        <h2>✨ Suggested</h2>
+        <button type="button" class="icon-btn" id="suggestedClose" title="Close">✕</button>
+      </div>
+      <p class="muted">To-dos the AI found in your meetings, notes and AI chats. Nothing is added until you add it.</p>
+      <ul id="suggestedList" class="suggest-list"></ul>
+      <p class="muted" id="suggestedEmpty">Nothing to review right now.</p>
+      <div class="cal-buttons">
+        <button type="button" class="ghost" id="suggestNow">✨ Suggest now</button>
+        <label class="ghost file-btn">💬 To-dos from an AI chat export <span class="muted plan-label">⭐ Premium</span><input type="file" id="chatUpload" accept=".json,.txt,.md" hidden></label>
+      </div>
+      <p class="muted">In Claude, ChatGPT or Gemini connected to SortNotes, you can also say: "Send the to-dos from this chat to SortNotes."</p>
+    </div>
+  </dialog>
+
   <!-- Pasting several lines: one item, or one per line? -->
   <dialog id="pasteChoice" class="sheet">
     <form method="dialog" class="sheet-inner">
@@ -345,6 +363,15 @@
           <option>06:30</option><option>07:00</option><option>07:30</option><option>08:00</option><option>08:30</option><option>09:00</option>
         </select>
         <p class="muted">What is due today and what is overdue, every morning at this time.</p>
+      </div>
+      <div class="stack" id="suggestBox">
+        <h3>✨ Suggested to-dos</h3>
+        <p class="muted">Every morning the AI looks at your meetings and notes and suggests the top to-do of the day. You review each one.</p>
+        <label class="muted"><input type="checkbox" id="suggestOn"> Suggest to-dos every morning</label>
+        <label class="muted" for="suggestTime">At</label>
+        <select id="suggestTime">
+          <option>06:30</option><option>07:00</option><option>07:30</option><option>08:00</option><option>08:30</option><option>09:00</option>
+        </select>
       </div>
       <div class="stack" id="aiBox">
         <h3>🤖 AI assistants</h3>
