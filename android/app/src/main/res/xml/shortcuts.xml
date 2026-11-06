@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Long-press the app icon: "Hear today" reads the day's plan aloud (MainActivity.HEAR_TODAY). -->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="hear_today"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_hear"
+        android:shortcutShortLabel="@string/hear_today"
+        android:shortcutLongLabel="@string/hear_today_long">
+        <intent
+            android:action="ai.record.android.HEAR_TODAY"
+            android:targetPackage="com.ninakozinska.recordai"
+            android:targetClass="ai.record.android.MainActivity" />
+    </shortcut>
+</shortcuts>

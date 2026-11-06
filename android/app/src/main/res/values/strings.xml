@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The app icon's long-press shortcut (res/xml/shortcuts.xml). -->
+<resources>
+    <string name="hear_today">Hear today</string>
+    <string name="hear_today_long">Hear today’s plan</string>
+</resources>

@@ -129,7 +129,7 @@ test('the morning briefing: once a day at the chosen time, in the person\'s lang
     await t.reminders.tick();
     await t.reminders.tick();
     assert.equal(sent.length, 1, 'once a day');
-    assert.deepEqual(sent[0].payload, { title: '☀️ Your day', body: '09:15 Dentist · 16:00 Pick up Mia · 1 overdue', url: './', tag: 'briefing', empty: false });
+    assert.deepEqual(sent[0].payload, { title: '☀️ Your day', body: '09:15 Dentist · 16:00 Pick up Mia · 1 overdue', url: './?hear=today', tag: 'briefing', empty: false });
 
     t.store.setLanguage(t.user.id, 'it');
     clock.now = utcOf('2026-11-06T07:45', TZ);

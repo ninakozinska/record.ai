@@ -117,6 +117,12 @@ struct NotesView: View {
                     .frame(width: 200)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
+                    Button { Task { await ReadAloud.hearToday() } } label: {
+                        Image(systemName: "speaker.wave.2.fill")
+                    }
+                    .accessibilityLabel(tr("Hear today"))
+                }
+                ToolbarItem(placement: .topBarTrailing) {
                     Menu {
                         if store.isAIEnabled {
                             Button { reorganize() } label: { Label(tr("Reorganize with AI"), systemImage: "sparkles") }

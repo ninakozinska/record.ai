@@ -589,6 +589,12 @@ final class NoteStore {
         return try await api.get("plan", as: Plan.self)
     }
 
+    /// Today's plan as the server says it (the same on every device).
+    func spokenToday() async throws -> SpokenDay {
+        guard let api else { throw APIError.offline }
+        return try await api.get("today/spoken", as: SpokenDay.self)
+    }
+
     func backups() async throws -> [Backup] {
         guard let api else { throw APIError.offline }
         return try await api.get("backups", as: BackupList.self).backups

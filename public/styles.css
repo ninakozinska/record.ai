@@ -360,6 +360,8 @@ a.btn { display: inline-flex; align-items: center; text-decoration: none; color:
 .today .read-day { position: absolute; top: 6px; right: 6px; padding: 2px 8px; }
 
 /* Suggested to-dos */
+.today.hear { display: flex; align-items: center; gap: 8px; }
+.today.hear .hear-btn { flex: 1; font-size: 1.15rem; padding: 14px; }
 .today.suggest { border-color: var(--accent, #4f46e5); }
 .suggest-actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .suggest-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }

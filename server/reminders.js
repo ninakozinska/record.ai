@@ -131,7 +131,7 @@ export class Reminders {
     const parts = due.slice(0, 5).map((n) => (n.due_time ? `${n.due_time} ${titleOf(n)}` : titleOf(n)));
     if (due.length > 5) parts.push(`+${due.length - 5}`);
     if (late) parts.push(w.overdue(late));
-    return { title: `☀️ ${w.day}`, body: parts.join(' · ') || w.nothing, url: './', tag: 'briefing', empty: !due.length && !late };
+    return { title: `☀️ ${w.day}`, body: parts.join(' · ') || w.nothing, url: './?hear=today', tag: 'briefing', empty: !due.length && !late };
   }
 
   /** Runs every 30 seconds: due reminders, then due briefings. */

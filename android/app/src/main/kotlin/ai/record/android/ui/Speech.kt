@@ -78,6 +78,15 @@ object ReadAloud {
     }
 }
 
+/** "Hear today": the day's plan from the server, read aloud (or stops reading). */
+suspend fun hearToday(context: Context, repo: ai.record.core.NoteRepository) {
+    val text = runCatching { repo.spokenToday() }.fold(
+        onSuccess = { if (it.canRead) it.text else tr("Reading aloud is part of Premium.") },
+        onFailure = { it.message ?: tr("Cannot reach the server. Is it running?") },
+    )
+    ReadAloud.speak(context, text)
+}
+
 /** The account screen's voice choice. */
 @Composable
 fun VoicePicker(premium: Boolean) {

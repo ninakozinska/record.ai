@@ -484,4 +484,5 @@ export default {
   "New suggestions can be made once an hour.": "De nouvelles suggestions peuvent être faites une fois par heure.",
   "The file has no text the AI can read.": "Le fichier ne contient aucun texte lisible par l'IA.",
   "Suggestion not found": "Suggestion introuvable",
+  "Hear today": "Écouter ma journée",
 };

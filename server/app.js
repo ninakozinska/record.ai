@@ -21,6 +21,7 @@ import { toIcs, noteTitle } from './calendar.js';
 import crypto from 'node:crypto';
 import { billing as makeBilling, PLANS } from './billing.js';
 import { errorReporter } from './errors.js';
+import { spokenToday } from './today.js';
 
 const PUBLIC_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'public');
 const IMAGE_NAME = /^[a-zA-Z0-9-]{8,64}\.(jpg|jpeg|png|webp|gif)$/;
@@ -312,6 +313,14 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth, mail, bill
   app.post('/api/push/test', async (req, res) => {
     const sent = await reminders.push(req.user.id, { title: 'SortNotes', body: '🔔 ✓', url: './', tag: 'test' });
     res.json({ sent });
+  });
+  // "Hear today": the day's plan as one text to read aloud, in the person's language.
+  // Reading it aloud is part of Premium, like reading notes (the owner has everything).
+  app.get('/api/today/spoken', (req, res) => {
+    const userId = req.user.id;
+    const top = suggestions.open(userId).find((s) => s.top);
+    const day = spokenToday({ store, userId, tz: calendars.tzOf(userId), topTodo: top?.title || null });
+    res.json({ ...day, canRead: premium(store.planOf(userId)) || store.firstUserId() === userId });
   });
   app.put('/api/briefing', (req, res) => {
     if (!reminders.setBriefing(req.user.id, req.body?.time ?? null)) return res.status(400).json({ error: 'Bad time' });
