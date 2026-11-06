@@ -29,6 +29,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Warning
@@ -159,6 +160,7 @@ fun NotesScreen(repo: NoteRepository, state: UiState, sharedText: String?, onSha
                     }
                 },
                 actions = {
+                    IconButton(onClick = { scope.launch { hearToday(context, repo) } }) { Icon(Icons.AutoMirrored.Filled.VolumeUp, tr("Hear today")) }
                     IconButton(onClick = { searching = !searching; if (!searching) query = "" }) { Icon(Icons.Filled.Search, tr("Search")) }
                     Box {
                         Surface(

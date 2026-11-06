@@ -1106,7 +1106,7 @@ function renderNow() {
     </div>`;
     if (ui.showDone) html += section(t('Done'), done, { showGroup: true }, 'done-section');
   }
-  $('#list').innerHTML = welcomeCard(everything) + (q || ui.group ? '' : suggestCard() + todayCard(all)) + html;
+  $('#list').innerHTML = welcomeCard(everything) + (q || ui.group ? '' : hearCard() + suggestCard() + todayCard(all)) + html;
   // This month's AI sortings are used up: say so once, above the notes.
   const limited = everything.find((n) => !n.role && n.ai_status === 'limit');
   $('#limitBanner').hidden = !limited;
@@ -1698,10 +1698,33 @@ $('#editorSpeak').onclick = () => {
   const n = local.notes.get(editor.id);
   if (n) speak(spokenNote({ ...n, ...effectiveDue(n), text: editor.composer.value.text }));
 };
-document.addEventListener('click', (e) => {
-  if (!e.target.closest('[data-read-day]')) return;
+/** "Hear today": the day as the server says it (the same on every device), or as this device knows it when offline. */
+async function hearToday() {
   if (synth()?.speaking) return synth().cancel();
-  speak(spokenDay());
+  let text = '';
+  try {
+    text = (await local.api('today/spoken')).text;
+  } catch { /* offline */ }
+  speak(text || spokenDay());
+}
+// The morning notification opens "?hear=today": one big button, since browsers only speak after a tap.
+let hearPrompt = false;
+function hearCard() {
+  if (!hearPrompt || !synth()) return '';
+  return `<section class="today hear"><button class="primary hear-btn" data-hear-today>🔊 ${esc(t('Hear today'))}</button>
+    <button class="ghost" data-hear-close aria-label="${esc(t('Close'))}">✕</button></section>`;
+}
+document.addEventListener('click', (e) => {
+  if (e.target.closest('[data-hear-close]')) {
+    hearPrompt = false;
+    return render();
+  }
+  if (!e.target.closest('[data-read-day], [data-hear-today]')) return;
+  if (e.target.closest('[data-hear-today]')) {
+    hearPrompt = false;
+    render();
+  }
+  hearToday();
 });
 
 // Suggested to-dos: the AI proposes, the person decides (server/suggestions.js).
@@ -2267,6 +2290,11 @@ if (back.has('open')) {
     else if (tries++ < 40) setTimeout(openWhenHere, 250);
   };
   openWhenHere();
+}
+if (back.get('hear') === 'today') {
+  history.replaceState(null, '', location.pathname);
+  hearPrompt = true;
+  render();
 }
 if (back.has('suggested')) {
   history.replaceState(null, '', location.pathname);

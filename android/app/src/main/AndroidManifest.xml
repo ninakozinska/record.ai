@@ -45,6 +45,8 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="recordai" android:host="auth" />
             </intent-filter>
+            <!-- Long-press the app icon: "Hear today". -->
+            <meta-data android:name="android.app.shortcuts" android:resource="@xml/shortcuts" />
         </activity>
 
         <provider

@@ -187,6 +187,13 @@ struct Plan: Codable {
     var canReadAloud: Bool { premium || admin == true }
 }
 
+/// "Hear today": the day's plan as one text to read aloud, in the person's language.
+struct SpokenDay: Codable {
+    var text: String
+    var lang: String
+    var canRead: Bool
+}
+
 struct Backup: Codable, Identifiable {
     var id: String
     var kind: String          // "daily", "manual" or "before-restore"

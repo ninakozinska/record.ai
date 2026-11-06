@@ -463,6 +463,8 @@ class NoteRepository(
     suspend fun worlds(): Map<String, String> = runCatching { api?.worlds() }.getOrNull() ?: emptyMap()
 
     suspend fun plan(): Plan = api?.plan() ?: throw ApiException.offline()
+
+    suspend fun spokenToday(): SpokenDay = api?.spokenToday() ?: throw ApiException.offline()
     suspend fun backups(): List<Backup> = api?.backups() ?: throw ApiException.offline()
     suspend fun backupNow() { api?.backupNow() }
     suspend fun restore(id: String) { api?.restore(id); flush() }

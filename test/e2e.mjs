@@ -559,6 +559,19 @@ try {
   assert.equal(await desktop.isVisible('.today.suggest'), false, 'nothing left to review');
   console.log('✓ suggested to-dos: the top one of the day, add and dismiss');
 
+  // Hear today: the morning notification opens ?hear=today; one tap reads the day (the server's text).
+  await desktop.goto(`${url}?hear=today`);
+  await desktop.waitForSelector('.today.hear .hear-btn');
+  await desktop.screenshot({ path: path.join(out, 'desktop-hear-today.png') });
+  await desktop.evaluate(() => {
+    window.__said = [];
+    window.speechSynthesis.speak = (u) => window.__said.push(u.text);
+  });
+  await desktop.click('.today.hear .hear-btn');
+  await desktop.waitForFunction(() => window.__said.some((t) => /At 16:00, Pick up Mia at 16:00\./.test(t)));
+  assert.equal(await desktop.isVisible('.today.hear'), false, 'the big button goes once used');
+  console.log('✓ hear today: one tap from the morning notification reads the day');
+
   // Premium backups (the owner has Premium): back up, delete a note, restore it.
   await desktop.fill('#composer textarea', 'Passport renewal form');
   await desktop.click('#composer [data-role=save]');

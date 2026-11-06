@@ -144,6 +144,9 @@ data class Note(
     val canReadAloud: Boolean get() = premium || admin
 }
 
+/** "Hear today": the day's plan as one text to read aloud, in the person's language. */
+@Serializable data class SpokenDay(val text: String = "", val lang: String = "en", val canRead: Boolean = false)
+
 @Serializable data class Backup(val id: String, val kind: String, @SerialName("created_at") val createdAt: Double, val notes: Int = 0)
 
 @Serializable data class ReorganizeResult(val updated: Int? = null, val skipped: Boolean? = null)

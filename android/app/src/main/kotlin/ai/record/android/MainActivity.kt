@@ -9,6 +9,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.lifecycleScope
 import ai.record.android.ui.AppRoot
 import ai.record.android.ui.RecordAiTheme
+import ai.record.android.ui.hearToday
 import kotlinx.coroutines.launch
 
 /** A "Continue with …" sign-in finishing in the background; the login screen shows it. */
@@ -25,7 +26,10 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         shared.value = sharedText(intent)
-        if (savedInstanceState == null) finishSocialLogin(intent)
+        if (savedInstanceState == null) {
+            finishSocialLogin(intent)
+            hearTodayIfAsked(intent)
+        }
         setContent {
             RecordAiTheme {
                 AppRoot(repository, sharedText = shared.value, onSharedUsed = { shared.value = null })
@@ -37,6 +41,18 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         sharedText(intent)?.let { shared.value = it }
         finishSocialLogin(intent)
+        hearTodayIfAsked(intent)
+    }
+
+    /** The "Hear today" shortcut (long-press the app icon): read the day straight away. */
+    private fun hearTodayIfAsked(intent: Intent?) {
+        if (intent?.action != HEAR_TODAY) return
+        intent.action = Intent.ACTION_MAIN // once, not again after rotating the phone
+        lifecycleScope.launch { hearToday(this@MainActivity, repository) }
+    }
+
+    companion object {
+        const val HEAR_TODAY = "ai.record.android.HEAR_TODAY"
     }
 
     /** The browser came back to recordai://auth?code=… after "Continue with …". */

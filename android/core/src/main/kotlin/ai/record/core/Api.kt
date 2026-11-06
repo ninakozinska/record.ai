@@ -185,6 +185,9 @@ class Api(val baseUrl: String, private val token: String?, private val client: O
 
     suspend fun plan(): Plan = decode(call("plan"))
 
+    /** Today's plan as the server says it (the same on every device). */
+    suspend fun spokenToday(): SpokenDay = decode(call("today/spoken"))
+
     @kotlinx.serialization.Serializable private data class BackupList(val backups: List<Backup> = emptyList())
 
     suspend fun backups(): List<Backup> = decode<BackupList>(call("backups")).backups

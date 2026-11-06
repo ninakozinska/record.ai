@@ -27,6 +27,27 @@ enum ReadAloud {
         synthesizer.speak(utterance)
     }
 
+    /// "Hear today": what to say, from the server; for Siri too, which runs without the app's screen.
+    static func todayText() async -> String {
+        let server = UserDefaults.standard.string(forKey: "serverURL").flatMap { URL(string: $0) }
+        guard let server, let token = Keychain.load("token") else { return tr("Log in to SortNotes first.") }
+        do {
+            let day = try await API(baseURL: server, token: token).get("today/spoken", as: SpokenDay.self)
+            return day.canRead ? day.text : tr("Reading aloud is part of Premium.")
+        } catch {
+            return error.localizedDescription
+        }
+    }
+
+    /// Reads today's plan in the app (or stops reading).
+    static func hearToday() async {
+        if synthesizer.isSpeaking {
+            synthesizer.stopSpeaking(at: .immediate)
+            return
+        }
+        speak(await todayText())
+    }
+
     /// A note as it is read: the title, the text, the open items.
     static func text(of note: Note, items: [Note]) -> String {
         let title = note.displayTitle
