@@ -58,14 +58,7 @@ Add these addresses **next to** the old ones (keep the old ones for a month):
 Only services you have already registered need this. GitHub allows one
 callback URL per app: change it when step 2 is done.
 
-## 4. Emails from your own address (15 minutes)
+## 4. Emails from your own address
 
-In Resend: **Domains → Add domain → sortnotes.com**, choose the EU region if
-offered, and add the DNS records it shows where you bought the domain. When
-Resend says *Verified*, in Terminal:
-
-```
-fly secrets set MAIL_FROM="SortNotes <hello@sortnotes.com>"
-```
-
-Tell Claude "done" (never the keys).
+Resend for the emails the app sends, and iCloud+ for your own mailbox
+(nina@ and support@sortnotes.com): every step is in EMAIL.md.

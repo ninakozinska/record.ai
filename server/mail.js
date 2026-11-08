@@ -6,6 +6,8 @@
 export function mailer({ env = process.env, fetch = globalThis.fetch, log = console } = {}) {
   const key = env.RESEND_API_KEY;
   const from = env.MAIL_FROM;
+  // Where replies go, e.g. support@your-domain (a mailbox you read); optional.
+  const replyTo = env.MAIL_REPLY_TO;
   return {
     configured: !!(key && from),
     async send({ to, subject, text }) {
@@ -16,7 +18,7 @@ export function mailer({ env = process.env, fetch = globalThis.fetch, log = cons
       const res = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ from, to: [to], subject, text }),
+        body: JSON.stringify({ from, to: [to], subject, text, ...(replyTo ? { reply_to: replyTo } : {}) }),
       });
       if (!res.ok) {
         log.error(`[mail] Resend answered ${res.status}: ${(await res.text()).slice(0, 200)}`);
