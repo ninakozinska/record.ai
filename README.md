@@ -123,6 +123,7 @@ Open your server's URL, log in, then:
 | `OPTIMIZER` | *(on)* | `off` stops the hourly optimization loops and the daily backups. See [docs/OPTIMIZATION.md](docs/OPTIMIZATION.md). |
 | `AI_UNLIMITED` | *(none)* | Comma-separated emails that have no monthly AI limit either. |
 | `RESEND_API_KEY`, `MAIL_FROM` | *(none)* | Sends "Forgot your password?" emails through [Resend](https://resend.com) (`MAIL_FROM` like `SortNotes <hello@your-domain>`, on a domain verified there). Without them the reset link is only written to the server log. |
+| `MAIL_REPLY_TO` | *(none)* | Where replies to those emails go, such as `support@your-domain` (a mailbox you read). |
 | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_SOLO`, `STRIPE_PRICE_FAMILY` | *(none)* | Opens payments for Solo and Family through Stripe. Step by step: [docs/PAYMENTS.md](docs/PAYMENTS.md). |
 | `PUBLIC_URL` | *(the address used)* | The app's public address, used in emailed links (e.g. `https://record-ai-nina.fly.dev`). |
 | `PORT` | `3000` | HTTP port. |
