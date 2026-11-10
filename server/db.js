@@ -264,6 +264,15 @@ function migrate(db) {
       decided_at   INTEGER
     );
     CREATE INDEX IF NOT EXISTS suggestions_user ON suggestions(user_id, status);
+    CREATE TABLE IF NOT EXISTS note_history (
+      id       INTEGER PRIMARY KEY AUTOINCREMENT,
+      note_id  TEXT NOT NULL,
+      user_id  TEXT,
+      at       INTEGER NOT NULL,
+      kind     TEXT NOT NULL,
+      detail   TEXT
+    );
+    CREATE INDEX IF NOT EXISTS note_history_note ON note_history(note_id, at);
   `);
 }
 
@@ -480,7 +489,80 @@ class Store {
           input.id,
         );
     }
-    return { note: this.get(input.id), contentChanged: contentChanged && !parentId };
+    const saved = this.get(input.id);
+    this.recordChanges(userId, existing, saved);
+    return { note: saved, contentChanged: contentChanged && !parentId };
+  }
+
+  // --- history: when a note was made and changed, and by whom -------------------
+
+  /** Writes what changed between two versions of a note (a list item counts on its list). */
+  recordChanges(userId, before, after) {
+    const at = after.edited_at || Date.now();
+    if (after.parent_id) {
+      const text = (after.text || '').trim().slice(0, 120);
+      if (!before) return this.addHistory(after.parent_id, userId, at, 'item_added', { text });
+      if (!before.deleted && after.deleted) return this.addHistory(after.parent_id, userId, at, 'item_removed', { text });
+      if (!before.done && after.done) this.addHistory(after.parent_id, userId, at, 'item_done', { text });
+      else if (before.done && !after.done) this.addHistory(after.parent_id, userId, at, 'item_reopened', { text });
+      if (before.text !== after.text) this.addHistory(after.parent_id, userId, at, 'item_edited', { text }, true);
+      return;
+    }
+    if (!before) return this.addHistory(after.id, userId, after.created_at || at, 'created');
+    if (!before.deleted && after.deleted) return this.addHistory(after.id, userId, at, 'deleted');
+    if (before.deleted && !after.deleted) this.addHistory(after.id, userId, at, 'restored');
+    if (before.text !== after.text || JSON.stringify(before.images) !== JSON.stringify(after.images)) {
+      this.addHistory(after.id, userId, at, 'edited', null, true);
+    }
+    if (!before.done && after.done) this.addHistory(after.id, userId, at, 'done');
+    else if (before.done && !after.done) this.addHistory(after.id, userId, at, 'reopened');
+    if ((before.user_due ?? null) !== (after.user_due ?? null)) {
+      this.addHistory(after.id, userId, at, 'date', { date: after.due_date, time: after.due_time }, true);
+    }
+    if ((before.user_group ?? null) !== (after.user_group ?? null) && after.user_group) {
+      this.addHistory(after.id, userId, at, 'group', { group: after.user_group }, true);
+    }
+    if ((before.user_priority ?? null) !== (after.user_priority ?? null) && after.user_priority) {
+      this.addHistory(after.id, userId, at, 'priority', { priority: after.user_priority }, true);
+    }
+    if ((before.assigned_to ?? null) !== (after.assigned_to ?? null)) {
+      this.addHistory(after.id, userId, at, 'assigned', { to: after.assigned_to ?? null });
+    }
+    if ((before.remind ?? null) !== (after.remind ?? null)) {
+      this.addHistory(after.id, userId, at, 'reminder', { minutes: after.remind ?? null }, true);
+    }
+  }
+
+  /**
+   * One line of history. With merge, a change of the same kind by the same
+   * person within 10 minutes updates the last line instead of adding one, so
+   * typing a note does not fill its history.
+   */
+  addHistory(noteId, userId, at, kind, detail = null, merge = false) {
+    const json = detail ? JSON.stringify(detail) : null;
+    if (merge) {
+      const last = this.db.prepare('SELECT * FROM note_history WHERE note_id = ? ORDER BY at DESC, id DESC LIMIT 1').get(noteId);
+      if (last && last.kind === kind && last.user_id === (userId ?? null) && at - last.at < 10 * 60e3 && at >= last.at) {
+        this.db.prepare('UPDATE note_history SET at = ?, detail = ? WHERE id = ?').run(at, json, last.id);
+        return;
+      }
+    }
+    this.db.prepare('INSERT INTO note_history (note_id, user_id, at, kind, detail) VALUES (?, ?, ?, ?, ?)').run(noteId, userId ?? null, at, kind, json);
+    // Keep the last 200 lines of each note.
+    this.db.prepare(
+      'DELETE FROM note_history WHERE note_id = ? AND id NOT IN (SELECT id FROM note_history WHERE note_id = ? ORDER BY at DESC, id DESC LIMIT 200)',
+    ).run(noteId, noteId);
+  }
+
+  /** A note's history, newest first, with the name of whoever made each change. */
+  history(noteId) {
+    return this.db
+      .prepare(
+        `SELECT h.at, h.kind, h.detail, h.user_id, u.name FROM note_history h
+         LEFT JOIN users u ON u.id = h.user_id WHERE h.note_id = ? ORDER BY h.at DESC, h.id DESC`,
+      )
+      .all(noteId)
+      .map((r) => ({ at: r.at, kind: r.kind, detail: r.detail ? JSON.parse(r.detail) : null, by: r.user_id ? { id: r.user_id, name: r.name || null } : null }));
   }
 
   /** Items of a list, in the order they were added. */
@@ -528,7 +610,11 @@ class Store {
         rev,
         id,
       );
-    return this.get(id);
+    const note = this.get(id);
+    if (note && ai.status === 'done' && !note.parent_id) {
+      this.addHistory(id, null, Date.now(), 'sorted', { group: note.ai_group, priority: note.ai_priority, date: note.ai_due_date, time: note.ai_due_time }, true);
+    }
+    return note;
   }
 
   pendingIds() {
@@ -865,6 +951,8 @@ class Store {
       this.db.prepare('DELETE FROM push_subscriptions WHERE user_id = ?').run(userId);
       this.db.prepare('DELETE FROM assistant_keys WHERE user_id = ?').run(userId);
       this.db.prepare('DELETE FROM suggestions WHERE user_id = ?').run(userId);
+      this.db.prepare('DELETE FROM note_history WHERE note_id IN (SELECT id FROM notes WHERE user_id = ?)').run(userId);
+      this.db.prepare('UPDATE note_history SET user_id = NULL WHERE user_id = ?').run(userId);
       this.db.prepare('DELETE FROM sessions WHERE user_id = ?').run(userId);
       this.db.prepare("DELETE FROM assignments WHERE subject = ?").run(`u:${userId}`);
       this.db.prepare('UPDATE events SET user_id = NULL WHERE user_id = ?').run(userId);

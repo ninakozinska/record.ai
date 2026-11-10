@@ -208,6 +208,7 @@ fun NoteEditor(repo: NoteRepository, state: UiState, id: String, onClose: () -> 
                 }, modifier = Modifier.fillMaxWidth()) { Text(tr("Re-analyze with AI")) }
                 error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                 if (!note.shared) TextButton(onClick = { confirmDelete = true }) { Text(tr("Delete note"), color = MaterialTheme.colorScheme.error) }
+                NoteHistorySection(repo, note, state.user?.id, people.people)
             }
         }
     }

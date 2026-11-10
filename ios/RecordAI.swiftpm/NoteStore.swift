@@ -595,6 +595,12 @@ final class NoteStore {
         return try await api.get("today/spoken", as: SpokenDay.self)
     }
 
+    /// When a note was made and changed, and by whom, newest first.
+    func history(_ id: String) async throws -> [HistoryEvent] {
+        guard let api else { throw APIError.offline }
+        return try await api.get("notes/\(id)/history", as: NoteHistory.self).events
+    }
+
     func backups() async throws -> [Backup] {
         guard let api else { throw APIError.offline }
         return try await api.get("backups", as: BackupList.self).backups

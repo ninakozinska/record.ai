@@ -292,6 +292,11 @@ dialog::backdrop { background: rgba(10, 10, 20, .5); }
 .share-people select { padding: .3em .4em; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); color: var(--text); }
 #shareForm select { padding: .6em .75em; border-radius: 10px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: 1rem; }
 .shared-line { margin: 0; }
+.note-times { margin: 4px 0 0; font-size: .85rem; }
+.history { margin: 6px 0 0; font-size: .9rem; }
+.history summary { cursor: pointer; color: var(--muted, #64637a); }
+.history ol { list-style: none; padding: 0; margin: 8px 0 0; display: grid; gap: 4px; max-height: 220px; overflow-y: auto; }
+.history time { font-variant-numeric: tabular-nums; color: var(--muted, #64637a); margin-right: 4px; }
 .check:disabled { opacity: .45; cursor: default; }
 /* Shared with me, view only: nothing to change. */
 .read-only [data-role=mic], .read-only [data-role=camera], .read-only [data-role=photo], .read-only [data-remove],

@@ -543,6 +543,17 @@ try {
   await desktop.screenshot({ path: path.join(out, 'desktop-today.png') });
   console.log('✓ today at the top: what is due, with times');
 
+  // History: when the note was made and changed, and by whom.
+  await desktop.click('.note:has(h3:text("Pick up Mia at 16:00"))');
+  await desktop.waitForSelector('#editor[open] #editorTimes:has-text("Created")');
+  await desktop.click('#editorHistory summary');
+  await desktop.waitForSelector('#historyList li:has-text("Date set to")');
+  await desktop.waitForSelector('#historyList li:has-text("Created")');
+  assert.ok(await desktop.isVisible('#historyList li:has-text("you")'), 'says who made the change');
+  await desktop.screenshot({ path: path.join(out, 'desktop-history.png') });
+  await desktop.click('#editorSave');
+  console.log('✓ note history: created, date set, by whom');
+
   // Suggested to-dos: the top one of the day on top, the rest in the inbox; Add makes a note, Dismiss removes.
   await desktop.evaluate(() => fetch('api/suggestions/run', { method: 'POST' }));
   await desktop.evaluate(() => window.dispatchEvent(new Event('focus')));
