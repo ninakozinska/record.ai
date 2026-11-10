@@ -560,7 +560,10 @@ try {
   await desktop.waitForSelector('#send[open]');
   const message = await desktop.textContent('#sendPreview');
   assert.match(message, /Pick up Mia at 16:00/);
-  assert.match(message, /Sent from SortNotes, the notes app that sorts itself: http.*welcome\.html\?ref=send/);
+  assert.match(message, /Sent from SortNotes: http:\/\/localhost:\d+\/s$/);
+  const landing = await desktop.request.get(new URL('s', url).href, { maxRedirects: 0 });
+  assert.equal(landing.status(), 302);
+  assert.equal(landing.headers().location, '/welcome.html?ref=send');
   assert.match(await desktop.getAttribute('#sendWhatsApp', 'href'), /^https:\/\/wa\.me\/\?text=.*Sent%20from%20SortNotes/);
   assert.match(await desktop.getAttribute('#sendEmail', 'href'), /^mailto:\?subject=.*&body=.*Sent%20from%20SortNotes/);
   await desktop.screenshot({ path: path.join(out, 'desktop-send.png') });

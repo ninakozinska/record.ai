@@ -194,8 +194,10 @@ struct NoteDetailView: View {
             .map { ($0.done ? "☑ " : "☐ ") + $0.text }
             .joined(separator: "\n")
         let when = note.dueDate.map { "📅 " + $0 + (note.dueTime.map { " " + $0 } ?? "") } ?? ""
-        let link = (store.serverURL?.absoluteString ?? "https://record-ai-nina.fly.dev") + "/welcome.html?ref=send"
-        let footer = "— " + tr("Sent from SortNotes, the notes app that sorts itself") + ": " + link
+        // The short link: "sortnotes.com/s" (messaging apps make it clickable without https://).
+        let base = store.serverURL?.absoluteString ?? "https://record-ai-nina.fly.dev"
+        let link = (base.hasPrefix("https://") ? String(base.dropFirst(8)) : base) + "/s"
+        let footer = "— " + tr("Sent from SortNotes") + ": " + link
         return [title, body == title ? "" : body, items, when].filter { !$0.isEmpty }.joined(separator: "\n\n") + "\n\n" + footer
     }
 

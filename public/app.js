@@ -634,8 +634,10 @@ function noteAsMessage(n) {
   const items = local.items(n.id).map((i) => `${i.done ? '☑' : '☐'} ${i.text}`);
   const d = effectiveDue(n);
   const when = d.due_date ? `📅 ${new Date(`${d.due_date}T12:00`).toLocaleDateString(lang, { weekday: 'short', day: 'numeric', month: 'short' })}${d.due_time ? ` ${d.due_time}` : ''}` : '';
-  const link = new URL('welcome.html?ref=send', location.href).href;
-  const footer = `— ${t('Sent from SortNotes, the notes app that sorts itself')}: ${link}`;
+  // The short link: "sortnotes.com/s" (messaging apps make it clickable without https://).
+  const short = new URL('s', location.href);
+  const link = short.protocol === 'https:' ? `${short.host}${short.pathname}` : short.href;
+  const footer = `— ${t('Sent from SortNotes')}: ${link}`;
   return { title, text: [title, body, items.join('\n'), when].filter(Boolean).join('\n\n') + `\n\n${footer}` };
 }
 $('#editorSend').onclick = async () => {

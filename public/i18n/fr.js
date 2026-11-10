@@ -519,7 +519,7 @@ export default {
   "💬 WhatsApp": "💬 WhatsApp",
   "📱 Other apps…": "📱 Autres apps…",
   "📋 Copy": "📋 Copier",
-  "Sent from SortNotes, the notes app that sorts itself": "Envoyée depuis SortNotes, l'app de notes qui se range toute seule",
   "Copied. Paste it anywhere.": "Copiée. Collez-la où vous voulez.",
   "Copy this text:": "Copiez ce texte :",
+  "Sent from SortNotes": "Envoyée depuis SortNotes",
 };

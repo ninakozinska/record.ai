@@ -189,9 +189,10 @@ fun NoteEditor(repo: NoteRepository, state: UiState, id: String, onClose: () -> 
                     val items = state.items(id).joinToString("\n") { (if (it.done) "☑ " else "☐ ") + it.text }
                     val body = text.trim().takeIf { it != note.displayTitle }.orEmpty()
                     val whenText = note.dueDate?.let { "📅 $it" + (note.dueTime?.let { t -> " $t" } ?: "") }.orEmpty()
-                    val link = (state.serverUrl ?: "https://record-ai-nina.fly.dev").trimEnd('/') + "/welcome.html?ref=send"
+                    // The short link: "sortnotes.com/s" (messaging apps make it clickable without https://).
+                    val link = (state.serverUrl ?: "https://record-ai-nina.fly.dev").trimEnd('/').removePrefix("https://") + "/s"
                     val message = listOf(note.displayTitle, body, items, whenText).filter { it.isNotBlank() }.joinToString("\n\n") +
-                        "\n\n— " + tr("Sent from SortNotes, the notes app that sorts itself") + ": " + link
+                        "\n\n— " + tr("Sent from SortNotes") + ": " + link
                     val send = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
                         type = "text/plain"
                         putExtra(android.content.Intent.EXTRA_SUBJECT, note.displayTitle)
