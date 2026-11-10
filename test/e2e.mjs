@@ -554,6 +554,20 @@ try {
   await desktop.click('#editorSave');
   console.log('✓ note history: created, date set, by whom');
 
+  // Send a note outside the app: always signed with where it came from.
+  await desktop.click('.note:has(h3:text("Pick up Mia at 16:00"))');
+  await desktop.click('#editorSend');
+  await desktop.waitForSelector('#send[open]');
+  const message = await desktop.textContent('#sendPreview');
+  assert.match(message, /Pick up Mia at 16:00/);
+  assert.match(message, /Sent from SortNotes, the notes app that sorts itself: http.*welcome\.html\?ref=send/);
+  assert.match(await desktop.getAttribute('#sendWhatsApp', 'href'), /^https:\/\/wa\.me\/\?text=.*Sent%20from%20SortNotes/);
+  assert.match(await desktop.getAttribute('#sendEmail', 'href'), /^mailto:\?subject=.*&body=.*Sent%20from%20SortNotes/);
+  await desktop.screenshot({ path: path.join(out, 'desktop-send.png') });
+  await desktop.click('#send .icon-btn');
+  await desktop.click('#editorSave');
+  console.log('✓ send a note by email or WhatsApp, signed "Sent from SortNotes"');
+
   // Suggested to-dos: the top one of the day on top, the rest in the inbox; Add makes a note, Dismiss removes.
   await desktop.evaluate(() => fetch('api/suggestions/run', { method: 'POST' }));
   await desktop.evaluate(() => window.dispatchEvent(new Event('focus')));

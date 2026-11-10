@@ -627,6 +627,47 @@ $('#editorShare').onclick = async () => {
   const n = local.notes.get(editor.id);
   openShare('note', n.id, n.title || n.text.split('\n')[0].slice(0, 60) || t('this note'));
 };
+// Send a note outside the app. The text always ends with where it came from.
+function noteAsMessage(n) {
+  const title = n.title || n.text.split('\n')[0] || t('Note');
+  const body = n.text.trim() && n.text.trim() !== title.trim() ? n.text.trim() : '';
+  const items = local.items(n.id).map((i) => `${i.done ? '☑' : '☐'} ${i.text}`);
+  const d = effectiveDue(n);
+  const when = d.due_date ? `📅 ${new Date(`${d.due_date}T12:00`).toLocaleDateString(lang, { weekday: 'short', day: 'numeric', month: 'short' })}${d.due_time ? ` ${d.due_time}` : ''}` : '';
+  const link = new URL('welcome.html?ref=send', location.href).href;
+  const footer = `— ${t('Sent from SortNotes, the notes app that sorts itself')}: ${link}`;
+  return { title, text: [title, body, items.join('\n'), when].filter(Boolean).join('\n\n') + `\n\n${footer}` };
+}
+$('#editorSend').onclick = async () => {
+  await editor.save();
+  const n = local.notes.get(editor.id);
+  if (!n) return;
+  const m = noteAsMessage(n);
+  $('#sendPreview').textContent = m.text;
+  $('#sendEmail').href = `mailto:?subject=${encodeURIComponent(m.title)}&body=${encodeURIComponent(m.text)}`;
+  $('#sendWhatsApp').href = `https://wa.me/?text=${encodeURIComponent(m.text)}`;
+  $('#sendOther').hidden = !navigator.share;
+  const sent = (via) => track('note_sent', { via });
+  $('#sendEmail').onclick = () => sent('email');
+  $('#sendWhatsApp').onclick = () => sent('whatsapp');
+  $('#sendOther').onclick = async () => {
+    try {
+      await navigator.share({ title: m.title, text: m.text });
+      sent('share_sheet');
+      $('#send').close();
+    } catch { /* cancelled */ }
+  };
+  $('#sendCopy').onclick = async () => {
+    try {
+      await navigator.clipboard.writeText(m.text);
+      toast(t('Copied. Paste it anywhere.'));
+      sent('copy');
+    } catch {
+      prompt(t('Copy this text:'), m.text);
+    }
+  };
+  $('#send').showModal();
+};
 $('#editorDone').onclick = async () => {
   await editor.save();
   await local.save(editor.id, { done: !local.notes.get(editor.id).done });

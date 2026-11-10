@@ -107,6 +107,12 @@ struct NoteDetailView: View {
                         store.save(id: noteId, patch: ["done": !(note?.done ?? false)])
                         dismiss()
                     } }
+                    // Send outside the app (email, WhatsApp, Messages…), always signed "Sent from SortNotes".
+                    if let note {
+                        ShareLink(item: sendMessage(note), subject: Text(note.displayTitle)) {
+                            Text(tr("📤 Send"))
+                        }
+                    }
                     if canReadAloud, let note {
                         Button(tr("🔊 Read aloud")) {
                             ReadAloud.speak(ReadAloud.text(of: note, items: store.notes.values.filter { $0.parentId == noteId && !$0.deleted }))
@@ -176,6 +182,21 @@ struct NoteDetailView: View {
                 canReadAloud = (try? await store.plan())?.canReadAloud == true
             }
         }
+    }
+
+    /// The note as a message: title, text, list, date, and where it came from.
+    private func sendMessage(_ note: Note) -> String {
+        let title = note.displayTitle
+        let body = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let items = store.notes.values
+            .filter { $0.parentId == noteId && !$0.deleted }
+            .sorted { $0.createdAt < $1.createdAt }
+            .map { ($0.done ? "☑ " : "☐ ") + $0.text }
+            .joined(separator: "\n")
+        let when = note.dueDate.map { "📅 " + $0 + (note.dueTime.map { " " + $0 } ?? "") } ?? ""
+        let link = (store.serverURL?.absoluteString ?? "https://record-ai-nina.fly.dev") + "/welcome.html?ref=send"
+        let footer = "— " + tr("Sent from SortNotes, the notes app that sorts itself") + ": " + link
+        return [title, body == title ? "" : body, items, when].filter { !$0.isEmpty }.joined(separator: "\n\n") + "\n\n" + footer
     }
 
     private var groupPlaceholder: String {

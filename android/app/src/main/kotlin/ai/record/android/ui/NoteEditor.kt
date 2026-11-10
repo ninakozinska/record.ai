@@ -184,6 +184,21 @@ fun NoteEditor(repo: NoteRepository, state: UiState, id: String, onClose: () -> 
                     repo.save(id, mapOf("done" to !note.done))
                     onClose()
                 }, modifier = Modifier.fillMaxWidth()) { Text(if (note.done) tr("Mark not done") else tr("✓ Mark done")) }
+                // Send outside the app (email, WhatsApp, Messages…), always signed "Sent from SortNotes".
+                OutlinedButton(onClick = {
+                    val items = state.items(id).joinToString("\n") { (if (it.done) "☑ " else "☐ ") + it.text }
+                    val body = text.trim().takeIf { it != note.displayTitle }.orEmpty()
+                    val whenText = note.dueDate?.let { "📅 $it" + (note.dueTime?.let { t -> " $t" } ?: "") }.orEmpty()
+                    val link = (state.serverUrl ?: "https://record-ai-nina.fly.dev").trimEnd('/') + "/welcome.html?ref=send"
+                    val message = listOf(note.displayTitle, body, items, whenText).filter { it.isNotBlank() }.joinToString("\n\n") +
+                        "\n\n— " + tr("Sent from SortNotes, the notes app that sorts itself") + ": " + link
+                    val send = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(android.content.Intent.EXTRA_SUBJECT, note.displayTitle)
+                        putExtra(android.content.Intent.EXTRA_TEXT, message)
+                    }
+                    context.startActivity(android.content.Intent.createChooser(send, tr("📤 Send")))
+                }, modifier = Modifier.fillMaxWidth()) { Text(tr("📤 Send")) }
                 if (canReadAloud) OutlinedButton(onClick = {
                     val open = state.items(id).filter { !it.done }.joinToString(", ") { it.text }
                     ReadAloud.speak(context, listOf(note.displayTitle, text.trim().takeIf { it != note.displayTitle }.orEmpty(), open)

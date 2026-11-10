@@ -513,4 +513,13 @@ export default {
   "Unticked \"{text}\"": "Décoché « {text} »",
   "Removed \"{text}\"": "Retiré « {text} »",
   "Changed \"{text}\"": "Modifié « {text} »",
+  "📤 Send": "📤 Envoyer",
+  "Send this note by email, WhatsApp or another app": "Envoyer cette note par e-mail, WhatsApp ou une autre app",
+  "✉️ Email": "✉️ E-mail",
+  "💬 WhatsApp": "💬 WhatsApp",
+  "📱 Other apps…": "📱 Autres apps…",
+  "📋 Copy": "📋 Copier",
+  "Sent from SortNotes, the notes app that sorts itself": "Envoyée depuis SortNotes, l'app de notes qui se range toute seule",
+  "Copied. Paste it anywhere.": "Copiée. Collez-la où vous voulez.",
+  "Copy this text:": "Copiez ce texte :",
 };
