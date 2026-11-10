@@ -292,6 +292,9 @@ dialog::backdrop { background: rgba(10, 10, 20, .5); }
 .share-people select { padding: .3em .4em; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); color: var(--text); }
 #shareForm select { padding: .6em .75em; border-radius: 10px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: 1rem; }
 .shared-line { margin: 0; }
+.send-preview { white-space: pre-wrap; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px; font: inherit; font-size: .92rem; max-height: 40vh; overflow-y: auto; margin: 0 0 12px; }
+.send-options { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.send-options .button { text-align: center; text-decoration: none; }
 .note-times { margin: 4px 0 0; font-size: .85rem; }
 .history { margin: 6px 0 0; font-size: .9rem; }
 .history summary { cursor: pointer; color: var(--muted, #64637a); }

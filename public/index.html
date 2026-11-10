@@ -138,6 +138,7 @@
       <div class="sheet-actions">
         <button type="button" id="editorDelete" class="danger ghost">Delete</button>
         <button type="button" id="editorShare" class="ghost">👥 Share</button>
+        <button type="button" id="editorSend" class="ghost" title="Send this note by email, WhatsApp or another app">📤 Send</button>
         <button type="button" id="editorSpeak" class="ghost" title="Read this note aloud">🔊 Read aloud</button>
         <button type="button" id="editorTasks" class="ghost" title="Find everything this letter or photo asks you to do, each with its date">📸 Turn into tasks</button>
         <button type="button" id="editorReanalyze" class="ghost">Re-analyze</button>
@@ -203,6 +204,23 @@
         <button value="a" class="primary" id="pasteA">One per line</button>
       </div>
       <button value="plain" class="link-btn" id="pastePlain">Paste as plain text</button>
+    </form>
+  </dialog>
+
+  <!-- Send a note outside the app: email, WhatsApp, Messages, any app -->
+  <dialog id="send" class="sheet">
+    <form method="dialog" class="sheet-inner">
+      <div class="sheet-head">
+        <h2>📤 Send</h2>
+        <button value="" class="icon-btn" title="Close">✕</button>
+      </div>
+      <pre class="send-preview" id="sendPreview"></pre>
+      <div class="send-options">
+        <a class="button ghost" id="sendEmail" target="_blank" rel="noopener">✉️ Email</a>
+        <a class="button ghost" id="sendWhatsApp" target="_blank" rel="noopener">💬 WhatsApp</a>
+        <button type="button" class="ghost" id="sendOther">📱 Other apps…</button>
+        <button type="button" class="ghost" id="sendCopy">📋 Copy</button>
+      </div>
     </form>
   </dialog>
 
