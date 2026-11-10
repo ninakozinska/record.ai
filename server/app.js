@@ -358,6 +358,13 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth, mail, bill
     sendIcs(res, toIcs([note], { link: publicUrl(req), itemsOf: (id) => store.items(id) }), `${name}.ics`);
   });
 
+  // A note's history: when it was made and changed, and by whom (people it is shared with see it too).
+  app.get('/api/notes/:id/history', (req, res) => {
+    const note = store.get(req.params.id);
+    if (!note || note.parent_id || !store.access(req.user.id, note)) return res.status(404).json({ error: 'Not found' });
+    res.json({ created_at: note.created_at, edited_at: note.edited_at, source: note.source, events: store.history(note.id) });
+  });
+
   // --- notes ----------------------------------------------------------------
   // "My groups": groups the person made, which the AI always keeps and uses.
   app.get('/api/groups/mine', (req, res) => res.json({ names: store.myGroups(req.user.id) }));

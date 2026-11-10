@@ -107,6 +107,15 @@ data class Note(
 @Serializable data class AuthResult(val token: String, val user: User)
 
 /** Someone tasks can be for: me, or a person I share with. */
+/** One line of a note's history: when, what, and who (null = the AI). */
+@Serializable data class HistoryEvent(val at: Double, val kind: String, val detail: HistoryDetail? = null, val by: HistoryWho? = null)
+@Serializable data class HistoryDetail(
+    val text: String? = null, val group: String? = null, val priority: String? = null,
+    val date: String? = null, val time: String? = null, val to: String? = null, val minutes: Int? = null,
+)
+@Serializable data class HistoryWho(val id: String, val name: String? = null)
+@Serializable data class NoteHistory(val events: List<HistoryEvent> = emptyList())
+
 @Serializable data class Person(val id: String, val name: String, val me: Boolean = false)
 @Serializable data class People(val people: List<Person> = emptyList(), val family: Boolean = false)
 

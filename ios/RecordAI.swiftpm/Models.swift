@@ -257,6 +257,32 @@ struct Person: Codable, Identifiable, Equatable {
     var me: Bool?
 }
 
+/// One line of a note's history: when, what, and who (nil = the AI).
+struct HistoryEvent: Codable, Identifiable {
+    struct Detail: Codable {
+        var text: String?
+        var group: String?
+        var priority: String?
+        var date: String?
+        var time: String?
+        var to: String?
+        var minutes: Int?
+    }
+    struct Who: Codable {
+        var id: String
+        var name: String?
+    }
+    var at: Double
+    var kind: String
+    var detail: Detail?
+    var by: Who?
+    var id: String { "\(at)-\(kind)" }
+}
+
+struct NoteHistory: Codable {
+    var events: [HistoryEvent]
+}
+
 struct People: Codable {
     var people: [Person]
     var family: Bool?

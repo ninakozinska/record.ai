@@ -408,6 +408,7 @@ const editor = {
     $('#editorDone').hidden = $('#editorSave').hidden = this.readOnly;
     $('#editorDelete').textContent = shared ? t('Leave') : t('Delete');
     this.renderShared();
+    this.renderTimes(n);
     this.due = n.user_due ?? null;
     this.remind = n.remind ?? null;
     $('#assignRow').hidden = people.length < 2 || this.readOnly;
@@ -447,6 +448,28 @@ const editor = {
   noteForCalendar() {
     const n = local.notes.get(this.id);
     return { title: n.title || n.text.split('\n')[0].slice(0, 80) || t('Note'), text: [n.text, ...local.items(n.id).map((i) => `${i.done ? '☑' : '☐'} ${i.text}`)].join('\n') };
+  },
+
+  /** "Created … · Edited …" under the note, and its history once opened. */
+  renderTimes(n) {
+    const created = n.created_at ? t('Created {when}', { when: whenFull(n.created_at) }) : '';
+    const edited = n.edited_at && n.edited_at - (n.created_at || 0) > 60e3 ? t('Edited {when}', { when: whenFull(n.edited_at) }) : '';
+    $('#editorTimes').textContent = [created, edited].filter(Boolean).join(' · ');
+    $('#editorHistory').open = false;
+    $('#historyList').innerHTML = '';
+  },
+  async loadHistory() {
+    const id = this.id;
+    $('#historyList').innerHTML = `<li class="muted">${esc(t('Loading…'))}</li>`;
+    try {
+      const h = await local.api(`notes/${encodeURIComponent(id)}/history`);
+      if (id !== this.id) return;
+      $('#historyList').innerHTML = h.events.length
+        ? h.events.map((e) => `<li><time>${esc(whenFull(e.at))}</time> <span>${esc(historyLine(e))}</span>${e.by ? ` <span class="muted">· ${esc(e.by.id === myId() ? t('you') : e.by.name || t('someone'))}</span>` : ''}</li>`).join('')
+        : `<li class="muted">${esc(t('No changes yet.'))}</li>`;
+    } catch {
+      $('#historyList').innerHTML = `<li class="muted">${esc(t('The history needs a connection.'))}</li>`;
+    }
   },
 
   /** Who this note is shared with, or who shared it with me. */
@@ -880,6 +903,38 @@ function matches(n, q) {
   return q.split(/\s+/).every((w) => hay.includes(w));
 }
 
+/** A moment as people read it: "Tue 10 Nov, 08:00" (the year only when it is not this year). */
+function whenFull(ts) {
+  const d = new Date(ts);
+  const sameYear = d.getFullYear() === new Date().getFullYear();
+  return d.toLocaleString(lang, { weekday: 'short', day: 'numeric', month: 'short', ...(sameYear ? {} : { year: 'numeric' }), hour: '2-digit', minute: '2-digit' });
+}
+/** One line of a note's history, in the person's language. */
+function historyLine(e) {
+  const d = e.detail || {};
+  const day = (x) => (x.date ? `${new Date(`${x.date}T12:00`).toLocaleDateString(lang, { weekday: 'short', day: 'numeric', month: 'short' })}${x.time ? ` ${x.time}` : ''}` : '');
+  const nameOf = (id) => (id === myId() ? t('you') : people.find((p) => p.id === id)?.name || t('someone'));
+  switch (e.kind) {
+    case 'created': return t('Created');
+    case 'edited': return t('Edited');
+    case 'done': return t('Marked done');
+    case 'reopened': return t('Opened again');
+    case 'deleted': return t('Deleted');
+    case 'restored': return t('Restored');
+    case 'date': return d.date ? t('Date set to {date}', { date: day(d) }) : t('Date removed');
+    case 'group': return t('Moved to {group}', { group: d.group });
+    case 'priority': return t('Priority set to {priority}', { priority: PRIORITY_LABEL[d.priority] || d.priority });
+    case 'assigned': return d.to ? t('Now for {name}', { name: nameOf(d.to) }) : t('No longer for anyone');
+    case 'reminder': return d.minutes == null ? t('Reminder removed') : t('Reminder set');
+    case 'sorted': return t('Sorted by the AI: {group}, {priority}', { group: d.group || 'Inbox', priority: PRIORITY_LABEL[d.priority] || d.priority || '' }) + (d.date ? `, ${day(d)}` : '');
+    case 'item_added': return t('Added "{text}"', { text: d.text });
+    case 'item_done': return t('Ticked "{text}"', { text: d.text });
+    case 'item_reopened': return t('Unticked "{text}"', { text: d.text });
+    case 'item_removed': return t('Removed "{text}"', { text: d.text });
+    case 'item_edited': return t('Changed "{text}"', { text: d.text });
+    default: return e.kind;
+  }
+}
 function relTime(ts) {
   const d = (Date.now() - ts) / 1000;
   if (d < 60) return t('just now');
@@ -1693,6 +1748,9 @@ synth()?.addEventListener?.('voiceschanged', renderVoices);
 $('#voiceSelect').addEventListener('change', (e) => keep('voice', e.target.value));
 $('#voiceRate').addEventListener('change', (e) => keep('voiceRate', e.target.value));
 $('#voiceTry').onclick = () => speak(t('Hello! This is how your notes will sound.'));
+$('#editorHistory').addEventListener('toggle', () => {
+  if ($('#editorHistory').open) editor.loadHistory();
+});
 $('#editorSpeak').onclick = () => {
   if (synth()?.speaking) return synth().cancel();
   const n = local.notes.get(editor.id);

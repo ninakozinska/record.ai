@@ -185,6 +185,9 @@ class Api(val baseUrl: String, private val token: String?, private val client: O
 
     suspend fun plan(): Plan = decode(call("plan"))
 
+    /** When a note was made and changed, and by whom, newest first. */
+    suspend fun history(id: String): List<HistoryEvent> = decode<NoteHistory>(call("notes/$id/history")).events
+
     /** Today's plan as the server says it (the same on every device). */
     suspend fun spokenToday(): SpokenDay = decode(call("today/spoken"))
 

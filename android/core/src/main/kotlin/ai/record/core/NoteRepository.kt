@@ -464,6 +464,8 @@ class NoteRepository(
 
     suspend fun plan(): Plan = api?.plan() ?: throw ApiException.offline()
 
+    suspend fun history(id: String): List<HistoryEvent> = api?.history(id) ?: throw ApiException.offline()
+
     suspend fun spokenToday(): SpokenDay = api?.spokenToday() ?: throw ApiException.offline()
     suspend fun backups(): List<Backup> = api?.backups() ?: throw ApiException.offline()
     suspend fun backupNow() { api?.backupNow() }

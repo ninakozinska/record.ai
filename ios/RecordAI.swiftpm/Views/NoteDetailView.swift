@@ -141,6 +141,7 @@ struct NoteDetailView: View {
                     if let info { Text(info).font(.footnote).foregroundStyle(.red) }
                     if !isShared { Button(tr("Delete note"), role: .destructive) { confirmDelete = true } }
                 }
+                if let note { HistorySection(note: note, people: people.people) }
             }
             .navigationTitle(note?.displayTitle ?? tr("Note"))
             .navigationBarTitleDisplayMode(.inline)
