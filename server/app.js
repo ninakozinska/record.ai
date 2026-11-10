@@ -888,6 +888,9 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth, mail, bill
     });
   });
 
+  // The short link at the end of every note sent from the app ("Sent from SortNotes: sortnotes.com/s").
+  app.get('/s', (req, res) => res.redirect(302, '/welcome.html?ref=send'));
+
   // --- static web app ---------------------------------------------------------
   app.use(
     express.static(PUBLIC_DIR, {
