@@ -52,10 +52,19 @@ function render(o) {
   const eur = (x) => (x == null ? '–' : `€${x.toFixed(2)}`);
   $('#costs').innerHTML = [
     ['Month', c.month], ['Active people (30 days)', c.activeUsers], ['Paying households', c.payingUsers],
-    ['AI', eur(c.aiEur)], ['Server', eur(c.serverEur)], ['Payment fees', eur(c.feesEur)], ['Total costs', eur(c.totalEur)],
+    ['AI calls', `${c.aiCalls ?? 0}${c.aiPerCallUsd != null ? ` · ${usd(c.aiPerCallUsd)} on average` : ''}`],
+    ['AI', `${eur(c.aiEur)} (${usd(c.aiUsd)})`], ['Server', eur(c.serverEur)], ['Payment fees', eur(c.feesEur)], ['Total costs', eur(c.totalEur)],
     ['Revenue', eur(c.revenueEur)], ['Cost per active person', eur(c.perActiveUserEur)], ['AI per active person', eur(c.aiPerActiveUserEur)],
     ['Gross margin', c.marginPct == null ? '–' : `${c.marginPct}%`],
   ].map(([k, v]) => `<tr><th>${esc(k)}</th><td>${esc(v)}</td></tr>`).join('');
+  const what = { note: 'Sorting a note', tasks: 'Letter into tasks', reorganize: 'Reorganize', suggestions: 'Suggested to-dos', suggestions_chat: 'To-dos from a chat' };
+  const calls = o.aiCalls || [];
+  $('#aiCalls').innerHTML = calls.length
+    ? '<tr><th>When</th><th>What for</th><th>Model</th><th>Tokens in</th><th>Tokens out</th><th>Seconds</th><th>Result</th><th>Cost</th></tr>' +
+      calls.map((a) => `<tr><td>${esc(new Date(a.ts).toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }))}</td>
+        <td>${esc(what[a.kind] || a.kind)}</td><td>${esc(a.model || '–')}</td><td>${a.input_tokens + a.cache_read}</td><td>${a.output_tokens}</td>
+        <td>${(a.ms / 1000).toFixed(1)}</td><td>${esc({ used: 'used', stale: 'not used (note changed)', error: 'error' }[a.outcome] || a.outcome)}</td><td>${esc(usd(a.cost_usd))}</td></tr>`).join('')
+    : '<tr><td class="muted">No AI calls yet.</td></tr>';
   $('#status').textContent = `Updated ${new Date().toLocaleTimeString()}.`;
 }
 

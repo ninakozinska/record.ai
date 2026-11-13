@@ -751,7 +751,8 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth, mail, bill
     const num = (v, d) => (Number.isFinite(Number(v)) && v !== undefined && v !== '' ? Number(v) : d);
     const eurPerUsd = num(env.EUR_PER_USD, 0.92);
     const start = Date.UTC(new Date(now).getUTCFullYear(), new Date(now).getUTCMonth(), 1);
-    const aiUsd = store.db.prepare('SELECT COALESCE(SUM(cost_usd), 0) AS c FROM ai_calls WHERE ts >= ?').get(start).c;
+    const ai = store.db.prepare('SELECT COALESCE(SUM(cost_usd), 0) AS c, COUNT(*) AS n FROM ai_calls WHERE ts >= ?').get(start);
+    const aiUsd = ai.c;
     const active = store.db.prepare('SELECT COUNT(DISTINCT user_id) AS n FROM events WHERE user_id IS NOT NULL AND ts >= ?').get(now - 30 * 864e5).n;
     const price = { solo: num(env.PRICE_SOLO_EUR, 3.99), family: num(env.PRICE_FAMILY_EUR, 5.99) };
     // Paying = a plan bought through Stripe (plans given by hand bring no money).
@@ -764,6 +765,7 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth, mail, bill
     const round = (x) => Math.round(x * 100) / 100;
     return {
       month: new Date(start).toISOString().slice(0, 7), activeUsers: active, payingUsers: paying.length,
+      aiCalls: ai.n, aiUsd: Math.round(aiUsd * 1e6) / 1e6, aiPerCallUsd: ai.n ? Math.round((aiUsd / ai.n) * 1e6) / 1e6 : null,
       aiEur: round(aiEur), serverEur: round(serverEur), feesEur: round(feesEur), totalEur: round(totalEur), revenueEur: round(revenueEur),
       perActiveUserEur: active ? round(totalEur / active) : null, aiPerActiveUserEur: active ? round(aiEur / active) : null,
       marginPct: revenueEur ? Math.round((1 - totalEur / revenueEur) * 100) : null,
@@ -777,6 +779,10 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth, mail, bill
       experiments: insights.experiments().map((e) => ({ ...insights.results(e), description: e.description, guardrails: e.guardrails, auto: e.auto })),
       optimizer: { debounceMs: organizer.debounceMs ?? 0, quality: optimizer.correctionRate(Date.now() - 7 * 864e5) },
       log: optimizer.logEntries(50),
+      // The last AI calls, one by one: what each was for and what it cost (never whose note it was).
+      aiCalls: store.db.prepare(
+        'SELECT ts, kind, model, input_tokens, output_tokens, cache_read, cost_usd, ms, outcome FROM ai_calls ORDER BY id DESC LIMIT 20',
+      ).all(),
       users: store.allUsers().map((u) => ({ email: u.email, name: u.name, plan: store.planOf(u.id), created_at: u.created_at })),
       // "Fake door" buttons: which coming Premium features people want most.
       featureInterest: store.db.prepare(
