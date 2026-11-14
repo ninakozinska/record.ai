@@ -810,6 +810,16 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth, mail, bill
     res.json({ email: user.email, plan });
   });
   // One harmless error on purpose, to check that error reports reach Sentry.
+  // Who an account id belongs to: Sentry reports carry only the id, never a
+  // name or email, so the owner looks it up here, on their own dashboard.
+  app.get('/api/admin/account/:id', adminOnly, (req, res) => {
+    const id = String(req.params.id || '').trim().toLowerCase();
+    const u = /^[0-9a-f-]{8,64}$/.test(id) ? store.getUser(id) : null;
+    if (!u) return res.status(404).json({ error: 'No account with that id.' });
+    const notes = store.db.prepare('SELECT COUNT(*) AS n FROM notes WHERE user_id = ? AND deleted = 0 AND parent_id IS NULL').get(u.id).n;
+    const last = store.db.prepare('SELECT MAX(ts) AS t FROM events WHERE user_id = ?').get(u.id).t ?? null;
+    res.json({ id: u.id, name: u.name, email: u.email, plan: store.planOf(u.id), created_at: u.created_at, notes, last_active: last });
+  });
   app.post('/api/admin/test-error', adminOnly, async (req, res) => {
     const err = new Error('Test error from the SortNotes dashboard (nothing is broken)');
     const sent = await errors.report(err, { route: 'POST /api/admin/test-error', userId: req.user.id, tags: { test: 'yes' } });

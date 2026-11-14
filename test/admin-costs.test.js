@@ -33,3 +33,18 @@ test('the owner can send one harmless test error; it says when Sentry is not set
     t.close();
   }
 });
+
+test('the owner can look up whose account an id from Sentry belongs to', async () => {
+  const t = await start();
+  try {
+    const r = await t.api(`admin/account/${t.user.id}`);
+    assert.equal(r.status, 200);
+    assert.equal(r.body.id, t.user.id);
+    assert.equal(r.body.email, t.user.email);
+    assert.equal(typeof r.body.notes, 'number');
+    assert.equal((await t.api('admin/account/00000000-0000-0000-0000-000000000000')).status, 404);
+    assert.equal((await t.api('admin/account/not%20an%20id')).status, 404);
+  } finally {
+    t.close();
+  }
+});

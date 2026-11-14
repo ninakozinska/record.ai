@@ -50,6 +50,11 @@
       <div class="scroll"><table class="data" id="invites"></table></div>
     </div>
   </section>
+  <section class="card exp"><h2>Find an account</h2>
+    <p class="muted">Error reports in Sentry show only an account id (like a4bc1314-…). Paste it here to see whose account it is. The name and email stay on this dashboard; Sentry never gets them.</p>
+    <form class="row" id="lookupForm"><input id="lookupId" placeholder="Account id from Sentry" autocomplete="off" spellcheck="false" style="flex:1;min-width:0"><button>Find</button></form>
+    <div id="lookupResult"></div>
+  </section>
   <section class="card exp"><h2>People and plans</h2>
     <p class="muted">Until payments exist, give Premium by hand (beta testers, family).</p>
     <div class="scroll"><table class="data" id="users"></table></div>
