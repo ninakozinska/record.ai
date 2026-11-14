@@ -142,7 +142,9 @@ $('#testError').onclick = async () => {
   try {
     const r = await api('admin/test-error', { method: 'POST' });
     ok = r.configured && r.sent;
-    out.textContent = !r.configured
+    out.textContent = r.invalid
+      ? '⚠ SENTRY_DSN is saved on Fly but is not a Sentry DSN. Copy it again from Sentry (Settings → Projects → your project → Client Keys) and save it with fly secrets set.'
+      : !r.configured
       ? '⚠ Sentry is not set up: add SENTRY_DSN on Fly first.'
       : r.sent ? `✓ Test error sent at ${new Date().toLocaleTimeString()}. It appears in Sentry → Issues within a minute.` : '⚠ Sentry did not accept the test error. Check SENTRY_DSN.';
   } catch (err) {

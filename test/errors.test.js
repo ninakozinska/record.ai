@@ -9,6 +9,11 @@ test('the Sentry address is read from the DSN', () => {
     raw: 'https://abc123@o1.ingest.sentry.io/42', key: 'abc123', url: 'https://o1.ingest.sentry.io/api/42/envelope/',
   });
   assert.equal(parseDsn('not a dsn'), null);
+  // Pasted with quotes, a line break, or the whole line from Sentry's set-up page.
+  for (const pasted of ['"https://abc123@o1.ingest.sentry.io/42"', 'https://abc123@o1.ingest.sen\ntry.io/42', '  dsn: "https://abc123@o1.ingest.sentry.io/42",']) {
+    assert.equal(parseDsn(pasted)?.url, 'https://o1.ingest.sentry.io/api/42/envelope/', pasted);
+  }
+  assert.equal(parseDsn('https://o1.ingest.sentry.io/42'), null, 'no key');
   assert.equal(parseDsn(''), null);
 });
 
