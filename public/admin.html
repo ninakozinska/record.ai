@@ -23,12 +23,15 @@
     .win { color: var(--accent); font-weight: 600; }
     .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
     .muted { color: var(--muted); }
+    .result { padding: 10px 14px; border-radius: 10px; font-weight: 600; background: #e7f6ec; color: #17603a; }
+    .result.bad { background: #fdecec; color: #9b1c1c; }
   </style>
 </head>
 <body>
 <main class="dash">
   <div class="row"><h1>📊 SortNotes dashboard</h1><span class="spacer"></span><a class="btn ghost" href="./">← Back to notes</a><button class="ghost" id="testError" title="Sends one harmless error report to Sentry, to check it works">Send a test error</button><button class="ghost" id="optimizeNow">Run optimizer now</button></div>
   <p class="muted" id="status">Loading…</p>
+  <p class="result" id="testResult" role="status" hidden></p>
   <section><h2>Today</h2><div class="tiles" id="tiles"></div></section>
   <section class="card exp"><h2>A/B tests</h2><div id="experiments"></div></section>
   <section class="card exp"><h2>What the optimizer did</h2><p class="muted" id="optState"></p><div class="scroll"><table class="data" id="log"></table></div></section>

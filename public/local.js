@@ -194,6 +194,9 @@ export class Local extends EventTarget {
   }
 
   async wipe() {
+    // Answers to requests sent before the wipe (a pull or sync still on its
+    // way) belong to the old session: they must not bring notes back.
+    this.epoch = (this.epoch || 0) + 1;
     for (const store of ['notes', 'outbox', 'blobs', 'meta']) await req(this.tx(store, 'readwrite').clear());
     this.notes.clear();
     this.pending.clear();
@@ -261,8 +264,10 @@ export class Local extends EventTarget {
   async pull() {
     if (this.pulling) return;
     this.pulling = true;
+    const epoch = this.epoch;
     try {
       const { rev, notes } = await this.api(`notes?since=${this.rev}&items=1&shared=1`);
+      if (epoch !== this.epoch) return;
       await this.merge(notes);
       // A server whose database was reset would have a lower rev; resync fully.
       if (rev < this.rev) {
@@ -333,6 +338,7 @@ export class Local extends EventTarget {
     this.flushing = true;
     this.flushAgain = false;
     let sent = false;
+    const epoch = this.epoch;
     try {
       const items = await this.all('outbox');
       for (const item of items.filter((i) => i.kind === 'image')) {
@@ -353,6 +359,7 @@ export class Local extends EventTarget {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ since, items: true, shared: true, changes: notes.map((i) => ({ id: i.id, ...i.body })) }),
       });
+      if (epoch !== this.epoch) return;
       for (const [k, item] of notes.entries()) {
         // Sent (or refused for good): clear it, unless a newer edit was queued meanwhile.
         if (!results[k]) continue;
