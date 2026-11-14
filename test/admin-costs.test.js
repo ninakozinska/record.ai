@@ -28,7 +28,7 @@ test('the owner can send one harmless test error; it says when Sentry is not set
   try {
     const r = await t.api('admin/test-error', { method: 'POST' });
     assert.equal(r.status, 200);
-    assert.deepEqual(r.body, { configured: false, sent: false });
+    assert.deepEqual(r.body, { configured: false, invalid: false, sent: false });
   } finally {
     t.close();
   }

@@ -9,11 +9,14 @@ const MAX_PER_MINUTE = 30;
 
 export function errorReporter({ env = process.env, fetch = globalThis.fetch, log = console } = {}) {
   const dsn = parseDsn(env.SENTRY_DSN);
+  if (env.SENTRY_DSN && !dsn) log.error('[errors] SENTRY_DSN is set but is not a Sentry DSN (https://<key>@<host>/<project number>): error reports are off.');
   let sentThisMinute = 0;
   setInterval(() => (sentThisMinute = 0), 60e3).unref();
 
   return {
     configured: !!dsn,
+    /** SENTRY_DSN is there but isn't a DSN (a bad paste). */
+    invalid: !!env.SENTRY_DSN && !dsn,
     /** Reports an error; never throws. Returns the promise of the delivery (for tests). */
     report(err, { route, userId, tags = {} } = {}) {
       log.error('[error]', route || '', err?.stack || err);
@@ -53,7 +56,10 @@ export function errorReporter({ env = process.env, fetch = globalThis.fetch, log
 }
 
 /** https://<key>@<host>/<project id> → where to send. */
-export function parseDsn(raw) {
+// Forgiving about how it was pasted: quotes, spaces, line breaks or the whole
+// `dsn: "…",` line from Sentry's set-up page around it all still work.
+export function parseDsn(pasted) {
+  const raw = String(pasted || '').replace(/\s+/g, '').match(/https?:\/\/[^"'`@/]+@[^"'`/]+\/\d+/)?.[0];
   if (!raw) return null;
   try {
     const u = new URL(raw);

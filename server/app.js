@@ -813,7 +813,7 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth, mail, bill
   app.post('/api/admin/test-error', adminOnly, async (req, res) => {
     const err = new Error('Test error from the SortNotes dashboard (nothing is broken)');
     const sent = await errors.report(err, { route: 'POST /api/admin/test-error', userId: req.user.id, tags: { test: 'yes' } });
-    res.json({ configured: errors.configured, sent });
+    res.json({ configured: errors.configured, invalid: !!errors.invalid, sent });
   });
   app.post('/api/admin/optimize', adminOnly, (req, res) => res.json(optimizer.runAll()));
 
