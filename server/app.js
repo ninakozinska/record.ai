@@ -809,6 +809,12 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth, mail, bill
     insights.track('plan_changed', { userId: user.id, props: { plan, by: 'admin' } });
     res.json({ email: user.email, plan });
   });
+  // One harmless error on purpose, to check that error reports reach Sentry.
+  app.post('/api/admin/test-error', adminOnly, async (req, res) => {
+    const err = new Error('Test error from the SortNotes dashboard (nothing is broken)');
+    const sent = await errors.report(err, { route: 'POST /api/admin/test-error', userId: req.user.id, tags: { test: 'yes' } });
+    res.json({ configured: errors.configured, sent });
+  });
   app.post('/api/admin/optimize', adminOnly, (req, res) => res.json(optimizer.runAll()));
 
   // Alpha: personal invite links, one per tester. Once there is one, sign-up is invite only.
