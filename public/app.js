@@ -2357,7 +2357,9 @@ $('#logoutBtn').onclick = async () => {
   if (unsent && !confirm(t("{n} changes haven't reached the server yet and will be lost. Log out anyway?", { n: unsent }))) return;
   $('#account').close();
   await local.logout();
-  render();
+  // Draw the empty list now, not on the next frame: the notes must be gone
+  // from the screen before the login window shows.
+  renderNow();
   auth.open();
 };
 

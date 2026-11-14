@@ -155,6 +155,30 @@ $('#testError').onclick = async () => {
   btn.textContent = ok ? '✓ Sent' : 'Send a test error';
   setTimeout(() => { btn.textContent = 'Send a test error'; btn.disabled = false; }, ok ? 10000 : 0);
 };
+$('#lookupForm').onsubmit = async (e) => {
+  e.preventDefault();
+  const out = $('#lookupResult');
+  const id = $('#lookupId').value.trim();
+  if (!id) return;
+  out.textContent = 'Looking…';
+  try {
+    const a = await api(`admin/account/${encodeURIComponent(id)}`);
+    const when = (t) => (t ? new Date(t).toLocaleString() : 'never');
+    out.innerHTML = '';
+    const table = document.createElement('table');
+    table.className = 'data';
+    for (const [k, v] of [['Name', a.name], ['Email', a.email], ['Plan', a.plan], ['Account made', when(a.created_at)], ['Last active', when(a.last_active)], ['Notes', a.notes], ['Account id', a.id]]) {
+      const tr = table.insertRow();
+      const th = document.createElement('th');
+      th.textContent = k;
+      tr.append(th);
+      tr.insertCell().textContent = v ?? '';
+    }
+    out.append(table);
+  } catch (err) {
+    out.textContent = err.status === 404 ? 'No account with that id. Check that the whole id was copied.' : err.message;
+  }
+};
 $('#optimizeNow').onclick = async () => {
   await api('admin/optimize', { method: 'POST' }).catch(() => {});
   load();
