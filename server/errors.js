@@ -29,7 +29,9 @@ export function errorReporter({ env = process.env, fetch = globalThis.fetch, log
         platform: 'node',
         level: 'error',
         server_name: 'SortNotes',
-        release: env.FLY_IMAGE_REF || env.RELEASE || undefined,
+        // Sentry refuses a release with a slash in it, and Fly's image name has
+        // one (registry.fly.io/app:deployment-…): keep the part after the colon.
+        release: releaseName(env.FLY_IMAGE_REF || env.RELEASE),
         environment: env.NODE_ENV || 'production',
         tags: { route: route || 'background', ...tags },
         user: userId ? { id: userId } : undefined,
@@ -53,6 +55,13 @@ export function errorReporter({ env = process.env, fetch = globalThis.fetch, log
       }).then((r) => r.ok, () => false);
     },
   };
+}
+
+/** A release name Sentry accepts: no slashes, at most 200 characters. */
+export function releaseName(raw) {
+  if (!raw) return undefined;
+  const name = String(raw).split(':').pop().replace(/[\/\\\s]/g, '-').slice(0, 200);
+  return name && name !== '.' && name !== '..' ? name : undefined;
 }
 
 /** https://<key>@<host>/<project id> → where to send. */
