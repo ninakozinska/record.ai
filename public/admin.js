@@ -131,15 +131,27 @@ $('#users').addEventListener('change', async (e) => {
     $('#status').textContent = err.message;
   }
 });
+// The answer gets its own line (the minute refresh rewrites #status) and the
+// button itself changes, so the result can't be missed.
 $('#testError').onclick = async () => {
+  const btn = $('#testError');
+  const out = $('#testResult');
+  btn.disabled = true;
+  btn.textContent = 'Sending…';
+  let ok = false;
   try {
     const r = await api('admin/test-error', { method: 'POST' });
-    $('#status').textContent = !r.configured
-      ? 'Sentry is not set up: add SENTRY_DSN on Fly first.'
-      : r.sent ? 'Test error sent. It appears in Sentry → Issues within a minute.' : 'Sentry did not accept the test error. Check SENTRY_DSN.';
+    ok = r.configured && r.sent;
+    out.textContent = !r.configured
+      ? '⚠ Sentry is not set up: add SENTRY_DSN on Fly first.'
+      : r.sent ? `✓ Test error sent at ${new Date().toLocaleTimeString()}. It appears in Sentry → Issues within a minute.` : '⚠ Sentry did not accept the test error. Check SENTRY_DSN.';
   } catch (err) {
-    $('#status').textContent = err.message;
+    out.textContent = `⚠ ${err.message}`;
   }
+  out.classList.toggle('bad', !ok);
+  out.hidden = false;
+  btn.textContent = ok ? '✓ Sent' : 'Send a test error';
+  setTimeout(() => { btn.textContent = 'Send a test error'; btn.disabled = false; }, ok ? 10000 : 0);
 };
 $('#optimizeNow').onclick = async () => {
   await api('admin/optimize', { method: 'POST' }).catch(() => {});
