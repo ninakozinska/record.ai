@@ -131,6 +131,16 @@ $('#users').addEventListener('change', async (e) => {
     $('#status').textContent = err.message;
   }
 });
+$('#testError').onclick = async () => {
+  try {
+    const r = await api('admin/test-error', { method: 'POST' });
+    $('#status').textContent = !r.configured
+      ? 'Sentry is not set up: add SENTRY_DSN on Fly first.'
+      : r.sent ? 'Test error sent. It appears in Sentry → Issues within a minute.' : 'Sentry did not accept the test error. Check SENTRY_DSN.';
+  } catch (err) {
+    $('#status').textContent = err.message;
+  }
+};
 $('#optimizeNow').onclick = async () => {
   await api('admin/optimize', { method: 'POST' }).catch(() => {});
   load();

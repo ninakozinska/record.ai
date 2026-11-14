@@ -22,3 +22,14 @@ test('the dashboard lists the last AI calls with their cost, and the month total
     t.close();
   }
 });
+
+test('the owner can send one harmless test error; it says when Sentry is not set up', async () => {
+  const t = await start();
+  try {
+    const r = await t.api('admin/test-error', { method: 'POST' });
+    assert.equal(r.status, 200);
+    assert.deepEqual(r.body, { configured: false, sent: false });
+  } finally {
+    t.close();
+  }
+});
