@@ -2,7 +2,13 @@
 // without note text, emails or query strings.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { errorReporter, parseDsn } from '../server/errors.js';
+import { errorReporter, parseDsn, releaseName } from '../server/errors.js';
+
+test('the release is a name Sentry accepts (no slashes)', () => {
+  assert.equal(releaseName('registry.fly.io/record-ai-nina:deployment-01M7BT90N4'), 'deployment-01M7BT90N4');
+  assert.equal(releaseName('v1.2'), 'v1.2');
+  assert.equal(releaseName(''), undefined);
+});
 
 test('the Sentry address is read from the DSN', () => {
   assert.deepEqual(parseDsn('https://abc123@o1.ingest.sentry.io/42'), {
