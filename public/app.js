@@ -6,6 +6,14 @@ import { t, lang, loadLang, pickLang, saveLang, translatePage, LANGS } from './i
 await loadLang(pickLang());
 translatePage();
 
+// On a Mac the save shortcut is Cmd+Enter (Ctrl+Enter works too): show ⌘ there.
+const isMac = /mac/i.test(navigator.userAgentData?.platform || navigator.platform || '');
+if (isMac) {
+  for (const hint of document.querySelectorAll('.composer-actions .hint')) {
+    hint.textContent = hint.textContent.replace(/^(Ctrl|Strg)\+/, '⌘+');
+  }
+}
+
 const PRIORITIES = ['urgent', 'high', 'normal', 'low'];
 const PRIORITY_LABEL = { urgent: t('Urgent'), high: t('High'), normal: t('Normal'), low: t('Low') };
 const $ = (sel, root = document) => root.querySelector(sel);
