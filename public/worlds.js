@@ -4,7 +4,7 @@
 export const WORLDS = ['work', 'family'];
 
 const WORK = /\b(work|office|job|meetings?|projects?|clients?|customers?|team|career|business|sales|marketing|boss|colleagues?|deadlines?|invoices?|conference|hiring|interviews?|reports?|admin)\b/i;
-const FAMILY = /\b(home|house|household|family|kids?|children|child|baby|school|daycare|nursery|groceries|grocery|shopping|chores|cleaning|garden|pets?|dog|cat|health|doctor|dentist|medical|partner|husband|wife|birthdays?|holidays?|vacation|travel|recipes?|cooking|meals?|dinner|car|finance|bills|budget|personal|friends|sports?|activities)\b/i;
+const FAMILY = /\b(home|house|household|family|kids?|children|child|baby|school|daycare|nursery|groceries|grocery|shopping|chores|cleaning|garden|pets?|dog|cat|health|doctor|dentist|medical|partner|husband|wife|birthdays?|holidays?|vacation|travel|recipes?|cooking|meals?|dinner|car|finance|bills|budget|personal|friends|sports?|activities|social|leisure|entertainment|music|concerts?|theat(?:er|re)|cinema|movies?|parties|party|culture|hobbies)\b/i;
 
 /** 'work', 'family' or null (both), from the group's name. */
 export function guessWorld(group) {
