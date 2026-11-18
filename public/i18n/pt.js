@@ -537,4 +537,8 @@ export default {
   "🏷 Labels, like in Gmail: several per note, search by label. Part of Premium.": "🏷 Etiquetas como no Gmail: várias por nota, pesquisa por etiqueta. Parte do Premium.",
   "🏷 My labels": "🏷 As minhas etiquetas",
   "Labels you made. A note can have several; the AI picks from this list. Add more from any note.": "Etiquetas que criou. Uma nota pode ter várias; a IA escolhe desta lista. Adicione mais a partir de qualquer nota.",
+  "All of School: every child, also children you add later, with dates and lists.": "Toda a Escola: cada filho, também os que adicionar depois, com datas e listas.",
+  "School": "Escola",
+  "Share School": "Partilhar Escola",
+  "School shared · {n}": "Escola partilhada · {n}",
 };

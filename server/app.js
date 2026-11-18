@@ -604,7 +604,9 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth, mail, bill
     const { kind, role = 'edit' } = req.body || {};
     const email = String(req.body?.email ?? '').trim().toLowerCase();
     let target = String(req.body?.target ?? '').trim();
-    if (!['note', 'group'].includes(kind)) return res.status(400).json({ error: 'Share a note or a group.' });
+    if (!['note', 'group', 'school'].includes(kind)) return res.status(400).json({ error: 'Share a note, a group or School.' });
+    // All of School: every child's group, also children added later.
+    if (kind === 'school') target = 'School';
     if (!ROLES.includes(role)) return res.status(400).json({ error: 'Choose "can edit" or "view only".' });
     if (!EMAIL.test(email) || email.length > 200) return res.status(400).json({ error: 'Enter the email address of the person.' });
     if (email === req.user.email.toLowerCase()) return res.status(400).json({ error: "That's your own email." });
