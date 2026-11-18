@@ -854,15 +854,21 @@ const forMe = (n) => (n.role ? { ...n, group: SHARED_GROUP } : n);
 /** A group's name as shown: the two the app names itself are translated. */
 const groupName = (g) => (g === SHARED_GROUP || g === 'Inbox' || g === 'Calendar' ? t(g) : g);
 const sameGroup = (a, b) => a.toLowerCase() === b.toLowerCase();
-/** My shares that cover a note of mine: the note itself, or its group. */
-const sharesOf = (n) => (n.role ? [] : shares.mine.filter((s) => (s.kind === 'note' ? s.target === n.id : sameGroup(s.target, n.group))));
+/** "School" or a child's "School · Leo": what sharing all of School covers. */
+const inSchool = (g) => sameGroup(g, 'School') || g.startsWith(SCHOOL_PREFIX);
+/** Does this share cover a note in this group (or this note)? */
+const covers = (s, n, group) => (s.kind === 'note' ? s.target === n.id : s.kind === 'school' ? inSchool(group) : sameGroup(s.target, group));
+/** My shares that cover a note of mine: the note itself, its group, or all of School. */
+const sharesOf = (n) => (n.role ? [] : shares.mine.filter((s) => covers(s, n, n.group)));
 const ownGroups = () => groupsOf(local.list().filter((n) => !n.role));
 
 const share = { kind: null, target: null };
 function openShare(kind, target, label) {
   Object.assign(share, { kind, target });
   $('#shareTitle').textContent = t('Share "{label}"', { label });
-  $('#shareIntro').textContent = (kind === 'group'
+  $('#shareIntro').textContent = (kind === 'school'
+    ? t('All of School: every child, also children you add later, with dates and lists.')
+    : kind === 'group'
     ? t('Everything in {group}, also what goes there later, with its lists.', { group: label })
     : t('This note, with its list.')) +
     ' ' + t('Only the people below see it. They need a SortNotes account with this email.');
@@ -874,7 +880,7 @@ function openShare(kind, target, label) {
   $('#shareEmail').focus();
 }
 function renderSharePeople() {
-  const people = shares.mine.filter((s) => s.kind === share.kind && (s.kind === 'note' ? s.target === share.target : sameGroup(s.target, share.target)));
+  const people = shares.mine.filter((s) => s.kind === share.kind && (s.kind === 'note' ? s.target === share.target : s.kind === 'school' || sameGroup(s.target, share.target)));
   $('#sharePeople').innerHTML = people.length
     ? people.map((p) => `
       <li data-share="${esc(p.id)}">
@@ -941,8 +947,8 @@ $('#shareClose').onclick = () => $('#share').close();
 /** Stop seeing something shared with me (the share that gives me this note). */
 async function leaveShared(n) {
   const group = effectiveNote(n).group;
-  const via = shares.withMe.filter((s) => s.owner.id === n.user_id && (s.kind === 'note' ? s.target === n.id : sameGroup(s.target, group)));
-  const what = via.some((s) => s.kind === 'group') ? t('the group "{group}"', { group }) : `"${n.title || n.text.split('\n')[0]}"`;
+  const via = shares.withMe.filter((s) => s.owner.id === n.user_id && covers(s, n, group));
+  const what = via.some((s) => s.kind === 'school') ? t('School') : via.some((s) => s.kind === 'group') ? t('the group "{group}"', { group }) : `"${n.title || n.text.split('\n')[0]}"`;
   if (!confirm(t('Stop seeing {what}, shared by {owner}? Only {owner} can share it with you again.', { what, owner: n.owner_name }))) return;
   try {
     for (const s of via) await local.api(`shares/${s.id}`, { method: 'DELETE' });
@@ -1207,7 +1213,8 @@ function renderNow() {
     (people.length > 1 ? `<button class="chip ${ui.mine ? 'active' : ''}" data-mine>${esc(t('👤 For me'))}</button>` : '') +
     groups.map((g) => `<button class="chip ${ui.group === g ? 'active' : ''}" data-group="${esc(g)}">${esc(ui.world === 'school' && g.startsWith(SCHOOL_PREFIX) ? g.slice(SCHOOL_PREFIX.length) : groupName(g))}</button>`).join('') +
     (ui.world === 'school'
-      ? `<button class="chip add-chip" data-add-child title="${esc(t('One school group per child: homework, papers due, meetings and activities.'))}">${esc(t('＋ Child'))}</button>`
+      ? `<button class="chip add-chip" data-add-child title="${esc(t('One school group per child: homework, papers due, meetings and activities.'))}">${esc(t('＋ Child'))}</button>` +
+        `<button class="chip share-school" data-share-school>👥 ${esc((() => { const n = shares.mine.filter((s) => s.kind === 'school').length; return n ? t('School shared · {n}', { n }) : t('Share School'); })())}</button>`
       : `<button class="chip add-chip" data-add-group title="${esc(t('Add a group of your own. The AI will put matching notes in it.'))}">${esc(t('＋ Group'))}</button>`);
 
   const q = ui.query.toLowerCase().trim();
@@ -1328,6 +1335,7 @@ $('#list').addEventListener('click', async (e) => {
 $('#viewer').addEventListener('click', () => $('#viewer').close());
 
 $('#groupChips').addEventListener('click', async (e) => {
+  if (e.target.closest('[data-share-school]')) return openShare('school', 'School', t('🎒 School'));
   if (e.target.closest('[data-add-child]')) {
     const child = prompt(t("Your child's first name.\nSchool notes about them go in their own group:"))?.trim();
     if (!child) return;

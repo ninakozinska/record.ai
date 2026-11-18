@@ -562,8 +562,11 @@ export class Calendars {
     if (!note || note.parent_id || !this.sealer) return;
     const mapped = this.db.prepare('SELECT 1 FROM calendar_events WHERE note_id = ? LIMIT 1').get(note.id);
     if (!mapped && !note.due_date) return;
-    if (!this.db.prepare('SELECT 1 FROM calendar_links WHERE user_id = ? LIMIT 1').get(note.user_id)) return;
-    this.syncSoon(note.user_id);
+    // The owner's calendars, and the calendars of the people School is shared with.
+    const people = [note.user_id, ...(this.store.schoolAudience?.(note) || [])];
+    for (const userId of people) {
+      if (this.db.prepare('SELECT 1 FROM calendar_links WHERE user_id = ? LIMIT 1').get(userId)) this.syncSoon(userId);
+    }
   }
 
   syncSoon(userId, delay = 3000) {
@@ -614,7 +617,10 @@ export class Calendars {
           counts.added++;
           continue;
         }
-        const note = this.store.get(m.note_id);
+        let note = this.store.get(m.note_id);
+        // A School note shared with this person: gone from their calendar once it is no longer shared.
+        const theirs = !note || note.user_id === link.user_id;
+        if (note && !theirs && !this.store.access(link.user_id, note)) note = null;
         if (!note || note.deleted) {
           // Deleted in SortNotes: an event SortNotes made goes too; a meeting from the calendar stays there.
           if (m.origin === 'note' && p.remove && link.writes) {
@@ -624,7 +630,10 @@ export class Calendars {
           }
           continue;
         }
-        if (eventSig(e) !== m.event_sig) {
+        if (eventSig(e) !== m.event_sig && !theirs && this.store.access(link.user_id, note) !== 'edit') {
+          // Moved in the calendar of someone who may only view it: the note stays as it is.
+          keep(m, note, e);
+        } else if (eventSig(e) !== m.event_sig) {
           // Moved or renamed in the calendar: the calendar wins.
           const fields = m.origin === 'calendar' ? { text: textOf(e), title: e.summary || 'Meeting', user_due: e.start } : { user_due: e.start };
           keep(m, this.writeNote(note.id, fields), e);
@@ -656,8 +665,11 @@ export class Calendars {
         const notes = this.db.prepare(
           `SELECT id FROM notes WHERE user_id = ? AND parent_id IS NULL AND deleted = 0 AND done = 0 AND source IS NULL
              AND ((user_due IS NOT NULL AND user_due != '') OR (user_due IS NULL AND due_date IS NOT NULL))
-             AND id NOT IN (SELECT note_id FROM calendar_events)`,
-        ).all(link.user_id);
+             AND id NOT IN (SELECT note_id FROM calendar_events WHERE link_id = ?)`,
+        ).all(link.user_id, linkId);
+        // School notes the other parent shared with this person go to their calendar too.
+        const mappedHere = new Set(this.db.prepare('SELECT note_id FROM calendar_events WHERE link_id = ?').all(linkId).map((r) => r.note_id));
+        for (const id of this.store.schoolSharedWith?.(link.user_id) || []) if (!mappedHere.has(id)) notes.push({ id });
         for (const { id } of notes) {
           const note = this.store.get(id);
           const due = dueOf(note);

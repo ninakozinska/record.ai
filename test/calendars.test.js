@@ -325,3 +325,42 @@ test('deleting the account removes its calendar connections', async () => {
     t.close();
   }
 });
+
+test('School shared by the other parent goes to their calendar too, and leaves it when no longer shared', async () => {
+  process.env.ALLOW_SIGNUP = 'true';
+  const g = fakeGoogle();
+  const t = await start({ calendars: { env: { CALENDAR_KEY: KEY, GOOGLE_CLIENT_ID: 'cid', GOOGLE_CLIENT_SECRET: 'cs' }, fetch: g.fetch } });
+  try {
+    const day = tomorrow();
+    const now = Date.now();
+    await t.api('notes/note-school-trip', { method: 'PUT', body: JSON.stringify({ text: 'Mia museum trip', user_group: 'School · Mia', user_due: `${day}T09:00`, created_at: now, edited_at: now }) });
+    // Tom, the other parent, with his own Google Calendar.
+    const signup = await fetch(`${t.base}auth/signup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: 'Tom', email: 'tom@example.com', password: 'correct horse' }) });
+    const tomCookie = signup.headers.get('set-cookie').split(';')[0];
+    const r1 = await fetch(`${t.base}calendars/google/connect?tz=${encodeURIComponent(TZ)}`, { headers: { cookie: tomCookie }, redirect: 'manual' });
+    const state = new URL(r1.headers.get('location')).searchParams.get('state');
+    await fetch(`${t.base}calendars/google/callback?code=c&state=${state}`, { headers: { cookie: tomCookie }, redirect: 'manual' });
+    const tomId = t.store.findUserByEmail('tom@example.com').id;
+    const tomLink = t.store.db.prepare('SELECT id FROM calendar_links WHERE user_id = ?').get(tomId).id;
+
+    await t.calendars.sync(tomLink);
+    assert.equal([...g.events.values()].filter((e) => e.summary === 'Mia museum trip').length, 0, 'not shared yet');
+
+    const share = (await t.api('shares', { method: 'POST', body: JSON.stringify({ kind: 'school', email: 'tom@example.com', role: 'view' }) })).body.share;
+    await t.calendars.sync(tomLink);
+    assert.equal([...g.events.values()].filter((e) => e.summary === 'Mia museum trip').length, 1, 'in Tom\'s calendar');
+
+    // Tom may only view: moving the event in his calendar doesn't move the note.
+    const ev = [...g.events.values()].find((e) => e.summary === 'Mia museum trip');
+    ev.start = { dateTime: `${day}T11:00:00${offset(day)}` };
+    await t.calendars.sync(tomLink);
+    assert.equal(t.store.get('note-school-trip').due_time, '09:00');
+
+    await t.api(`shares/${share.id}`, { method: 'DELETE' });
+    await t.calendars.sync(tomLink);
+    assert.equal([...g.events.values()].filter((e) => e.summary === 'Mia museum trip').length, 0, 'gone once no longer shared');
+  } finally {
+    delete process.env.ALLOW_SIGNUP;
+    t.close();
+  }
+});

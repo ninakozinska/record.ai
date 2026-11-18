@@ -210,3 +210,33 @@ test('sharing checks what is shared and with whom', async () => {
     done(s);
   }
 });
+
+test('sharing all of School: every child, also a child added later, and the dates for their calendar', async () => {
+  process.env.ALLOW_SIGNUP = 'true';
+  const s = await start();
+  try {
+    const day = new Date(Date.now() + 864e5).toISOString().slice(0, 10);
+    await put(s.api, 'note-leo-home', { text: 'Leo maths homework', user_group: 'School · Leo', user_due: day });
+    await put(s.api, 'note-pta-meet', { text: 'Parent-teacher evening', user_group: 'School' });
+    await put(s.api, 'note-work-001', { text: 'Quarterly report', user_group: 'Work', user_due: day });
+    const tom = person(s);
+    await tom.signup('Tom', 'tom@example.com');
+    const r = await s.api('shares', json('POST', { kind: 'school', target: 'anything', email: 'tom@example.com', role: 'edit' }));
+    assert.equal(r.status, 200);
+    assert.equal(r.body.share.target, 'School');
+
+    // A child added later is covered too.
+    await put(s.api, 'note-mia-trip', { text: 'Mia museum trip form', user_group: 'School · Mia', user_due: day });
+    const seen = (await tom.api('notes?since=0&items=1&shared=1')).body.notes.map((n) => n.id).sort();
+    assert.deepEqual(seen, ['note-leo-home', 'note-mia-trip', 'note-pta-meet']);
+
+    // The dated School notes go to Tom's calendar; Work does not.
+    const tomId = s.store.findUserByEmail('tom@example.com').id;
+    assert.deepEqual(s.store.schoolSharedWith(tomId).sort(), ['note-leo-home', 'note-mia-trip']);
+    assert.deepEqual(s.store.schoolAudience(s.store.get('note-mia-trip')), [tomId]);
+    assert.deepEqual(s.store.schoolAudience(s.store.get('note-work-001')), []);
+  } finally {
+    delete process.env.ALLOW_SIGNUP;
+    s.close();
+  }
+});

@@ -283,10 +283,13 @@ function migrate(db) {
 // The group a note counts in for sharing: an item counts in its list's group.
 const ROOT_GROUP = `CASE WHEN n.parent_id IS NULL THEN COALESCE(n.user_group, n.ai_group, 'Inbox')
   ELSE COALESCE(p.user_group, p.ai_group, 'Inbox') END`;
+// School: the "School" group and every child's "School · Leo", also ones added later.
+const IN_SCHOOL = `(${ROOT_GROUP} = 'School' COLLATE NOCASE OR ${ROOT_GROUP} LIKE 'School · %')`;
 // Shares that cover note n (joined with its list p) for its owner.
 const SHARE_MATCHES = `s.owner_id = n.user_id AND (
   (s.kind = 'note' AND s.target = COALESCE(n.parent_id, n.id))
-  OR (s.kind = 'group' AND s.target = ${ROOT_GROUP} COLLATE NOCASE))`;
+  OR (s.kind = 'group' AND s.target = ${ROOT_GROUP} COLLATE NOCASE)
+  OR (s.kind = 'school' AND ${IN_SCHOOL}))`;
 
 function rowToShare(r) {
   return r ? { id: r.id, owner_id: r.owner_id, kind: r.kind, target: r.target, email: r.email, user_id: r.user_id, role: r.role, created_at: r.created_at } : null;
@@ -710,6 +713,31 @@ class Store {
     return new Map(rows.map((r) => [r.user_id, r.can_edit ? 'edit' : 'view']));
   }
 
+  /** People all of School is shared with, who see this note through it. */
+  schoolAudience(note) {
+    return this.db
+      .prepare(
+        `SELECT DISTINCT s.user_id FROM notes n LEFT JOIN notes p ON p.id = n.parent_id
+         JOIN shares s ON s.user_id IS NOT NULL AND s.kind = 'school' AND ${SHARE_MATCHES}
+         WHERE n.id = ?`,
+      )
+      .all(note.id)
+      .map((r) => r.user_id);
+  }
+
+  /** Open School notes with a date that someone shared with this person (for their calendar). */
+  schoolSharedWith(userId) {
+    return this.db
+      .prepare(
+        `SELECT DISTINCT n.id FROM notes n LEFT JOIN notes p ON p.id = n.parent_id
+         JOIN shares s ON s.user_id = ? AND s.kind = 'school' AND ${SHARE_MATCHES}
+         WHERE n.parent_id IS NULL AND n.deleted = 0 AND n.done = 0 AND n.source IS NULL
+           AND ((n.user_due IS NOT NULL AND n.user_due != '') OR (n.user_due IS NULL AND n.due_date IS NOT NULL))`,
+      )
+      .all(userId)
+      .map((r) => r.id);
+  }
+
   /** A shared note as its recipient gets it; remembers that they may have it. */
   forRecipient(userId, note, role) {
     this.db
@@ -843,6 +871,7 @@ class Store {
       .prepare(
         `SELECT n.id FROM notes n LEFT JOIN notes p ON p.id = n.parent_id
          WHERE n.user_id = ? AND CASE ? WHEN 'note' THEN COALESCE(n.parent_id, n.id) = ?
+           WHEN 'school' THEN ${IN_SCHOOL}
            ELSE ${ROOT_GROUP} = ? COLLATE NOCASE END`,
       )
       .all(share.owner_id, share.kind, share.target, share.target);

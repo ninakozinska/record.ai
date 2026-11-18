@@ -538,4 +538,8 @@ export default {
   "🏷 Labels, like in Gmail: several per note, search by label. Part of Premium.": "🏷 Labels, like in Gmail: several per note, search by label. Part of Premium.",
   "🏷 My labels": "🏷 My labels",
   "Labels you made. A note can have several; the AI picks from this list. Add more from any note.": "Labels you made. A note can have several; the AI picks from this list. Add more from any note.",
+  "All of School: every child, also children you add later, with dates and lists.": "All of School: every child, also children you add later, with dates and lists.",
+  "School": "School",
+  "Share School": "Share School",
+  "School shared · {n}": "School shared · {n}",
 };
