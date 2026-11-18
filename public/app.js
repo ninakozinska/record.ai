@@ -1,6 +1,6 @@
 import { Local, uuid } from './local.js';
 import { loadVariants, variant, track } from './track.js';
-import { inWorld, worldOf } from './worlds.js';
+import { inWorld, worldOf, SCHOOL_PREFIX } from './worlds.js';
 import { t, lang, loadLang, pickLang, saveLang, translatePage, LANGS } from './i18n.js';
 
 await loadLang(pickLang());
@@ -789,11 +789,11 @@ async function loadWorlds() {
   }
   render();
 }
-const WORLD_LABEL = { work: t('💼 Work'), family: t('🏡 Family'), null: t('💼🏡 Both') };
-/** Work → Family → both → Work: moves one group, on every device. */
+const WORLD_LABEL = { work: t('💼 Work'), family: t('🏡 Family'), school: t('🎒 School'), null: t('All worlds') };
+/** Work → Family → School → all → Work: moves one group, on every device. */
 async function cycleWorld(group) {
   const now = worldOf(group, chosenWorlds);
-  return setWorld(group, now === 'work' ? 'family' : now === 'family' ? '' : 'work');
+  return setWorld(group, { work: 'family', family: 'school', school: '' }[now] ?? 'work');
 }
 /** Puts one group in 'work', 'family' or '' (both), on every device. */
 async function setWorld(group, next) {
@@ -1190,8 +1190,10 @@ function renderNow() {
   $('#groupChips').innerHTML =
     `<button class="chip ${!ui.group ? 'active' : ''}" data-group="">${esc(t('All'))}</button>` +
     (people.length > 1 ? `<button class="chip ${ui.mine ? 'active' : ''}" data-mine>${esc(t('👤 For me'))}</button>` : '') +
-    groups.map((g) => `<button class="chip ${ui.group === g ? 'active' : ''}" data-group="${esc(g)}">${esc(groupName(g))}</button>`).join('') +
-    `<button class="chip add-chip" data-add-group title="${esc(t('Add a group of your own. The AI will put matching notes in it.'))}">${esc(t('＋ Group'))}</button>`;
+    groups.map((g) => `<button class="chip ${ui.group === g ? 'active' : ''}" data-group="${esc(g)}">${esc(ui.world === 'school' && g.startsWith(SCHOOL_PREFIX) ? g.slice(SCHOOL_PREFIX.length) : groupName(g))}</button>`).join('') +
+    (ui.world === 'school'
+      ? `<button class="chip add-chip" data-add-child title="${esc(t('One school group per child: homework, papers due, meetings and activities.'))}">${esc(t('＋ Child'))}</button>`
+      : `<button class="chip add-chip" data-add-group title="${esc(t('Add a group of your own. The AI will put matching notes in it.'))}">${esc(t('＋ Group'))}</button>`);
 
   const q = ui.query.toLowerCase().trim();
   const visible = all.filter((n) => matches(n, q) && (!ui.group || n.group === ui.group) && (!ui.mine || forMeTask(n))).sort(sortNotes);
@@ -1301,6 +1303,20 @@ $('#list').addEventListener('click', async (e) => {
 $('#viewer').addEventListener('click', () => $('#viewer').close());
 
 $('#groupChips').addEventListener('click', async (e) => {
+  if (e.target.closest('[data-add-child]')) {
+    const child = prompt(t("Your child's first name.\nSchool notes about them go in their own group:"))?.trim();
+    if (!child) return;
+    const name = SCHOOL_PREFIX + child;
+    try {
+      if (!myGroups.includes(name)) await saveMyGroups([...myGroups, name]);
+      ui.group = name;
+      render();
+      toast(t('"{name}" added. Homework, papers due and school meetings about {child} go there.', { name, child }));
+    } catch (err) {
+      toast(err.message);
+    }
+    return;
+  }
   if (e.target.closest('[data-add-group]')) {
     const name = prompt(t('New group (for example Baby or Work).\nThe AI will put matching notes in it:'))?.trim();
     if (!name) return;

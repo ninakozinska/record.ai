@@ -25,6 +25,7 @@ struct NotesView: View {
                         Text(tr("All")).tag(Worlds.all)
                         Text(tr("💼 Work")).tag(Worlds.work)
                         Text(tr("🏡 Family")).tag(Worlds.family)
+                        Text(tr("🎒 School")).tag(Worlds.school)
                     }
                     .pickerStyle(.segmented)
                     .onChange(of: world) { _, _ in group = nil }
@@ -183,7 +184,8 @@ struct NotesView: View {
             HStack(spacing: 8) {
                 chip(tr("All"), selected: group == nil) { group = nil }
                 ForEach(groupNames, id: \.self) { name in
-                    chip(name, selected: group == name) { group = name }
+                    chip(world == Worlds.school && name.hasPrefix(Worlds.schoolPrefix) ? String(name.dropFirst(Worlds.schoolPrefix.count)) : name,
+                         selected: group == name) { group = name }
                 }
             }
             .padding(.horizontal, 4)

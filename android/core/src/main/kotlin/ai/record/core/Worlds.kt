@@ -1,26 +1,34 @@
 package ai.record.core
 
 /**
- * Work and Family: two "worlds" over the same notes (same rules as the web
+ * Work, Family and School: "worlds" over the same notes (same rules as the web
  * app's public/worlds.js). Each group belongs to one, guessed from its name,
- * and the person can move it; groups that fit neither show in both.
+ * and the person can move it; groups that fit none show in all.
  */
 object Worlds {
     const val ALL = "all"
     const val WORK = "work"
     const val FAMILY = "family"
+    const val SCHOOL = "school"
+    /** A child's school group: "School · Leo". */
+    const val SCHOOL_PREFIX = "School · "
 
     private val work = Regex(
         "\\b(work|office|job|meetings?|projects?|clients?|customers?|team|career|business|sales|marketing|boss|colleagues?|deadlines?|invoices?|conference|hiring|interviews?|reports?|admin)\\b",
         RegexOption.IGNORE_CASE,
     )
+    private val school = Regex(
+        "\\b(schools?|homework|teachers?|classroom|class trip|school trip|exams?|pta|after-?school|daycare|nursery|kindergarten|preschool|tutoring|tutor|uniforms?|semester|report cards?|parent-teacher)\\b",
+        RegexOption.IGNORE_CASE,
+    )
     private val family = Regex(
-        "\\b(home|house|household|family|kids?|children|child|baby|school|daycare|nursery|groceries|grocery|shopping|chores|cleaning|garden|pets?|dog|cat|health|doctor|dentist|medical|partner|husband|wife|birthdays?|holidays?|vacation|travel|recipes?|cooking|meals?|dinner|car|finance|bills|budget|personal|friends|sports?|activities|social|leisure|entertainment|music|concerts?|theat(?:er|re)|cinema|movies?|parties|party|culture|hobbies)\\b",
+        "\\b(home|house|household|family|kids?|children|child|baby|groceries|grocery|shopping|chores|cleaning|garden|pets?|dog|cat|health|doctor|dentist|medical|partner|husband|wife|birthdays?|holidays?|vacation|travel|recipes?|cooking|meals?|dinner|car|finance|bills|budget|personal|friends|sports?|activities|social|leisure|entertainment|music|concerts?|theat(?:er|re)|cinema|movies?|parties|party|culture|hobbies)\\b",
         RegexOption.IGNORE_CASE,
     )
 
     /** "work", "family" or null (both), from the group's name. */
     fun guess(group: String): String? {
+        if (group.startsWith(SCHOOL_PREFIX) || school.containsMatchIn(group)) return SCHOOL
         val w = work.containsMatchIn(group)
         val f = family.containsMatchIn(group)
         return when {

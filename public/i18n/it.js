@@ -524,4 +524,11 @@ export default {
   "Sent from SortNotes": "Inviata da SortNotes",
   "World": "Mondo",
   "Moves the whole group": "Sposta tutto il gruppo",
+  "🎒 School": "🎒 Scuola",
+  "All worlds": "Tutti i mondi",
+  "＋ Child": "＋ Figlio",
+  "Only school: one group per child": "Solo scuola: un gruppo per figlio",
+  "One school group per child: homework, papers due, meetings and activities.": "Un gruppo scuola per figlio: compiti, moduli da consegnare, colloqui e attività.",
+  "Your child's first name.\nSchool notes about them go in their own group:": "Il nome di tuo figlio.\nLe note di scuola che lo riguardano vanno nel suo gruppo:",
+  "\"{name}\" added. Homework, papers due and school meetings about {child} go there.": "\"{name}\" aggiunto. Compiti, moduli da consegnare e colloqui su {child} vanno lì.",
 };

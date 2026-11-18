@@ -387,12 +387,12 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth, mail, bill
   app.put('/api/groups/worlds', (req, res) => {
     const chosen = req.body?.chosen;
     if (!chosen || typeof chosen !== 'object' || Array.isArray(chosen) || Object.keys(chosen).length > 200) {
-      return res.status(400).json({ error: 'Send {chosen: {group: "work" | "family" | ""}}.' });
+      return res.status(400).json({ error: 'Send {chosen: {group: "work" | "family" | "school" | ""}}.' });
     }
     const clean = {};
     for (const [group, world] of Object.entries(chosen)) {
       const key = group.trim().toLowerCase().slice(0, 60);
-      if (key && ['work', 'family', ''].includes(world)) clean[key] = world;
+      if (key && ['work', 'family', 'school', ''].includes(world)) clean[key] = world;
     }
     store.setMeta(worldsKey(req.user.id), JSON.stringify(clean));
     insights.track('worlds_changed', { userId: req.user.id, props: { groups: Object.keys(clean).length } });

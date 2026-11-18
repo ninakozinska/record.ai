@@ -196,6 +196,22 @@ test('"My groups" are given to the AI, for single notes and for reorganizing', a
   }
 });
 
+test('school: one group per child, and the AI is told how to use them', async () => {
+  const client = scripted(ok({ ...analysis, group: 'School · Leo' }));
+  const t = setup(client);
+  try {
+    t.store.setMyGroups(t.a.id, ['School · Leo', 'School · Mia']);
+    note(t, t.a, 'note-school-01', 'Leo: maths homework due Friday');
+    await t.organizer.organizeNote('note-school-01');
+    const prompt = JSON.stringify(client.calls[0].messages);
+    assert.match(prompt, /School groups, one per child: School · Leo, School · Mia/);
+    assert.match(prompt, /homework, papers or forms due, teacher meetings/);
+    assert.equal(t.store.get('note-school-01').group, 'School · Leo');
+  } finally {
+    t.restore();
+  }
+});
+
 test('reorganize replaces titles that are just a group name, and leaves good titles alone', async () => {
   const client = scripted((p) => ({
     stop_reason: 'end_turn',
