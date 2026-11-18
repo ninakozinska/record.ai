@@ -517,7 +517,9 @@ try {
   await desktop.click('.world-toggle [data-world=all]');
   await desktop.click('.view-toggle [data-view=groups]');
   await desktop.click('[data-world-group="Shopping"]');
-  await desktop.waitForSelector('[data-world-group="Shopping"]:text("Both")');
+  await desktop.waitForSelector('[data-world-group="Shopping"]:text("School")');
+  await desktop.click('[data-world-group="Shopping"]');
+  await desktop.waitForSelector('[data-world-group="Shopping"]:text("All worlds")');
   await desktop.click('.world-toggle [data-world=work]');
   await desktop.waitForSelector('.note h3:text("Buy milk and eggs")');
   await desktop.click('.world-toggle [data-world=all]');
@@ -525,7 +527,7 @@ try {
   await desktop.click('[data-world-group="Shopping"]');
   await desktop.waitForSelector('[data-world-group="Shopping"]:text("Family")');
   await desktop.click('.view-toggle [data-view=priority]');
-  console.log('✓ work and family worlds, a group moved between them');
+  console.log('✓ work, family and school worlds, a group moved between them');
 
   // Today: notes due today, with their time, at the top; a tap opens one.
   await desktop.fill('#composer textarea', 'Pick up Mia at 16:00');
