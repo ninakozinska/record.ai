@@ -15,7 +15,7 @@ object Worlds {
         RegexOption.IGNORE_CASE,
     )
     private val family = Regex(
-        "\\b(home|house|household|family|kids?|children|child|baby|school|daycare|nursery|groceries|grocery|shopping|chores|cleaning|garden|pets?|dog|cat|health|doctor|dentist|medical|partner|husband|wife|birthdays?|holidays?|vacation|travel|recipes?|cooking|meals?|dinner|car|finance|bills|budget|personal|friends|sports?|activities)\\b",
+        "\\b(home|house|household|family|kids?|children|child|baby|school|daycare|nursery|groceries|grocery|shopping|chores|cleaning|garden|pets?|dog|cat|health|doctor|dentist|medical|partner|husband|wife|birthdays?|holidays?|vacation|travel|recipes?|cooking|meals?|dinner|car|finance|bills|budget|personal|friends|sports?|activities|social|leisure|entertainment|music|concerts?|theat(?:er|re)|cinema|movies?|parties|party|culture|hobbies)\\b",
         RegexOption.IGNORE_CASE,
     )
 

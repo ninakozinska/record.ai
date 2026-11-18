@@ -522,4 +522,6 @@ export default {
   "Copied. Paste it anywhere.": "Copiata. Incollala dove vuoi.",
   "Copy this text:": "Copia questo testo:",
   "Sent from SortNotes": "Inviata da SortNotes",
+  "World": "Mondo",
+  "Moves the whole group": "Sposta tutto il gruppo",
 };

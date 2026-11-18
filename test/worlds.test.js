@@ -6,8 +6,8 @@ import { guessWorld, worldOf, inWorld } from '../public/worlds.js';
 
 test('groups are guessed into Work or Family by name; unclear ones show in both', () => {
   for (const g of ['Work', 'Meetings', 'Client projects', 'Office']) assert.equal(guessWorld(g), 'work', g);
-  for (const g of ['Groceries', 'Kids', 'School', 'Home', 'Health', 'Family', 'Shopping']) assert.equal(guessWorld(g), 'family', g);
-  for (const g of ['Ideas', 'Inbox', 'Hobbies', 'Work from home']) assert.equal(guessWorld(g), null, g);
+  for (const g of ['Groceries', 'Kids', 'School', 'Home', 'Health', 'Family', 'Shopping', 'Social', 'Concerts', 'Hobbies']) assert.equal(guessWorld(g), 'family', g);
+  for (const g of ['Ideas', 'Inbox', 'Work from home']) assert.equal(guessWorld(g), null, g);
   assert.equal(worldOf('Ideas', { ideas: 'work' }), 'work', 'the person chose');
   assert.equal(worldOf('Kids', { kids: '' }), null, 'chosen: both');
   assert.ok(inWorld('Ideas', 'work') && inWorld('Ideas', 'family'), 'both worlds');

@@ -390,6 +390,8 @@ const editor = {
     $('#editorTitle').textContent = n.title || t('Note');
     $('#editorGroup').value = n.user_group || '';
     $('#editorGroup').placeholder = n.ai_group ? t('Auto ({value})', { value: n.ai_group }) : t('Auto');
+    $('#editorWorld').value = worldOf(n.group, chosenWorlds) || '';
+    $('#editorWorld').disabled = !n.group;
     $('#editorPriority').value = n.user_priority || '';
     $('#editorPriority').options[0].textContent = n.ai_priority ? t('Auto ({value})', { value: PRIORITY_LABEL[n.ai_priority] }) : t('Auto');
     $('#editorDone').textContent = n.done ? t('Mark not done') : t('Mark done');
@@ -791,7 +793,10 @@ const WORLD_LABEL = { work: t('💼 Work'), family: t('🏡 Family'), null: t('�
 /** Work → Family → both → Work: moves one group, on every device. */
 async function cycleWorld(group) {
   const now = worldOf(group, chosenWorlds);
-  const next = now === 'work' ? 'family' : now === 'family' ? '' : 'work';
+  return setWorld(group, now === 'work' ? 'family' : now === 'family' ? '' : 'work');
+}
+/** Puts one group in 'work', 'family' or '' (both), on every device. */
+async function setWorld(group, next) {
   const previous = chosenWorlds;
   chosenWorlds = { ...chosenWorlds, [group.toLowerCase()]: next };
   render();
@@ -1327,6 +1332,12 @@ document.querySelectorAll('.world-toggle button').forEach((b) => {
     track('world_switch', { world: ui.world });
     render();
   };
+});
+// The note's group (the one typed in the editor, else the AI's) moves to that world.
+$('#editorWorld').addEventListener('change', (e) => {
+  const n = local.notes.get(editor.id);
+  const group = $('#editorGroup').value.trim() || n?.group;
+  if (group) setWorld(group, e.target.value);
 });
 $('#list').addEventListener('click', (e) => {
   const b = e.target.closest('[data-world-group]');
