@@ -377,3 +377,16 @@ a.btn { display: inline-flex; align-items: center; text-decoration: none; color:
 .suggest-item.top { border-color: var(--accent, #4f46e5); }
 button.small { padding: 4px 10px; font-size: .85rem; }
 .file-btn { cursor: pointer; display: inline-flex; gap: 6px; align-items: center; padding: 8px 12px; border: 1px solid var(--border); border-radius: 10px; }
+
+/* Labels, like Gmail's: a coloured chip per label. */
+.label { display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px; border-radius: 999px; font-size: .78rem; font-weight: 600;
+  background: var(--lc-bg, #eef2ff); color: var(--lc, #4338ca); border: 1px solid transparent; cursor: pointer; }
+.label.off { background: transparent; color: var(--muted); border-color: var(--border); font-weight: 500; }
+.label.l-indigo { --lc: #4338ca; --lc-bg: #eef2ff; } .label.l-red { --lc: #b91c1c; --lc-bg: #fee2e2; }
+.label.l-orange { --lc: #c2410c; --lc-bg: #ffedd5; } .label.l-yellow { --lc: #a16207; --lc-bg: #fef9c3; }
+.label.l-green { --lc: #15803d; --lc-bg: #dcfce7; } .label.l-teal { --lc: #0f766e; --lc-bg: #ccfbf1; }
+.label.l-blue { --lc: #1d4ed8; --lc-bg: #dbeafe; } .label.l-purple { --lc: #7e22ce; --lc-bg: #f3e8ff; }
+.label.l-pink { --lc: #be185d; --lc-bg: #fce7f3; } .label.l-gray { --lc: #374151; --lc-bg: #f3f4f6; }
+.label-chips { margin-top: -4px; }
+.label-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 4px 0 8px; }
+.label-row .muted { font-size: .85rem; }

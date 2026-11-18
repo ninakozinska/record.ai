@@ -61,6 +61,7 @@
     </section>
 
     <nav id="groupChips" class="chips"></nav>
+    <nav id="labelChips" class="chips label-chips" hidden></nav>
     <div id="list"></div>
   </main>
 
@@ -137,6 +138,7 @@
           </select>
         </label>
       </div>
+      <div class="label-row" id="editorLabels"></div>
       <label class="assign-row" id="assignRow" hidden>👤 For <select id="editorAssign"></select></label>
       <p class="muted shared-line" id="editorShared" hidden></p>
       <p class="muted note-times" id="editorTimes"></p>
@@ -419,6 +421,11 @@
         <div id="aiResult" class="ai-box stack" hidden></div>
         <p class="muted">Or copy your open notes and paste them into any AI chat:</p>
         <div class="cal-buttons"><button type="button" class="ghost" id="aiCopy">📋 Copy my notes for an AI chat</button></div>
+      </div>
+      <div id="myLabelsBox" class="stack" hidden>
+        <h3>🏷 My labels</h3>
+        <p class="muted">Labels you made. A note can have several; the AI picks from this list. Add more from any note.</p>
+        <ul id="myLabelsList" class="identity-list"></ul>
       </div>
       <div id="myGroupsBox" class="stack" hidden>
         <h3>My groups</h3>

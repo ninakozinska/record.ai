@@ -191,6 +191,10 @@ function migrate(db) {
   // Family hub: who a note or list item is for, and who ticked it off.
   if (!columns(db, 'notes').includes('assigned_to')) db.exec('ALTER TABLE notes ADD COLUMN assigned_to TEXT');
   if (!columns(db, 'notes').includes('done_by')) db.exec('ALTER TABLE notes ADD COLUMN done_by TEXT');
+  // Labels (like Gmail's): several per note, from the person's own list.
+  // user_labels NULL = the AI's suggestions (ai_labels) are shown.
+  if (!columns(db, 'notes').includes('user_labels')) db.exec('ALTER TABLE notes ADD COLUMN user_labels TEXT');
+  if (!columns(db, 'notes').includes('ai_labels')) db.exec("ALTER TABLE notes ADD COLUMN ai_labels TEXT NOT NULL DEFAULT '[]'");
   // Devices that get notifications (Web Push).
   db.exec(`
     CREATE TABLE IF NOT EXISTS invites (
@@ -326,8 +330,24 @@ function rowToNote(r) {
     remind: r.remind ?? null,
     assigned_to: r.assigned_to ?? null,
     done_by: r.done_by ?? null,
+    user_labels: r.user_labels == null ? null : JSON.parse(r.user_labels),
+    ai_labels: JSON.parse(r.ai_labels || '[]'),
+    labels: r.user_labels == null ? JSON.parse(r.ai_labels || '[]') : JSON.parse(r.user_labels),
   };
 }
+
+/** A clean list of label names: trimmed, at most 10, each once. */
+export function cleanLabels(list) {
+  if (!Array.isArray(list)) return null;
+  const out = [];
+  for (const l of list) {
+    const name = String(l ?? '').trim().slice(0, 40);
+    if (name && !out.some((o) => o.toLowerCase() === name.toLowerCase())) out.push(name);
+  }
+  return out.slice(0, 10);
+}
+
+const labelsJson = (list) => (list == null ? null : JSON.stringify(cleanLabels(list) ?? []));
 
 function rowToUser(r) {
   return r ? { id: r.id, email: r.email, name: r.name, created_at: r.created_at, plan: r.plan || 'free' } : null;
@@ -409,6 +429,7 @@ class Store {
       // the owner deletes the list itself.
       if (this.access(userId, existing) !== 'edit') return { forbidden: true };
       delete input.user_group;
+      delete input.user_labels;
       if (!existing.parent_id) {
         delete input.user_priority;
         delete input.deleted;
@@ -438,8 +459,8 @@ class Store {
       this.db
         .prepare(
           `INSERT INTO notes (id, user_id, parent_id, text, images, done, deleted, created_at, edited_at,
-             user_group, user_priority, user_due, remind, assigned_to, done_by, ai_status, rev)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+             user_group, user_priority, user_due, remind, assigned_to, done_by, ai_status, user_labels, rev)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
         .run(
           input.id,
@@ -459,6 +480,7 @@ class Store {
           input.done ? userId : null,
           // Items aren't sent to the AI: only their list is.
           parentId ? 'done' : 'pending',
+          labelsJson(input.user_labels),
           rev,
         );
     } else {
@@ -466,7 +488,7 @@ class Store {
       this.db
         .prepare(
           `UPDATE notes SET text = ?, images = ?, done = ?, deleted = ?, edited_at = ?,
-             user_group = ?, user_priority = ?, user_due = ?, remind = ?, assigned_to = ?, done_by = ?,
+             user_group = ?, user_priority = ?, user_due = ?, remind = ?, assigned_to = ?, done_by = ?, user_labels = ?,
              ai_status = CASE WHEN ? AND parent_id IS NULL THEN 'pending' ELSE ai_status END,
              rev = ?
            WHERE id = ?`,
@@ -484,6 +506,7 @@ class Store {
           pick('assigned_to') ?? null,
           // Who ticked it off: whoever made it done; nobody once it is open again.
           !pick('done') ? null : existing.done ? existing.done_by : userId,
+          labelsJson(pick('user_labels')),
           contentChanged ? 1 : 0,
           rev,
           input.id,
@@ -524,6 +547,9 @@ class Store {
     }
     if ((before.user_priority ?? null) !== (after.user_priority ?? null) && after.user_priority) {
       this.addHistory(after.id, userId, at, 'priority', { priority: after.user_priority }, true);
+    }
+    if (JSON.stringify(before.user_labels ?? null) !== JSON.stringify(after.user_labels ?? null) && after.user_labels) {
+      this.addHistory(after.id, userId, at, 'labels', { labels: after.user_labels }, true);
     }
     if ((before.assigned_to ?? null) !== (after.assigned_to ?? null)) {
       this.addHistory(after.id, userId, at, 'assigned', { to: after.assigned_to ?? null });
@@ -592,7 +618,7 @@ class Store {
            title = COALESCE(?, title), summary = COALESCE(?, summary),
            ai_group = COALESCE(?, ai_group), ai_priority = COALESCE(?, ai_priority),
            priority_reason = COALESCE(?, priority_reason),
-           tags = COALESCE(?, tags), due_date = ?, due_time = ?,
+           tags = COALESCE(?, tags), ai_labels = COALESCE(?, ai_labels), due_date = ?, due_time = ?,
            ai_status = ?, ai_error = ?, rev = ?
          WHERE id = ?`,
       )
@@ -603,6 +629,7 @@ class Store {
         ai.priority ?? null,
         ai.priority_reason ?? null,
         ai.tags ? JSON.stringify(ai.tags) : null,
+        ai.labels ? JSON.stringify(cleanLabels(ai.labels)) : null,
         ai.due_date === undefined ? this.get(id)?.ai_due_date ?? null : ai.due_date,
         ai.due_time === undefined ? this.get(id)?.ai_due_time ?? null : ai.due_date ? ai.due_time : null,
         ai.status,
@@ -646,6 +673,19 @@ class Store {
 
   setMyGroups(userId, names) {
     this.setMeta(`my_groups:${userId}`, JSON.stringify(names));
+  }
+
+  /** The person's labels: [{ name, color }], in their order. */
+  labelsOf(userId) {
+    try {
+      return JSON.parse(this.getMeta(`labels:${userId}`) || '[]');
+    } catch {
+      return [];
+    }
+  }
+
+  setLabels(userId, labels) {
+    this.setMeta(`labels:${userId}`, JSON.stringify(labels));
   }
 
   // --- sharing ----------------------------------------------------------------

@@ -531,4 +531,10 @@ export default {
   "One school group per child: homework, papers due, meetings and activities.": "Eine Schulgruppe pro Kind: Hausaufgaben, fällige Zettel, Elterngespräche und Aktivitäten.",
   "Your child's first name.\nSchool notes about them go in their own group:": "Der Vorname deines Kindes.\nSchulnotizen über es kommen in seine eigene Gruppe:",
   "\"{name}\" added. Homework, papers due and school meetings about {child} go there.": "„{name}\" hinzugefügt. Hausaufgaben, fällige Zettel und Elterngespräche zu {child} kommen dorthin.",
+  "Labels are part of Premium.": "Labels sind Teil von Premium.",
+  "New label (for example Leo, Bills or Doctor):": "Neues Label (zum Beispiel Leo, Rechnungen oder Arzt):",
+  "＋ Label": "＋ Label",
+  "🏷 Labels, like in Gmail: several per note, search by label. Part of Premium.": "🏷 Labels wie in Gmail: mehrere pro Notiz, Suche nach Label. Teil von Premium.",
+  "🏷 My labels": "🏷 Meine Labels",
+  "Labels you made. A note can have several; the AI picks from this list. Add more from any note.": "Labels, die du angelegt hast. Eine Notiz kann mehrere haben; die KI wählt aus dieser Liste. Weitere fügst du in jeder Notiz hinzu.",
 };

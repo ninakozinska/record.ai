@@ -36,6 +36,9 @@ const myGroupsLine = (names) => {
       ? `School groups, one per child: ${kids.join(', ')}. Put anything from school (homework, papers or forms due, teacher meetings, tests, trips, after-school activities) about one child in that child's group. Use a group named just "School" only when it is for all the children.\n`
       : '');
 };
+const labelsLine = (names) => (names.length
+  ? `The person's labels (choose 0-3 that fit this note, exact names, in "labels"): ${names.join(', ')}\n`
+  : '');
 export const ollamaModel = () => process.env.OLLAMA_MODEL || 'gemma3:4b';
 export const ollamaUrl = () => (process.env.OLLAMA_URL || 'http://127.0.0.1:11434').replace(/\/$/, '');
 // Re-run the whole-collection tidy-up after this many newly organized notes.
@@ -60,6 +63,7 @@ const NoteAnalysis = z.object({
   priority: z.enum(PRIORITIES),
   priority_reason: z.string().describe('A few words explaining the priority'),
   tags: z.array(z.string()).describe('0-5 short lowercase tags'),
+  labels: z.array(z.string()).optional().describe("Labels from the person's own label list that fit this note, exact names, 0-3; empty when there is no list"),
   due_date: z.string().nullable().describe('ISO date YYYY-MM-DD of the deadline, appointment or event, else null'),
   due_time: z.string().nullable().describe('Time HH:MM (24h) if the note states one, e.g. "3pm" -> "15:00", else null'),
 });
@@ -261,12 +265,14 @@ export class Organizer {
     const items = this.store.items?.(id) || [];
     const groups = this.store.groups(note.user_id).map((g) => `${g.name} (${g.count})`);
     const mine = this.store.myGroups(note.user_id);
+    const labels = (this.store.labelsOf?.(note.user_id) || []).map((l) => l.name);
     const images = note.images.map((name) => this.readImage(name)).filter(Boolean);
     const text =
       `Today is ${today()}.\n` +
       `Existing groups: ${groups.length ? groups.join(', ') : '(none yet)'}\n` +
       languageLine(this.store.languageOf?.(note.user_id)) +
       myGroupsLine(mine) +
+      labelsLine(labels) +
       `\n` +
       `<note created="${new Date(note.created_at).toISOString()}" images="${note.images.length}">\n` +
       `${note.text || (items.length ? '(no text: a checklist, see its items)' : '(no text — photo only)')}\n</note>\n` +
@@ -285,7 +291,9 @@ export class Organizer {
         return;
       }
       this.onAiCall({ ...meter, outcome: 'used' });
-      this.onChange(this.store.applyAi(id, { ...result, status: 'done' }));
+      // Only labels from the person's own list, spelled as they spell them.
+      const picked = (result.labels || []).map((l) => labels.find((n) => n.toLowerCase() === String(l).trim().toLowerCase())).filter(Boolean);
+      this.onChange(this.store.applyAi(id, { ...result, labels: labels.length ? picked : undefined, status: 'done' }));
       this.maybeAutoReorganize(note.user_id);
     } catch (err) {
       if (meter.usage) this.onAiCall({ ...meter, outcome: 'error' });

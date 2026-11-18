@@ -532,4 +532,10 @@ export default {
   "One school group per child: homework, papers due, meetings and activities.": "One school group per child: homework, papers due, meetings and activities.",
   "Your child's first name.\nSchool notes about them go in their own group:": "Your child's first name.\nSchool notes about them go in their own group:",
   "\"{name}\" added. Homework, papers due and school meetings about {child} go there.": "\"{name}\" added. Homework, papers due and school meetings about {child} go there.",
+  "Labels are part of Premium.": "Labels are part of Premium.",
+  "New label (for example Leo, Bills or Doctor):": "New label (for example Leo, Bills or Doctor):",
+  "＋ Label": "＋ Label",
+  "🏷 Labels, like in Gmail: several per note, search by label. Part of Premium.": "🏷 Labels, like in Gmail: several per note, search by label. Part of Premium.",
+  "🏷 My labels": "🏷 My labels",
+  "Labels you made. A note can have several; the AI picks from this list. Add more from any note.": "Labels you made. A note can have several; the AI picks from this list. Add more from any note.",
 };

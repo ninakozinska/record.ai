@@ -212,6 +212,20 @@ test('school: one group per child, and the AI is told how to use them', async ()
   }
 });
 
+test('labels: the AI is given the list and only its names are kept', async () => {
+  const client = scripted(ok({ ...analysis, labels: ['leo', 'Made up'] }));
+  const t = setup(client);
+  try {
+    t.store.setLabels(t.a.id, [{ name: 'Leo', color: 'blue' }, { name: 'Bills', color: 'red' }]);
+    note(t, t.a, 'note-label-001', 'Leo swim club fee');
+    await t.organizer.organizeNote('note-label-001');
+    assert.match(JSON.stringify(client.calls[0].messages), /The person's labels[^\n]*Leo, Bills/);
+    assert.deepEqual(t.store.get('note-label-001').labels, ['Leo'], 'spelled as theirs; unknown dropped');
+  } finally {
+    t.restore();
+  }
+});
+
 test('reorganize replaces titles that are just a group name, and leaves good titles alone', async () => {
   const client = scripted((p) => ({
     stop_reason: 'end_turn',
