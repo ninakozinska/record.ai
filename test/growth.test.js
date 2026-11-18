@@ -215,7 +215,9 @@ test('the cost loop waits longer when typing wastes AI calls, and less when it d
     for (let i = 0; i < 50; i++) {
       s.store.db.prepare("INSERT INTO ai_calls (ts, kind, outcome) VALUES (?, 'note', 'used')").run(Date.now() - week - 3600e3);
     }
-    for (let i = 0; i < 10; i++) s.insights.track('ai_corrected', { userId: s.user.id, props: { field: 'group' } });
+    // A second ago: the week's window ends at "now", exclusive, and a fast machine can
+    // track and check within the same millisecond.
+    for (let i = 0; i < 10; i++) s.insights.track('ai_corrected', { userId: s.user.id, props: { field: 'group' }, ts: Date.now() - 1000 });
     const q = s.optimizer.qualityLoop();
     assert.equal(q.tripped, true);
     assert.equal(s.organizer.reorganizeEvery(s.user.id), 20, 'back to reorganizing more often');
