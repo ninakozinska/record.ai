@@ -1,16 +1,21 @@
 import Foundation
 
-/// Work and Family: two "worlds" over the same notes (same rules as the web
+/// Work, Family and School: "worlds" over the same notes (same rules as the web
 /// app's public/worlds.js). Each group belongs to one, guessed from its name,
-/// and the person can move it; groups that fit neither show in both.
+/// and the person can move it; groups that fit none show in all.
 enum Worlds {
-    static let all = "all", work = "work", family = "family"
+    static let all = "all", work = "work", family = "family", school = "school"
+    /// A child's school group: "School · Leo".
+    static let schoolPrefix = "School · "
 
     private static let workWords = try! NSRegularExpression(
         pattern: #"\b(work|office|job|meetings?|projects?|clients?|customers?|team|career|business|sales|marketing|boss|colleagues?|deadlines?|invoices?|conference|hiring|interviews?|reports?|admin)\b"#,
         options: .caseInsensitive)
+    private static let schoolWords = try! NSRegularExpression(
+        pattern: #"\b(schools?|homework|teachers?|classroom|class trip|school trip|exams?|pta|after-?school|daycare|nursery|kindergarten|preschool|tutoring|tutor|uniforms?|semester|report cards?|parent-teacher)\b"#,
+        options: .caseInsensitive)
     private static let familyWords = try! NSRegularExpression(
-        pattern: #"\b(home|house|household|family|kids?|children|child|baby|school|daycare|nursery|groceries|grocery|shopping|chores|cleaning|garden|pets?|dog|cat|health|doctor|dentist|medical|partner|husband|wife|birthdays?|holidays?|vacation|travel|recipes?|cooking|meals?|dinner|car|finance|bills|budget|personal|friends|sports?|activities|social|leisure|entertainment|music|concerts?|theat(?:er|re)|cinema|movies?|parties|party|culture|hobbies)\b"#,
+        pattern: #"\b(home|house|household|family|kids?|children|child|baby|groceries|grocery|shopping|chores|cleaning|garden|pets?|dog|cat|health|doctor|dentist|medical|partner|husband|wife|birthdays?|holidays?|vacation|travel|recipes?|cooking|meals?|dinner|car|finance|bills|budget|personal|friends|sports?|activities|social|leisure|entertainment|music|concerts?|theat(?:er|re)|cinema|movies?|parties|party|culture|hobbies)\b"#,
         options: .caseInsensitive)
 
     private static func matches(_ re: NSRegularExpression, _ s: String) -> Bool {
@@ -19,6 +24,7 @@ enum Worlds {
 
     /// "work", "family" or nil (both), from the group's name.
     static func guess(_ group: String) -> String? {
+        if group.hasPrefix(schoolPrefix) || matches(schoolWords, group) { return school }
         let w = matches(workWords, group), f = matches(familyWords, group)
         if w && !f { return work }
         if f && !w { return family }

@@ -214,9 +214,9 @@ fun NotesScreen(repo: NoteRepository, state: UiState, sharedText: String?, onSha
                         OutlinedTextField(query, { query = it }, placeholder = { Text(tr("Search notes")) }, singleLine = true, modifier = Modifier.fillMaxWidth())
                     }
                     SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                        listOf(Worlds.ALL to tr("All"), Worlds.WORK to tr("💼 Work"), Worlds.FAMILY to tr("🏡 Family")).forEachIndexed { i, (key, label) ->
+                        listOf(Worlds.ALL to tr("All"), Worlds.WORK to tr("💼 Work"), Worlds.FAMILY to tr("🏡 Family"), Worlds.SCHOOL to tr("🎒 School")).forEachIndexed { i, (key, label) ->
                             SegmentedButton(selected = world == key, onClick = { world = key; group = null },
-                                shape = SegmentedButtonDefaults.itemShape(i, 3)) { Text(label) }
+                                shape = SegmentedButtonDefaults.itemShape(i, 4)) { Text(label, maxLines = 1) }
                         }
                     }
                     SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
@@ -226,7 +226,7 @@ fun NotesScreen(repo: NoteRepository, state: UiState, sharedText: String?, onSha
                     if (groupNames.isNotEmpty()) {
                         Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             FilterChip(selected = group == null, onClick = { group = null }, label = { Text(tr("All")) })
-                            groupNames.forEach { g -> FilterChip(selected = group == g, onClick = { group = g }, label = { Text(g) }) }
+                            groupNames.forEach { g -> FilterChip(selected = group == g, onClick = { group = g }, label = { Text(if (world == Worlds.SCHOOL) g.removePrefix(Worlds.SCHOOL_PREFIX) else g) }) }
                         }
                     }
                     if (!state.aiEnabled) {

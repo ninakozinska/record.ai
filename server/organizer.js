@@ -28,9 +28,14 @@ export const LANGUAGES = { en: 'English', it: 'Italian', fr: 'French', es: 'Span
 const languageLine = (lang) => (LANGUAGES[lang]
   ? `The person's language: ${LANGUAGES[lang]}. Name any new group in ${LANGUAGES[lang]}.\n`
   : '');
-const myGroupsLine = (names) => (names.length
-  ? `The person's own groups (use these exact names whenever a note fits one): ${names.join(', ')}\n`
-  : '');
+const myGroupsLine = (names) => {
+  if (!names.length) return '';
+  const kids = names.filter((n) => n.startsWith('School · '));
+  return `The person's own groups (use these exact names whenever a note fits one): ${names.join(', ')}\n` +
+    (kids.length
+      ? `School groups, one per child: ${kids.join(', ')}. Put anything from school (homework, papers or forms due, teacher meetings, tests, trips, after-school activities) about one child in that child's group. Use a group named just "School" only when it is for all the children.\n`
+      : '');
+};
 export const ollamaModel = () => process.env.OLLAMA_MODEL || 'gemma3:4b';
 export const ollamaUrl = () => (process.env.OLLAMA_URL || 'http://127.0.0.1:11434').replace(/\/$/, '');
 // Re-run the whole-collection tidy-up after this many newly organized notes.

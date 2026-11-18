@@ -525,4 +525,11 @@ export default {
   "Sent from SortNotes": "Sent from SortNotes",
   "World": "World",
   "Moves the whole group": "Moves the whole group",
+  "🎒 School": "🎒 School",
+  "All worlds": "All worlds",
+  "＋ Child": "＋ Child",
+  "Only school: one group per child": "Only school: one group per child",
+  "One school group per child: homework, papers due, meetings and activities.": "One school group per child: homework, papers due, meetings and activities.",
+  "Your child's first name.\nSchool notes about them go in their own group:": "Your child's first name.\nSchool notes about them go in their own group:",
+  "\"{name}\" added. Homework, papers due and school meetings about {child} go there.": "\"{name}\" added. Homework, papers due and school meetings about {child} go there.",
 };
