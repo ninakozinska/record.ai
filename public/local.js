@@ -9,7 +9,7 @@ import { t } from './i18n.js';
 
 const DB_NAME = 'record-ai';
 // Fields only the server sets: the AI's, and for shared notes the access and the owner's name.
-const AI_FIELDS = ['done_by', 'title', 'summary', 'ai_group', 'ai_priority', 'priority_reason', 'tags', 'due_date', 'due_time', 'ai_due_date', 'ai_due_time', 'ai_status', 'ai_error', 'rev', 'role', 'owner_name'];
+const AI_FIELDS = ['done_by', 'title', 'summary', 'ai_labels', 'ai_group', 'ai_priority', 'priority_reason', 'tags', 'due_date', 'due_time', 'ai_due_date', 'ai_due_time', 'ai_status', 'ai_error', 'rev', 'role', 'owner_name'];
 
 function req(r) {
   return new Promise((resolve, reject) => {
@@ -42,6 +42,7 @@ export function effective(note) {
     ...note,
     group: note.user_group || note.ai_group || 'Inbox',
     priority: note.user_priority || note.ai_priority || 'normal',
+    labels: note.user_labels ?? note.ai_labels ?? note.labels ?? [],
     due_date: own ? note.user_due.slice(0, 10) || null : note.ai_due_date !== undefined ? note.ai_due_date : note.due_date,
     due_time: own ? note.user_due.slice(11, 16) || null : note.ai_due_time !== undefined ? note.ai_due_time : note.due_time ?? null,
   };

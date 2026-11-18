@@ -531,4 +531,10 @@ export default {
   "One school group per child: homework, papers due, meetings and activities.": "Um grupo de escola por filho: trabalhos de casa, papéis a entregar, reuniões e atividades.",
   "Your child's first name.\nSchool notes about them go in their own group:": "O nome do seu filho.\nAs notas da escola sobre ele vão para o grupo dele:",
   "\"{name}\" added. Homework, papers due and school meetings about {child} go there.": "\"{name}\" adicionado. Trabalhos de casa, papéis a entregar e reuniões sobre {child} vão para lá.",
+  "Labels are part of Premium.": "As etiquetas fazem parte do Premium.",
+  "New label (for example Leo, Bills or Doctor):": "Nova etiqueta (por exemplo Leo, Contas ou Médico):",
+  "＋ Label": "＋ Etiqueta",
+  "🏷 Labels, like in Gmail: several per note, search by label. Part of Premium.": "🏷 Etiquetas como no Gmail: várias por nota, pesquisa por etiqueta. Parte do Premium.",
+  "🏷 My labels": "🏷 As minhas etiquetas",
+  "Labels you made. A note can have several; the AI picks from this list. Add more from any note.": "Etiquetas que criou. Uma nota pode ter várias; a IA escolhe desta lista. Adicione mais a partir de qualquer nota.",
 };

@@ -22,8 +22,9 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '
 const local = new Local();
 const ui = {
   view: localStorage.getItem('view') || 'priority',
-  world: ['work', 'family'].includes(localStorage.getItem('world')) ? localStorage.getItem('world') : 'all',
+  world: ['work', 'family', 'school'].includes(localStorage.getItem('world')) ? localStorage.getItem('world') : 'all',
   group: null,
+  label: null,
   query: '',
   showDone: false,
   mine: false,
@@ -390,6 +391,8 @@ const editor = {
     $('#editorTitle').textContent = n.title || t('Note');
     $('#editorGroup').value = n.user_group || '';
     $('#editorGroup').placeholder = n.ai_group ? t('Auto ({value})', { value: n.ai_group }) : t('Auto');
+    this.labels = [...(n.labels || [])];
+    this.renderLabels();
     $('#editorWorld').value = worldOf(n.group, chosenWorlds) || '';
     $('#editorWorld').disabled = !n.group;
     $('#editorPriority').value = n.user_priority || '';
@@ -510,6 +513,14 @@ const editor = {
         <button type="button" class="icon-btn" data-item-delete title="${esc(t('Remove item'))}">✕</button>
       </li>`).join('');
   },
+  renderLabels() {
+    const mine = labelsState.labels.map((l) => l.name);
+    const extra = this.labels.filter((l) => !mine.includes(l));
+    $('#editorLabels').innerHTML = !labelsState.allowed
+      ? `<span class="muted">${esc(t('🏷 Labels, like in Gmail: several per note, search by label. Part of Premium.'))}</span>`
+      : [...mine, ...extra].map((l) => labelChip(l, `data-toggle-label="${esc(l)}"`, !this.labels.includes(l))).join('') +
+        `<button type="button" class="chip add-chip" data-new-label>${esc(t('＋ Label'))}</button>`;
+  },
   async save() {
     if (this.readOnly) return;
     const n = local.notes.get(this.id);
@@ -523,6 +534,7 @@ const editor = {
     if (p !== (n.user_priority || null)) patch.user_priority = p;
     if (this.due !== (n.user_due ?? null)) patch.user_due = this.due;
     if (this.remind !== (n.remind ?? null)) patch.remind = this.remind;
+    if (labelsState.allowed && JSON.stringify(this.labels) !== JSON.stringify(n.labels || [])) patch.user_labels = this.labels;
     const to = $('#assignRow').hidden ? n.assigned_to ?? null : $('#editorAssign').value || null;
     if (to !== (n.assigned_to ?? null) && canAssign(to)) patch.assigned_to = to;
     if (Object.keys(patch).length) await local.save(this.id, patch);
@@ -955,8 +967,10 @@ function sortNotes(a, b) {
 
 function matches(n, q) {
   if (!q) return true;
-  const hay = [n.text, n.title, n.summary, n.group, ...(n.tags || []), ...local.items(n.id).map((i) => i.text)].join(' ').toLowerCase();
-  return q.split(/\s+/).every((w) => hay.includes(w));
+  const labels = (n.labels || []).map((l) => l.toLowerCase());
+  const hay = [n.text, n.title, n.summary, n.group, ...(n.tags || []), ...labels, ...local.items(n.id).map((i) => i.text)].join(' ').toLowerCase();
+  // "label:leo" finds notes with that label; other words are searched everywhere.
+  return q.split(/\s+/).every((w) => (w.startsWith('label:') ? labels.includes(w.slice(6).replace(/_/g, ' ')) : hay.includes(w)));
 }
 
 /** A moment as people read it: "Tue 10 Nov, 08:00" (the year only when it is not this year). */
@@ -1070,6 +1084,7 @@ function card(n, { showGroup }) {
             : sharesOf(n).length ? `<span class="shared-badge" title="${esc(t('Shared'))}">👥 ${esc(t('Shared'))}</span>` : ''}
           ${n.assigned_to ? `<span class="who-badge">👤 ${esc(nameOf(n.assigned_to))}</span>` : ''}
           ${due ? `<span class="due ${due.cls} ${n.due_time ? 'at' : ''}">${esc(due.text)}${n.due_time ? ` · ${esc(n.due_time)}` : ''}${n.user_due ? ' 📌' : ''}</span>` : ''}
+          ${(n.labels || []).map((l) => labelChip(l, `data-label-filter="${esc(l)}"`)).join('')}
           ${(n.tags || []).slice(0, 4).map((t) => `<span class="tag">#${esc(t)}</span>`).join('')}
           <span class="time">${relTime(n.created_at)}</span>
           ${canEdit(n) ? `<button class="done-btn" data-check>${esc(n.done ? t('↩ Not done') : t('✓ Done'))}</button>` : ''}
@@ -1196,7 +1211,12 @@ function renderNow() {
       : `<button class="chip add-chip" data-add-group title="${esc(t('Add a group of your own. The AI will put matching notes in it.'))}">${esc(t('＋ Group'))}</button>`);
 
   const q = ui.query.toLowerCase().trim();
-  const visible = all.filter((n) => matches(n, q) && (!ui.group || n.group === ui.group) && (!ui.mine || forMeTask(n))).sort(sortNotes);
+  if (ui.label && !labelsState.labels.some((l) => l.name === ui.label)) ui.label = null;
+  $('#labelChips').hidden = !labelsState.labels.length;
+  $('#labelChips').innerHTML = labelsState.labels.map((l) =>
+    labelChip(l.name, `data-label-filter="${esc(l.name)}"`, ui.label && ui.label !== l.name)).join('') +
+    (labelsState.allowed ? `<button class="chip add-chip" data-new-label>${esc(t('＋ Label'))}</button>` : '');
+  const visible = all.filter((n) => matches(n, q) && (!ui.group || n.group === ui.group) && (!ui.label || (n.labels || []).includes(ui.label)) && (!ui.mine || forMeTask(n))).sort(sortNotes);
   const open = visible.filter((n) => !n.done);
   const done = visible.filter((n) => n.done).sort((a, b) => b.edited_at - a.edited_at);
 
@@ -1294,6 +1314,11 @@ $('#list').addEventListener('click', async (e) => {
     const item = local.notes.get(itemCheck.dataset.itemCheck);
     return markDone(item.id, true, item.text.slice(0, 40));
   }
+  const lf = e.target.closest('[data-label-filter]');
+  if (lf) {
+    ui.label = lf.dataset.labelFilter;
+    return render();
+  }
   if (e.target.closest('[data-check]')) {
     const n = local.notes.get(id);
     return markDone(id, !n.done, (n.title || n.text.split('\n')[0]).slice(0, 40));
@@ -1348,6 +1373,23 @@ document.querySelectorAll('.world-toggle button').forEach((b) => {
     track('world_switch', { world: ui.world });
     render();
   };
+});
+$('#editorLabels').addEventListener('click', async (e) => {
+  if (e.target.closest('[data-new-label]')) {
+    try {
+      const name = await newLabel();
+      if (name && !editor.labels.includes(name)) editor.labels.push(name);
+      editor.renderLabels();
+    } catch (err) {
+      toast(err.message);
+    }
+    return;
+  }
+  const b = e.target.closest('[data-toggle-label]');
+  if (!b) return;
+  const l = b.dataset.toggleLabel;
+  editor.labels = editor.labels.includes(l) ? editor.labels.filter((x) => x !== l) : [...editor.labels, l];
+  editor.renderLabels();
 });
 // The note's group (the one typed in the editor, else the AI's) moves to that world.
 $('#editorWorld').addEventListener('change', (e) => {
@@ -1707,6 +1749,65 @@ async function syncLanguage() {
     }
   } catch { /* offline: sent next time */ }
 }
+
+// ---------------------------------------------------------------------------
+// Labels, like Gmail's: defined by the person (Premium), several per note.
+// ---------------------------------------------------------------------------
+let labelsState = { labels: [], allowed: false, colors: [] };
+async function loadLabels() {
+  try {
+    labelsState = await local.api('labels');
+    await local.metaSet('labels', labelsState);
+  } catch {
+    labelsState = (await local.metaGet('labels')) || labelsState;
+  }
+  renderMyLabels();
+  render();
+}
+async function saveLabels(labels) {
+  const r = await local.api('labels', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ labels }) });
+  labelsState = { ...labelsState, labels: r.labels };
+  await local.metaSet('labels', labelsState);
+  renderMyLabels();
+  render();
+}
+const labelColor = (name) => labelsState.labels.find((l) => l.name.toLowerCase() === String(name).toLowerCase())?.color || 'gray';
+const labelChip = (name, attrs = '', off = false) =>
+  `<span class="label l-${labelColor(name)} ${off ? 'off' : ''}" ${attrs}>🏷 ${esc(name)}</span>`;
+async function newLabel() {
+  if (!labelsState.allowed) return toast(t('Labels are part of Premium.'));
+  const name = prompt(t('New label (for example Leo, Bills or Doctor):'))?.trim();
+  if (!name) return null;
+  if (!labelsState.labels.some((l) => l.name.toLowerCase() === name.toLowerCase())) {
+    const colors = labelsState.colors.length ? labelsState.colors : ['indigo'];
+    await saveLabels([...labelsState.labels, { name, color: colors[labelsState.labels.length % colors.length] }]);
+  }
+  return name;
+}
+function renderMyLabels() {
+  $('#myLabelsBox').hidden = !labelsState.labels.length;
+  $('#myLabelsList').innerHTML = labelsState.labels.map((l) =>
+    `<li><span class="who">${labelChip(l.name)}</span><button class="ghost" data-remove-label="${esc(l.name)}">${esc(t('Remove'))}</button></li>`).join('');
+}
+$('#myLabelsList').addEventListener('click', async (e) => {
+  const b = e.target.closest('[data-remove-label]');
+  if (!b) return;
+  try {
+    await saveLabels(labelsState.labels.filter((l) => l.name !== b.dataset.removeLabel));
+  } catch (err) {
+    toast(err.message);
+  }
+});
+$('#labelChips').addEventListener('click', async (e) => {
+  if (e.target.closest('[data-new-label]')) {
+    try { await newLabel(); } catch (err) { toast(err.message); }
+    return;
+  }
+  const b = e.target.closest('[data-label-filter]');
+  if (!b) return;
+  ui.label = ui.label === b.dataset.labelFilter ? null : b.dataset.labelFilter;
+  render();
+});
 
 function renderMyGroups() {
   $('#myGroupsBox').hidden = !myGroups.length;
@@ -2405,6 +2506,7 @@ await local.init();
 local.addEventListener('change', render);
 local.addEventListener('status', renderStatus);
 local.addEventListener('started', loadMyGroups);
+local.addEventListener('started', loadLabels);
 local.addEventListener('started', syncLanguage);
 local.addEventListener('started', loadPeople);
 local.addEventListener('started', loadVoicePlan);
@@ -2413,7 +2515,7 @@ local.addEventListener('started', loadWorlds);
 local.addEventListener('started', loadShares);
 local.addEventListener('started', () => track('app_open'));
 local.addEventListener('shares', loadShares);
-local.addEventListener('wiped', () => { myGroups = []; chosenWorlds = {}; shares = { mine: [], withMe: [] }; });
+local.addEventListener('wiped', () => { labelsState = { labels: [], allowed: false, colors: [] }; myGroups = []; chosenWorlds = {}; shares = { mine: [], withMe: [] }; });
 render();
 renderStatus();
 // Coming back from "Continue with …": show what happened, then tidy the address bar.

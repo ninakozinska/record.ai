@@ -29,7 +29,7 @@ const MAX_IMAGE_BYTES = 15 * 1024 * 1024;
 const NOTE_ID = /^[a-zA-Z0-9-]{8,64}$/;
 const MAX_BATCH = 500;
 const MAX_MY_GROUPS = 30;
-const NOTE_FIELDS = ['text', 'images', 'done', 'deleted', 'created_at', 'edited_at', 'user_group', 'user_priority', 'user_due', 'parent_id', 'remind', 'assigned_to'];
+const NOTE_FIELDS = ['text', 'images', 'done', 'deleted', 'created_at', 'edited_at', 'user_group', 'user_priority', 'user_due', 'parent_id', 'remind', 'assigned_to', 'user_labels'];
 const USER_DUE = /^(\d{4}-\d{2}-\d{2}(T\d{2}:\d{2})?)?$/;
 
 /** Checks one note change from a client. Returns an error message, or null when it is valid. */
@@ -369,6 +369,26 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth, mail, bill
   // "My groups": groups the person made, which the AI always keeps and uses.
   app.get('/api/groups/mine', (req, res) => res.json({ names: store.myGroups(req.user.id) }));
 
+  // Labels (like Gmail's): the person defines them, several per note, a
+  // Premium feature. The AI picks from this list; the person adds or removes.
+  const LABEL_COLORS = ['indigo', 'red', 'orange', 'yellow', 'green', 'teal', 'blue', 'purple', 'pink', 'gray'];
+  const canLabel = (user) => premium(store.planOf(user.id)) || store.firstUserId() === user.id;
+  app.get('/api/labels', (req, res) => res.json({ labels: store.labelsOf(req.user.id), allowed: canLabel(req.user), colors: LABEL_COLORS }));
+  app.put('/api/labels', (req, res) => {
+    if (!canLabel(req.user)) return res.status(402).json({ error: 'Labels are part of Premium.' });
+    const list = req.body?.labels;
+    if (!Array.isArray(list) || list.length > 50) return res.status(400).json({ error: 'Send {labels: [{name, color}]}, at most 50.' });
+    const clean = [];
+    for (const l of list) {
+      const name = String(l?.name ?? '').trim().slice(0, 40);
+      if (!name || clean.some((c) => c.name.toLowerCase() === name.toLowerCase())) continue;
+      clean.push({ name, color: LABEL_COLORS.includes(l?.color) ? l.color : LABEL_COLORS[clean.length % LABEL_COLORS.length] });
+    }
+    store.setLabels(req.user.id, clean);
+    insights.track('labels_set', { userId: req.user.id, props: { count: clean.length } });
+    res.json({ labels: clean });
+  });
+
   // The person's language: the app's words and the AI's new group names.
   app.get('/api/language', (req, res) => res.json({ lang: store.languageOf(req.user.id), languages: LANGUAGES }));
   app.put('/api/language', (req, res) => {
@@ -463,6 +483,8 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth, mail, bill
     }
     if ('text' in input) input.text = String(input.text);
     if (input.user_group != null) input.user_group = String(input.user_group).trim().slice(0, 60) || null;
+    // Choosing labels is Premium; null hands them back to the AI.
+    if ('user_labels' in input && input.user_labels !== null && !canLabel({ id: userId })) delete input.user_labels;
     const { note, stale, contentChanged, forbidden } = store.upsertFromClient(userId, input);
     if (forbidden) return { status: 'forbidden', error: 'Not your note' };
     const mine = note.user_id === userId;
