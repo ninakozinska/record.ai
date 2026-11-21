@@ -1,11 +1,11 @@
-# Email on sortnotes.com
+# Email on sortmemo.com
 
 Two services, two jobs:
 
 | | Resend | iCloud+ custom email domain |
 |---|---|---|
-| What for | Emails the **app** sends by itself (password reset, invites) | **Your** mailbox: nina@ and support@sortnotes.com |
-| Where the records go | `send.sortnotes.com` | `sortnotes.com` |
+| What for | Emails the **app** sends by itself (password reset, invites) | **Your** mailbox: nina@ and support@sortmemo.com |
+| Where the records go | `send.sortmemo.com` | `sortmemo.com` |
 | Cost | Free up to 3,000 emails a month | Included in iCloud+ (from €0.99 a month) |
 
 They do not clash, and neither touches the A, AAAA and www records that point
@@ -14,20 +14,20 @@ the domain at the app (DOMAIN.md).
 ## Part A. Resend: emails from the app (about 20 minutes, then a wait)
 
 1. Go to https://resend.com, **Get Started**, sign up (no card needed).
-2. **Domains → Add Domain**: name `sortnotes.com`, region **Ireland (eu-west-1)**, **Add**.
+2. **Domains → Add Domain**: name `sortmemo.com`, region **Ireland (eu-west-1)**, **Add**.
 3. Resend shows 3 or 4 records. In GoDaddy (**My Products → DNS** next to
-   sortnotes.com) add each with **Add New Record**, copying Name and Value
-   from Resend's copy buttons. Where Resend shows `send.sortnotes.com`, type
+   sortmemo.com) add each with **Add New Record**, copying Name and Value
+   from Resend's copy buttons. Where Resend shows `send.sortmemo.com`, type
    only `send`. MX priority: 10.
 4. Back in Resend: **Verify DNS Records**. Wait until it says **Verified**
    (minutes to a few hours).
-5. **API Keys → Create API Key**: name `sortnotes-fly`, permission **Sending
-   access**, domain `sortnotes.com`. Copy the key (shown once, starts `re_`).
+5. **API Keys → Create API Key**: name `sortmemo-fly`, permission **Sending
+   access**, domain `sortmemo.com`. Copy the key (shown once, starts `re_`).
 6. In Terminal, in the record.ai folder (your key in place of `re_YOUR_KEY`):
 
    ```
    fly secrets set RESEND_API_KEY=re_YOUR_KEY
-   fly secrets set MAIL_FROM="SortNotes <hello@sortnotes.com>"
+   fly secrets set MAIL_FROM="SortMemo <hello@sortmemo.com>"
    ```
 
 Tell Claude "Resend done" (never the key).
@@ -38,7 +38,7 @@ Tell Claude "Resend done" (never the key).
    (iCloud+, 50 GB is €0.99 a month) and **iCloud Mail** switched on.
 2. On a computer, https://icloud.com → your name (top right) → **iCloud
    Settings → Custom Email Domain → Manage**.
-3. **Only you → Use a domain you own** → `sortnotes.com` → **Continue**.
+3. **Only you → Use a domain you own** → `sortmemo.com` → **Continue**.
    No existing addresses: start fresh.
 4. If Apple offers automatic setup with GoDaddy, use it. Otherwise add its
    records in GoDaddy, copying the values from Apple's screen:
@@ -49,17 +49,17 @@ Tell Claude "Resend done" (never the key).
    | MX | `@` | `mx02.mail.icloud.com` | 10 |
    | TXT | `@` | `apple-domain=…` (yours) | |
    | TXT | `@` | `v=spf1 include:icloud.com ~all` | |
-   | CNAME | `sig1._domainkey` | `sig1.dkim.sortnotes.com.at.icloudmailadmin.com` | |
+   | CNAME | `sig1._domainkey` | `sig1.dkim.sortmemo.com.at.icloudmailadmin.com` | |
 
    First delete any MX records GoDaddy already has on `@`.
 5. Back in iCloud: **Finish setup**. Wait until the domain is ready.
-6. **sortnotes.com → Add an email address**: `nina@sortnotes.com`, then
-   `support@sortnotes.com`. They appear in Mail on your iPhone and Mac; pick
+6. **sortmemo.com → Add an email address**: `nina@sortmemo.com`, then
+   `support@sortmemo.com`. They appear in Mail on your iPhone and Mac; pick
    the sender under **From** when writing.
 7. So that replies to the app's emails reach you:
 
    ```
-   fly secrets set MAIL_REPLY_TO=support@sortnotes.com
+   fly secrets set MAIL_REPLY_TO=support@sortmemo.com
    ```
 
 Tell Claude "iCloud email done".

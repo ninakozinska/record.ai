@@ -1,5 +1,5 @@
 #!/bin/bash
-# Double-click this file on a Mac to start SortNotes.
+# Double-click this file on a Mac to start SortMemo.
 # First run: installs what it needs and asks which AI to use.
 # Keep the Terminal window open while you use the app; close it to stop.
 
@@ -37,7 +37,7 @@ fi
 
 # 4. Already running?
 if lsof -iTCP:$PORT -sTCP:LISTEN >/dev/null 2>&1; then
-  echo "SortNotes is already running."
+  echo "SortMemo is already running."
   open "http://localhost:$PORT"
   exit 0
 fi
@@ -61,7 +61,7 @@ LAN=$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null)
 echo
 echo "💻 On this Mac:  http://localhost:$PORT"
 [ -n "$LAN" ] && echo "   Same Wi-Fi (typing only, no camera/mic):  http://$LAN:$PORT"
-echo "   Close this window to stop SortNotes."
+echo "   Close this window to stop SortMemo."
 echo
 
 # Open the browser once the server answers (the first local-AI download can take a while).

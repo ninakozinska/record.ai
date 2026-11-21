@@ -1,4 +1,4 @@
-# Developing SortNotes
+# Developing SortMemo
 
 ## How the parts fit
 

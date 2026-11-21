@@ -156,7 +156,7 @@ fun NotesScreen(repo: NoteRepository, state: UiState, sharedText: String?, onSha
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Box(Modifier.size(9.dp).background(if (!state.online) Color(0xFFDC2626) else if (state.unsent > 0) Color(0xFFEA7A0C) else Color(0xFF16A34A), CircleShape))
                         Spacer(Modifier.width(10.dp))
-                        Text("SortNotes")
+                        Text("SortMemo")
                     }
                 },
                 actions = {

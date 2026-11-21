@@ -20,7 +20,7 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * Runs the Android sync code against the real SortNotes server (Node.js),
+ * Runs the Android sync code against the real SortMemo server (Node.js),
  * started fresh for each test with an empty database and no AI.
  */
 class ServerIntegrationTest {

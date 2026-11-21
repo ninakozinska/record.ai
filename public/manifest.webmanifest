@@ -1,6 +1,6 @@
 {
-  "name": "SortNotes",
-  "short_name": "SortNotes",
+  "name": "SortMemo",
+  "short_name": "SortMemo",
   "description": "Notes you type, dictate or photograph — organized automatically by AI.",
   "start_url": "./",
   "scope": "./",

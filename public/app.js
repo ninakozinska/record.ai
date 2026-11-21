@@ -656,10 +656,10 @@ function noteAsMessage(n) {
   const items = local.items(n.id).map((i) => `${i.done ? '☑' : '☐'} ${i.text}`);
   const d = effectiveDue(n);
   const when = d.due_date ? `📅 ${new Date(`${d.due_date}T12:00`).toLocaleDateString(lang, { weekday: 'short', day: 'numeric', month: 'short' })}${d.due_time ? ` ${d.due_time}` : ''}` : '';
-  // The short link: "sortnotes.com/s" (messaging apps make it clickable without https://).
+  // The short link: "sortmemo.com/s" (messaging apps make it clickable without https://).
   const short = new URL('s', location.href);
   const link = short.protocol === 'https:' ? `${short.host}${short.pathname}` : short.href;
-  const footer = `— ${t('Sent from SortNotes')}: ${link}`;
+  const footer = `— ${t('Sent from SortMemo')}: ${link}`;
   return { title, text: [title, body, items.join('\n'), when].filter(Boolean).join('\n\n') + `\n\n${footer}` };
 }
 $('#editorSend').onclick = async () => {
@@ -871,7 +871,7 @@ function openShare(kind, target, label) {
     : kind === 'group'
     ? t('Everything in {group}, also what goes there later, with its lists.', { group: label })
     : t('This note, with its list.')) +
-    ' ' + t('Only the people below see it. They need a SortNotes account with this email.');
+    ' ' + t('Only the people below see it. They need a SortMemo account with this email.');
   $('#shareEmail').value = '';
   $('#shareRole').value = 'edit';
   $('#shareError').textContent = '';
@@ -1146,7 +1146,7 @@ function todayCard(notes) {
 function welcomeCard(all) {
   if (welcomeDone() || all.filter((n) => !n.role).length >= 3) return '';
   return `<section class="card welcome" id="welcome">
-    <h2>${esc(t('👋 Welcome to SortNotes'))}</h2>
+    <h2>${esc(t('👋 Welcome to SortMemo'))}</h2>
     <ol>
       <li>${esc(t('Write, dictate 🎤 or snap a photo 📷. The AI gives it a title, a group, a priority and a date.'))}</li>
       <li>${t('Start lines with <b>- </b> to make a checklist you can tick.')}</li>
@@ -1171,14 +1171,14 @@ async function onWelcome(action) {
     for (const t of EXAMPLES) await addNote(t);
     track('onboarding_examples');
   } else if (action === 'invite') {
-    const text = t("Let's plan our family stuff together in SortNotes: groceries, the kids' week, appointments.");
+    const text = t("Let's plan our family stuff together in SortMemo: groceries, the kids' week, appointments.");
     const url = location.origin + location.pathname;
     let via = 'share';
     try {
-      if (navigator.share) await navigator.share({ title: 'SortNotes', text, url });
+      if (navigator.share) await navigator.share({ title: 'SortMemo', text, url });
       else {
         via = 'email';
-        location.href = `mailto:?subject=${encodeURIComponent(t('Join me on SortNotes'))}&body=${encodeURIComponent(`${text}\n\n${url}`)}`;
+        location.href = `mailto:?subject=${encodeURIComponent(t('Join me on SortMemo'))}&body=${encodeURIComponent(`${text}\n\n${url}`)}`;
       }
       track('invite_sent', { via });
     } catch {
@@ -2130,7 +2130,7 @@ async function enablePush(state) {
     return false;
   }
   if ((await Notification.requestPermission()) !== 'granted') {
-    toast(t("Notifications are blocked for SortNotes in this browser's settings."));
+    toast(t("Notifications are blocked for SortMemo in this browser's settings."));
     return false;
   }
   const reg = await navigator.serviceWorker.ready;
@@ -2245,7 +2245,7 @@ function notesForAi() {
     const body = n.text && n.text.trim() !== (n.title || '').trim() ? n.text.split('\n').map((l) => `  ${l}`) : [];
     return [`- ${n.title || n.text.split('\n')[0] || t('Note')} (${groupName(n.group)}, ${n.priority}${when})`, ...body, ...items].join('\n');
   };
-  return `My notes from SortNotes (today is ${new Date().toISOString().slice(0, 10)}):\n\n${notes.map(line).join('\n')}\n`;
+  return `My notes from SortMemo (today is ${new Date().toISOString().slice(0, 10)}):\n\n${notes.map(line).join('\n')}\n`;
 }
 $('#aiCopy').onclick = async () => {
   const text = notesForAi();
@@ -2290,7 +2290,7 @@ $('#calendarsBox').addEventListener('click', async (e) => {
       await local.api(`calendars/${writes.dataset.calWrites}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ writes: true }) });
       loadCalendars();
     } else if (remove) {
-      if (!confirm(t('Disconnect {name}? Its meetings leave SortNotes; the events SortNotes made stay in the calendar.', { name: remove.dataset.name }))) return;
+      if (!confirm(t('Disconnect {name}? Its meetings leave SortMemo; the events SortMemo made stay in the calendar.', { name: remove.dataset.name }))) return;
       await local.api(`calendars/${remove.dataset.calRemove}`, { method: 'DELETE' });
       loadCalendars();
     }
@@ -2441,7 +2441,7 @@ $('#interestBox').addEventListener('click', (e) => {
   toast(t('Thanks! It helps decide what comes first.'));
 });
 $('#sendFeedback').onclick = async () => {
-  const text = prompt(t('What would make SortNotes better for you? Anything goes: ideas, problems, wishes.'));
+  const text = prompt(t('What would make SortMemo better for you? Anything goes: ideas, problems, wishes.'));
   if (!text?.trim()) return;
   try {
     await local.api('feedback', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text, platform: 'web' }) });

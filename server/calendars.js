@@ -130,7 +130,7 @@ function icsEvent({ uid, summary, start, minutes }, tz) {
   const times = start.length === 10
     ? [`DTSTART;VALUE=DATE:${start.replaceAll('-', '')}`, `DTEND;VALUE=DATE:${later(start, Math.max(1440, minutes)).replaceAll('-', '')}`]
     : [`DTSTART:${utc(utcOf(start, tz))}`, `DTEND:${utc(utcOf(start, tz) + minutes * 60e3)}`];
-  return ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//SortNotes//EN', 'BEGIN:VEVENT', `UID:${uid}`, `DTSTAMP:${utc(Date.now())}`,
+  return ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//SortMemo//EN', 'BEGIN:VEVENT', `UID:${uid}`, `DTSTAMP:${utc(Date.now())}`,
     ...times, `SUMMARY:${icsEscape(summary)}`, 'END:VEVENT', 'END:VCALENDAR', ''].join('\r\n');
 }
 
@@ -514,7 +514,7 @@ export class Calendars {
     return true;
   }
 
-  /** Disconnects: the meetings it brought in leave SortNotes; events SortNotes made stay in the calendar. */
+  /** Disconnects: the meetings it brought in leave SortMemo; events SortMemo made stay in the calendar. */
   remove(userId, linkId) {
     const link = this.link(linkId);
     if (!link || link.user_id !== userId) return false;
@@ -622,7 +622,7 @@ export class Calendars {
         const theirs = !note || note.user_id === link.user_id;
         if (note && !theirs && !this.store.access(link.user_id, note)) note = null;
         if (!note || note.deleted) {
-          // Deleted in SortNotes: an event SortNotes made goes too; a meeting from the calendar stays there.
+          // Deleted in SortMemo: an event SortMemo made goes too; a meeting from the calendar stays there.
           if (m.origin === 'note' && p.remove && link.writes) {
             await p.remove(api, e.id, ctx);
             this.db.prepare('DELETE FROM calendar_events WHERE link_id = ? AND external_id = ?').run(linkId, e.id);
@@ -655,7 +655,7 @@ export class Calendars {
           this.db.prepare('DELETE FROM calendar_events WHERE link_id = ? AND external_id = ?').run(linkId, m.external_id);
           counts.removed++;
         } else {
-          // Someone deleted SortNotes' event in the calendar: the note stays, and isn't sent again.
+          // Someone deleted SortMemo's event in the calendar: the note stays, and isn't sent again.
           this.db.prepare("UPDATE calendar_events SET event_sig = '(gone)' WHERE link_id = ? AND external_id = ?").run(linkId, m.external_id);
         }
       }

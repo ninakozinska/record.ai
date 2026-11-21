@@ -562,16 +562,16 @@ try {
   await desktop.waitForSelector('#send[open]');
   const message = await desktop.textContent('#sendPreview');
   assert.match(message, /Pick up Mia at 16:00/);
-  assert.match(message, /Sent from SortNotes: http:\/\/localhost:\d+\/s$/);
+  assert.match(message, /Sent from SortMemo: http:\/\/localhost:\d+\/s$/);
   const landing = await desktop.request.get(new URL('s', url).href, { maxRedirects: 0 });
   assert.equal(landing.status(), 302);
   assert.equal(landing.headers().location, '/welcome.html?ref=send');
-  assert.match(await desktop.getAttribute('#sendWhatsApp', 'href'), /^https:\/\/wa\.me\/\?text=.*Sent%20from%20SortNotes/);
-  assert.match(await desktop.getAttribute('#sendEmail', 'href'), /^mailto:\?subject=.*&body=.*Sent%20from%20SortNotes/);
+  assert.match(await desktop.getAttribute('#sendWhatsApp', 'href'), /^https:\/\/wa\.me\/\?text=.*Sent%20from%20SortMemo/);
+  assert.match(await desktop.getAttribute('#sendEmail', 'href'), /^mailto:\?subject=.*&body=.*Sent%20from%20SortMemo/);
   await desktop.screenshot({ path: path.join(out, 'desktop-send.png') });
   await desktop.click('#send .icon-btn');
   await desktop.click('#editorSave');
-  console.log('✓ send a note by email or WhatsApp, signed "Sent from SortNotes"');
+  console.log('✓ send a note by email or WhatsApp, signed "Sent from SortMemo"');
 
   // Suggested to-dos: the top one of the day on top, the rest in the inbox; Add makes a note, Dismiss removes.
   await desktop.evaluate(() => fetch('api/suggestions/run', { method: 'POST' }));
