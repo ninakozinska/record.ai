@@ -541,4 +541,8 @@ export default {
   "School": "École",
   "Share School": "Partager l'École",
   "School shared · {n}": "École partagée · {n}",
+  "🎒 Which child?": "🎒 Quel enfant ?",
+  "All children": "Tous les enfants",
+  "Kept in School, for all children.": "Gardée dans École, pour tous les enfants.",
+  "Moved to {child}.": "Déplacée vers {child}.",
 };

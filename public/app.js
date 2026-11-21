@@ -1065,6 +1065,19 @@ function listPreview(n) {
   </div>`;
 }
 
+/**
+ * A school note the AI couldn't place under one child (no name in it): ask
+ * which child, with one tap. Choosing "All children" keeps it in School.
+ */
+function whichChild(n) {
+  if (n.done || n.role || n.user_group || !sameGroup(n.group, 'School')) return '';
+  const kids = myGroups.filter((g) => g.startsWith(SCHOOL_PREFIX));
+  if (!kids.length) return '';
+  return `<div class="which-child"><span class="muted">${esc(t('🎒 Which child?'))}</span>` +
+    kids.map((g) => `<button type="button" class="chip" data-child-group="${esc(g)}">${esc(g.slice(SCHOOL_PREFIX.length))}</button>`).join('') +
+    `<button type="button" class="chip" data-child-group="School">${esc(t('All children'))}</button></div>`;
+}
+
 function card(n, { showGroup }) {
   const title = n.title || n.text.split('\n')[0].slice(0, 80) || local.items(n.id)[0]?.text || (n.images.length ? t('Photo') : t('Untitled'));
   // The text under the title, unless it just repeats the title (a list called "Groceries").
@@ -1082,6 +1095,7 @@ function card(n, { showGroup }) {
         </div>
         ${body.trim() ? `<p class="note-text">${esc(body.trim())}</p>` : ''}
         ${listPreview(n)}
+        ${whichChild(n)}
         ${n.images.length ? `<div class="note-images">${n.images.map((i) => `<img data-img="${esc(i)}" alt="" loading="lazy">`).join('')}</div>` : ''}
         <div class="meta">
           <span class="badge p-${n.priority}">${PRIORITY_LABEL[n.priority]}${n.user_priority ? ' 📌' : ''}</span>
@@ -1320,6 +1334,12 @@ $('#list').addEventListener('click', async (e) => {
   if (itemCheck) {
     const item = local.notes.get(itemCheck.dataset.itemCheck);
     return markDone(item.id, true, item.text.slice(0, 40));
+  }
+  const child = e.target.closest('[data-child-group]');
+  if (child) {
+    const name = child.dataset.childGroup;
+    local.save(id, { user_group: name });
+    return toast(name === 'School' ? t('Kept in School, for all children.') : t('Moved to {child}.', { child: name.slice(SCHOOL_PREFIX.length) }));
   }
   const lf = e.target.closest('[data-label-filter]');
   if (lf) {
