@@ -163,7 +163,7 @@ test('AI chats: an assistant sends to-dos, and a chat export is read; both are P
       method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tomKey}` },
       body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'suggest_todos', arguments: { todos: [{ title: 'x' }] } } }),
     }).then((x) => x.json());
-    assert.match(JSON.stringify(refused), /part of SortNotes Premium/);
+    assert.match(JSON.stringify(refused), /part of SortMemo Premium/);
   } finally {
     delete process.env.ALLOW_SIGNUP;
     t.close();

@@ -231,21 +231,21 @@
   "pl": "Usuwa na zawsze konto, wszystkie notatki i zdjęcia oraz kopie.",
   "pt": "Apaga para sempre a sua conta, todas as notas e fotos, e as cópias."
  },
- "Enter the address of your SortNotes server. On your Mac, open SortNotes in the browser and tap your initials (top right): the address is shown there.": {
-  "de": "Gib die Adresse deines SortNotes-Servers ein. Öffne SortNotes auf dem Mac im Browser und tippe auf deine Initialen (oben rechts): Dort steht die Adresse.",
-  "es": "Escribe la dirección de tu servidor SortNotes. En tu Mac, abre SortNotes en el navegador y toca tus iniciales (arriba a la derecha): ahí está la dirección.",
-  "fr": "Saisissez l'adresse de votre serveur SortNotes. Sur votre Mac, ouvrez SortNotes dans le navigateur et touchez vos initiales (en haut à droite) : l'adresse y figure.",
-  "it": "Inserisci l'indirizzo del tuo server SortNotes. Sul Mac, apri SortNotes nel browser e tocca le tue iniziali (in alto a destra): l'indirizzo è lì.",
-  "pl": "Wpisz adres serwera SortNotes. Na Macu otwórz SortNotes w przeglądarce i dotknij inicjałów (u góry po prawej): tam jest adres.",
-  "pt": "Escreva o endereço do seu servidor SortNotes. No Mac, abra o SortNotes no navegador e toque nas suas iniciais (em cima à direita): o endereço aparece lá."
+ "Enter the address of your SortMemo server. On your Mac, open SortMemo in the browser and tap your initials (top right): the address is shown there.": {
+  "de": "Gib die Adresse deines SortMemo-Servers ein. Öffne SortMemo auf dem Mac im Browser und tippe auf deine Initialen (oben rechts): Dort steht die Adresse.",
+  "es": "Escribe la dirección de tu servidor SortMemo. En tu Mac, abre SortMemo en el navegador y toca tus iniciales (arriba a la derecha): ahí está la dirección.",
+  "fr": "Saisissez l'adresse de votre serveur SortMemo. Sur votre Mac, ouvrez SortMemo dans le navigateur et touchez vos initiales (en haut à droite) : l'adresse y figure.",
+  "it": "Inserisci l'indirizzo del tuo server SortMemo. Sul Mac, apri SortMemo nel browser e tocca le tue iniziali (in alto a destra): l'indirizzo è lì.",
+  "pl": "Wpisz adres serwera SortMemo. Na Macu otwórz SortMemo w przeglądarce i dotknij inicjałów (u góry po prawej): tam jest adres.",
+  "pt": "Escreva o endereço do seu servidor SortMemo. No Mac, abra o SortMemo no navegador e toque nas suas iniciais (em cima à direita): o endereço aparece lá."
  },
- "Enter the address of your SortNotes server. On your computer, open SortNotes in the browser and tap your initials (top right): the address is shown there.": {
-  "de": "Gib die Adresse deines SortNotes-Servers ein. Öffne SortNotes auf dem Computer im Browser und tippe auf deine Initialen (oben rechts): Dort steht die Adresse.",
-  "es": "Escribe la dirección de tu servidor SortNotes. En tu ordenador, abre SortNotes en el navegador y toca tus iniciales (arriba a la derecha): ahí está la dirección.",
-  "fr": "Saisissez l'adresse de votre serveur SortNotes. Sur votre ordinateur, ouvrez SortNotes dans le navigateur et touchez vos initiales (en haut à droite) : l'adresse y figure.",
-  "it": "Inserisci l'indirizzo del tuo server SortNotes. Sul computer, apri SortNotes nel browser e tocca le tue iniziali (in alto a destra): l'indirizzo è lì.",
-  "pl": "Wpisz adres serwera SortNotes. Na komputerze otwórz SortNotes w przeglądarce i dotknij inicjałów (u góry po prawej): tam jest adres.",
-  "pt": "Escreva o endereço do seu servidor SortNotes. No computador, abra o SortNotes no navegador e toque nas suas iniciais (em cima à direita): o endereço aparece lá."
+ "Enter the address of your SortMemo server. On your computer, open SortMemo in the browser and tap your initials (top right): the address is shown there.": {
+  "de": "Gib die Adresse deines SortMemo-Servers ein. Öffne SortMemo auf dem Computer im Browser und tippe auf deine Initialen (oben rechts): Dort steht die Adresse.",
+  "es": "Escribe la dirección de tu servidor SortMemo. En tu ordenador, abre SortMemo en el navegador y toca tus iniciales (arriba a la derecha): ahí está la dirección.",
+  "fr": "Saisissez l'adresse de votre serveur SortMemo. Sur votre ordinateur, ouvrez SortMemo dans le navigateur et touchez vos initiales (en haut à droite) : l'adresse y figure.",
+  "it": "Inserisci l'indirizzo del tuo server SortMemo. Sul computer, apri SortMemo nel browser e tocca le tue iniziali (in alto a destra): l'indirizzo è lì.",
+  "pl": "Wpisz adres serwera SortMemo. Na komputerze otwórz SortMemo w przeglądarce i dotknij inicjałów (u góry po prawej): tam jest adres.",
+  "pt": "Escreva o endereço do seu servidor SortMemo. No computador, abra o SortMemo no navegador e toque nas suas iniciais (em cima à direita): o endereço aparece lá."
  },
  "Everyone you add sees every note in this group, also ones added later.": {
   "de": "Alle, die du hinzufügst, sehen jede Notiz dieser Gruppe, auch spätere.",
@@ -303,13 +303,13 @@
   "pl": "Niech zdecyduje AI",
   "pt": "Deixar a IA decidir"
  },
- "Log in to SortNotes first.": {
-  "it": "Prima accedi a SortNotes.",
-  "fr": "Connectez-vous d'abord à SortNotes.",
-  "es": "Primero inicia sesión en SortNotes.",
-  "pt": "Primeiro inicie sessão no SortNotes.",
-  "de": "Melde dich zuerst bei SortNotes an.",
-  "pl": "Najpierw zaloguj się do SortNotes."
+ "Log in to SortMemo first.": {
+  "it": "Prima accedi a SortMemo.",
+  "fr": "Connectez-vous d'abord à SortMemo.",
+  "es": "Primero inicia sesión en SortMemo.",
+  "pt": "Primeiro inicie sessão no SortMemo.",
+  "de": "Melde dich zuerst bei SortMemo an.",
+  "pl": "Najpierw zaloguj się do SortMemo."
  },
  "Log in with the same email and password as on your Mac.": {
   "de": "Melde dich mit derselben E-Mail und demselben Passwort an wie auf dem Mac.",
@@ -327,21 +327,21 @@
   "pl": "Zaloguj się tym samym e-mailem i hasłem co na komputerze.",
   "pt": "Entre com o mesmo email e palavra-passe do computador."
  },
- "Log out of SortNotes on this iPhone?": {
-  "de": "Auf diesem iPhone von SortNotes abmelden?",
-  "es": "¿Cerrar sesión de SortNotes en este iPhone?",
-  "fr": "Se déconnecter de SortNotes sur cet iPhone ?",
-  "it": "Uscire da SortNotes su questo iPhone?",
-  "pl": "Wylogować się z SortNotes na tym iPhonie?",
-  "pt": "Sair do SortNotes neste iPhone?"
+ "Log out of SortMemo on this iPhone?": {
+  "de": "Auf diesem iPhone von SortMemo abmelden?",
+  "es": "¿Cerrar sesión de SortMemo en este iPhone?",
+  "fr": "Se déconnecter de SortMemo sur cet iPhone ?",
+  "it": "Uscire da SortMemo su questo iPhone?",
+  "pl": "Wylogować się z SortMemo na tym iPhonie?",
+  "pt": "Sair do SortMemo neste iPhone?"
  },
- "Log out of SortNotes on this phone?": {
-  "de": "Auf diesem Handy von SortNotes abmelden?",
-  "es": "¿Cerrar sesión de SortNotes en este teléfono?",
-  "fr": "Se déconnecter de SortNotes sur ce téléphone ?",
-  "it": "Uscire da SortNotes su questo telefono?",
-  "pl": "Wylogować się z SortNotes na tym telefonie?",
-  "pt": "Sair do SortNotes neste telemóvel?"
+ "Log out of SortMemo on this phone?": {
+  "de": "Auf diesem Handy von SortMemo abmelden?",
+  "es": "¿Cerrar sesión de SortMemo en este teléfono?",
+  "fr": "Se déconnecter de SortMemo sur ce téléphone ?",
+  "it": "Uscire da SortMemo su questo telefono?",
+  "pl": "Wylogować się z SortMemo na tym telefonie?",
+  "pt": "Sair do SortMemo neste telemóvel?"
  },
  "Log out?": {
   "de": "Abmelden?",
@@ -727,13 +727,13 @@
   "pl": "Godzina",
   "pt": "Hora"
  },
- "To connect more, open SortNotes in a browser and tap your initials.": {
-  "de": "Um weitere zu verbinden, öffne SortNotes im Browser und tippe auf deine Initialen.",
-  "es": "Para conectar más, abre SortNotes en un navegador y toca tus iniciales.",
-  "fr": "Pour en connecter d'autres, ouvrez SortNotes dans un navigateur et touchez vos initiales.",
-  "it": "Per collegarne altri, apri SortNotes in un browser e tocca le tue iniziali.",
-  "pl": "Aby połączyć więcej, otwórz SortNotes w przeglądarce i dotknij inicjałów.",
-  "pt": "Para ligar mais, abra o SortNotes num navegador e toque nas suas iniciais."
+ "To connect more, open SortMemo in a browser and tap your initials.": {
+  "de": "Um weitere zu verbinden, öffne SortMemo im Browser und tippe auf deine Initialen.",
+  "es": "Para conectar más, abre SortMemo en un navegador y toca tus iniciales.",
+  "fr": "Pour en connecter d'autres, ouvrez SortMemo dans un navigateur et touchez vos initiales.",
+  "it": "Per collegarne altri, apri SortMemo in un browser e tocca le tue iniziali.",
+  "pl": "Aby połączyć więcej, otwórz SortMemo w przeglądarce i dotknij inicjałów.",
+  "pt": "Para ligar mais, abra o SortMemo num navegador e toque nas suas iniciais."
  },
  "Type your email above, then tap this again.": {
   "de": "Gib oben deine E-Mail ein und tippe dann noch einmal hier.",

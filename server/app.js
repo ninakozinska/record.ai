@@ -201,7 +201,7 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth, mail, bill
 
   app.use(express.json({ limit: '25mb' }));
 
-  app.get('/api/health', (req, res) => res.json({ ok: true, app: 'SortNotes' }));
+  app.get('/api/health', (req, res) => res.json({ ok: true, app: 'SortMemo' }));
   app.use('/api/auth', authRoutes({
     store, imagesDir, oauth, mail,
     onSignup: (user, { method, anonId }) => {
@@ -277,7 +277,7 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth, mail, bill
     const userId = token.length > 20 ? store.getMeta(`cal_user:${token}`) : null;
     if (!userId || !store.getUser(userId)) return res.status(404).send('This calendar link is no longer active.');
     const tz = store.getMeta(`cal_tz:${userId}`);
-    sendIcs(res, toIcs(calendarNotes(userId), { name: 'SortNotes', tz, link: publicUrl(req), itemsOf: (id) => store.items(id) }));
+    sendIcs(res, toIcs(calendarNotes(userId), { name: 'SortMemo', tz, link: publicUrl(req), itemsOf: (id) => store.items(id) }));
   });
 
   app.use('/api', requireUser(store));
@@ -311,7 +311,7 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth, mail, bill
     res.json(pushState(req.user.id));
   });
   app.post('/api/push/test', async (req, res) => {
-    const sent = await reminders.push(req.user.id, { title: 'SortNotes', body: '🔔 ✓', url: './', tag: 'test' });
+    const sent = await reminders.push(req.user.id, { title: 'SortMemo', body: '🔔 ✓', url: './', tag: 'test' });
     res.json({ sent });
   });
   // "Hear today": the day's plan as one text to read aloud, in the person's language.
@@ -493,7 +493,7 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth, mail, bill
       // A task given to someone else: a notification on their devices.
       if (note.assigned_to && note.assigned_to !== userId && note.assigned_to !== before?.assigned_to && !note.done) {
         const list = note.parent_id ? store.get(note.parent_id) : note;
-        reminders.push(note.assigned_to, { title: `👤 ${store.getUser(userId)?.name || 'SortNotes'}`, body: noteTitle(note), url: `./?open=${list.id}`, tag: `task-${note.id}` }).catch(() => {});
+        reminders.push(note.assigned_to, { title: `👤 ${store.getUser(userId)?.name || 'SortMemo'}`, body: noteTitle(note), url: `./?open=${list.id}`, tag: `task-${note.id}` }).catch(() => {});
         insights.track('task_assigned', { userId, props: { item: !!note.parent_id } });
       }
       // What people do (never what they write), for the dashboard and the A/B tests.
@@ -769,7 +769,7 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth, mail, bill
 
   // --- the owner's dashboard: numbers, A/B tests, what the optimizer did ---------------
   const adminOnly = (req, res, next) => (isAdmin(req.user) ? next() : res.status(404).json({ error: 'Not found' }));
-  // What running SortNotes costs this month, per person (docs: "Path to €1M ARR").
+  // What running SortMemo costs this month, per person (docs: "Path to €1M ARR").
   const monthlyCosts = (now = Date.now()) => {
     const env = process.env;
     const num = (v, d) => (Number.isFinite(Number(v)) && v !== undefined && v !== '' ? Number(v) : d);
@@ -845,7 +845,7 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth, mail, bill
     res.json({ id: u.id, name: u.name, email: u.email, plan: store.planOf(u.id), created_at: u.created_at, notes, last_active: last });
   });
   app.post('/api/admin/test-error', adminOnly, async (req, res) => {
-    const err = new Error('Test error from the SortNotes dashboard (nothing is broken)');
+    const err = new Error('Test error from the SortMemo dashboard (nothing is broken)');
     const sent = await errors.report(err, { route: 'POST /api/admin/test-error', userId: req.user.id, tags: { test: 'yes' } });
     res.json({ configured: errors.configured, invalid: !!errors.invalid, sent });
   });
@@ -934,7 +934,7 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth, mail, bill
     });
   });
 
-  // The short link at the end of every note sent from the app ("Sent from SortNotes: sortnotes.com/s").
+  // The short link at the end of every note sent from the app ("Sent from SortMemo: sortmemo.com/s").
   app.get('/s', (req, res) => res.redirect(302, '/welcome.html?ref=send'));
 
   // --- static web app ---------------------------------------------------------

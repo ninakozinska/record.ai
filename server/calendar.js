@@ -53,11 +53,11 @@ function event(n, { tz, link, items = [] }) {
   return lines;
 }
 
-export function toIcs(notes, { name = 'SortNotes', tz, link, itemsOf = () => [] } = {}) {
+export function toIcs(notes, { name = 'SortMemo', tz, link, itemsOf = () => [] } = {}) {
   const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//SortNotes//Notes//EN',
+    'PRODID:-//SortMemo//Notes//EN',
     'CALSCALE:GREGORIAN',
     'METHOD:PUBLISH',
     `X-WR-CALNAME:${escape(name)}`,

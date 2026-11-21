@@ -28,7 +28,7 @@ export function errorReporter({ env = process.env, fetch = globalThis.fetch, log
         timestamp: Date.now() / 1000,
         platform: 'node',
         level: 'error',
-        server_name: 'SortNotes',
+        server_name: 'SortMemo',
         // Sentry refuses a release with a slash in it, and Fly's image name has
         // one (registry.fly.io/app:deployment-…): keep the part after the colon.
         release: releaseName(env.FLY_IMAGE_REF || env.RELEASE),
@@ -49,7 +49,7 @@ export function errorReporter({ env = process.env, fetch = globalThis.fetch, log
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-sentry-envelope',
-          'X-Sentry-Auth': `Sentry sentry_version=7, sentry_key=${dsn.key}, sentry_client=SortNotes/1.0`,
+          'X-Sentry-Auth': `Sentry sentry_version=7, sentry_key=${dsn.key}, sentry_client=SortMemo/1.0`,
         },
         body,
       }).then((r) => r.ok, () => false);

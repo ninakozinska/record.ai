@@ -1,5 +1,5 @@
 """
-SortNotes: how long to EUR 1M ARR, and with how many people?
+SortMemo: how long to EUR 1M ARR, and with how many people?
 
 A Monte Carlo model: every run draws its own values for the uncertain numbers
 (growth, conversion, churn, costs...) from the ranges below, then plays out

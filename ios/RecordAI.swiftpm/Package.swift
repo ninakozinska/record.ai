@@ -1,6 +1,6 @@
 // swift-tools-version: 5.9
 
-// SortNotes for iPhone.
+// SortMemo for iPhone.
 // To run it: double-click this folder in Finder (it opens in Xcode),
 // pick your iPhone at the top of the window, then press Run (▶).
 
@@ -8,13 +8,13 @@ import PackageDescription
 import AppleProductTypes
 
 let package = Package(
-    name: "SortNotes",
+    name: "SortMemo",
     platforms: [
         .iOS("17.0")
     ],
     products: [
         .iOSApplication(
-            name: "SortNotes",
+            name: "SortMemo",
             targets: ["AppModule"],
             bundleIdentifier: "com.ninakozinska.recordai",
             teamIdentifier: "",
@@ -32,7 +32,7 @@ let package = Package(
                 .camera(purposeString: "Take photos to add to your notes."),
                 .microphone(purposeString: "Dictate notes with your voice."),
                 .speechRecognition(purposeString: "Turn what you say into note text."),
-                .localNetwork(purposeString: "Connect to your SortNotes server on your Mac.")
+                .localNetwork(purposeString: "Connect to your SortMemo server on your Mac.")
             ]
         )
     ],

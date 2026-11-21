@@ -19,8 +19,8 @@ in the app (seven languages). Reading aloud is part of Premium.
 | Device | How |
 |---|---|
 | Web (phone or computer) | The morning notification opens the app with a big **🔊 Hear today** button: one tap. The 🔊 on the Today line does the same. |
-| iPhone | Say **"Hey Siri, hear today in SortNotes"** (also "Read my day…", "What's my day…"). Siri reads it without opening the app. The same action is in the Shortcuts app (**Hear today**), so it can go on the Action button or the Lock Screen. In the app: the 🔊 at the top. |
-| Android | Long-press the SortNotes icon → **Hear today** (drag it to the home screen for one tap). In the app: the 🔊 at the top. |
+| iPhone | Say **"Hey Siri, hear today in SortMemo"** (also "Read my day…", "What's my day…"). Siri reads it without opening the app. The same action is in the Shortcuts app (**Hear today**), so it can go on the Action button or the Lock Screen. In the app: the 🔊 at the top. |
+| Android | Long-press the SortMemo icon → **Hear today** (drag it to the home screen for one tap). In the app: the 🔊 at the top. |
 
 The Siri phrases are in English for now; in another Siri language, use the
 Shortcuts action (it is listed in every language).

@@ -107,7 +107,7 @@ struct NoteDetailView: View {
                         store.save(id: noteId, patch: ["done": !(note?.done ?? false)])
                         dismiss()
                     } }
-                    // Send outside the app (email, WhatsApp, Messages…), always signed "Sent from SortNotes".
+                    // Send outside the app (email, WhatsApp, Messages…), always signed "Sent from SortMemo".
                     if let note {
                         ShareLink(item: sendMessage(note), subject: Text(note.displayTitle)) {
                             Text(tr("📤 Send"))
@@ -194,10 +194,10 @@ struct NoteDetailView: View {
             .map { ($0.done ? "☑ " : "☐ ") + $0.text }
             .joined(separator: "\n")
         let when = note.dueDate.map { "📅 " + $0 + (note.dueTime.map { " " + $0 } ?? "") } ?? ""
-        // The short link: "sortnotes.com/s" (messaging apps make it clickable without https://).
+        // The short link: "sortmemo.com/s" (messaging apps make it clickable without https://).
         let base = store.serverURL?.absoluteString ?? "https://record-ai-nina.fly.dev"
         let link = (base.hasPrefix("https://") ? String(base.dropFirst(8)) : base) + "/s"
-        let footer = "— " + tr("Sent from SortNotes") + ": " + link
+        let footer = "— " + tr("Sent from SortMemo") + ": " + link
         return [title, body == title ? "" : body, items, when].filter { !$0.isEmpty }.joined(separator: "\n\n") + "\n\n" + footer
     }
 

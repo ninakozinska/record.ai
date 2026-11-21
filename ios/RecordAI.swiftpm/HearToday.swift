@@ -1,12 +1,12 @@
 import AppIntents
 
-/// "Hey Siri, hear today in SortNotes": Siri reads the day's plan without
+/// "Hey Siri, hear today in SortMemo": Siri reads the day's plan without
 /// opening the app. The same action is in the Shortcuts app, so it can go on
 /// the Action button, the Lock Screen or the Home Screen (Shortcuts → + →
-/// Add Action → SortNotes → Hear today).
+/// Add Action → SortMemo → Hear today).
 struct HearTodayIntent: AppIntent {
     static let title: LocalizedStringResource = "Hear today"
-    static let description = IntentDescription("Your day's plan from SortNotes, read aloud.")
+    static let description = IntentDescription("Your day's plan from SortMemo, read aloud.")
     static let openAppWhenRun = false
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
@@ -16,7 +16,7 @@ struct HearTodayIntent: AppIntent {
 }
 
 /// The phrases Siri knows without any set-up.
-struct SortNotesShortcuts: AppShortcutsProvider {
+struct SortMemoShortcuts: AppShortcutsProvider {
     static var appShortcuts: [AppShortcut] {
         AppShortcut(
             intent: HearTodayIntent(),
