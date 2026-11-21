@@ -8,3 +8,6 @@ ios/**/.swiftpm/
 ios/**/.build/
 ios/**/xcuserdata/
 __pycache__/
+
+# Book figures staged for upload (not part of the app)
+.figs/
