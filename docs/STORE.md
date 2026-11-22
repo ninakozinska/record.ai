@@ -13,9 +13,9 @@ a short description (Google Play, 80 characters) and a full description
 | Category | Productivity (second: Lifestyle) |
 | Price | Free, with in-app subscriptions Solo and Family |
 | Age rating | 4+ (Apple) / Everyone (Google): no violence, no user-to-stranger chat; sharing is only with people you type in |
-| Support URL | https://record-ai-nina.fly.dev/legal/support.html (move to your domain) |
-| Privacy URL | https://record-ai-nina.fly.dev/legal/privacy.html |
-| Account deletion URL (Google) | https://record-ai-nina.fly.dev/legal/delete-account.html |
+| Support URL | https://sortmemo.com/legal/support.html |
+| Privacy URL | https://sortmemo.com/legal/privacy.html |
+| Account deletion URL (Google) | https://sortmemo.com/legal/delete-account.html |
 | Sign in for review | The demo account: make it with `fly ssh console -C "node scripts/demo-account.mjs review@your-domain 'a long password'"` |
 
 **Note for the reviewers** (App Store "App Review Information", Google "App access"):
