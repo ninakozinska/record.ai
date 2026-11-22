@@ -10,7 +10,7 @@ primary_region = 'fra'  # Frankfurt
 [env]
   PORT = '3000'
   DATA_DIR = '/data'
-  PUBLIC_URL = 'https://record-ai-nina.fly.dev'
+  PUBLIC_URL = 'https://sortmemo.com'
   # Fly's network sits in front of the app: trust it (one hop) for the visitor's address.
   TRUST_PROXY = '1'
   # Online, the AI is Claude: Haiku is the fast, cheap one. The key goes in a secret:

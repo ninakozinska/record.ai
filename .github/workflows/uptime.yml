@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
-      URL: ${{ vars.APP_URL || 'https://record-ai-nina.fly.dev' }}
+      URL: ${{ vars.APP_URL || 'https://sortmemo.com' }}
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
     steps:

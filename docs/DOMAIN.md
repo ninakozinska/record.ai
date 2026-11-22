@@ -1,8 +1,8 @@
 # SortMemo on sortmemo.com
 
 The app is renamed SortMemo everywhere people see it. It still runs at
-https://record-ai-nina.fly.dev until the steps below are done; after that it
-answers at **https://sortmemo.com**, and the old address keeps working.
+https://record-ai-nina.fly.dev and, since 22 November 2026, at
+**https://sortmemo.com** (the main address). The old one keeps working.
 
 Internal names stay as they are, on purpose: the Fly app (`record-ai-nina`),
 the GitHub repository, the iPhone bundle ID and the Android package. Changing
