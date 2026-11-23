@@ -6,14 +6,14 @@ plugins {
 
 android {
     namespace = "ai.record.android"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         // The app's permanent name in Google Play. It can never change once the
         // app is published, and must match the app made in Play Console.
         applicationId = "com.ninakozinska.recordai"
         minSdk = 26
-        targetSdk = 35
+        targetSdk = 36
         // Raise versionCode by 1 for every upload to Google Play; versionName is what people see.
         versionCode = 1
         versionName = "1.0.0"

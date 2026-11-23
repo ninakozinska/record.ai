@@ -59,7 +59,9 @@ fun NoteEditor(repo: NoteRepository, state: UiState, id: String, onClose: () -> 
     var due by remember(id) { mutableStateOf(note.userDue) }
     var remind by remember(id) { mutableStateOf(note.remind) }
     var assignee by remember(id) { mutableStateOf(note.assignedTo) }
-    var labels by remember(id) { mutableStateOf(note.shownLabels) }
+    // The labels as the editor opened: only a change the person made is sent (see Labels.toSend).
+    val openedLabels = remember(id) { note.shownLabels }
+    var labels by remember(id) { mutableStateOf(openedLabels) }
     var askLabel by remember { mutableStateOf(false) }
     var people by remember { mutableStateOf(People()) }
     var working by remember { mutableStateOf(false) }
@@ -85,7 +87,7 @@ fun NoteEditor(repo: NoteRepository, state: UiState, id: String, onClose: () -> 
         if (remind != note.remind) patch["remind"] = remind
         if (assignee != note.assignedTo) patch["assigned_to"] = assignee
         // Labels are Premium: a free account's choice would not be kept by the server.
-        if (state.labels.allowed && labels != note.shownLabels) patch["user_labels"] = labels
+        if (state.labels.allowed) Labels.toSend(openedLabels, labels)?.let { patch["user_labels"] = it }
         if (!canEdit) return
         if (note.shared) patch -= setOf("user_group", "user_priority", "user_due", "remind", "user_labels")
         if (patch.isNotEmpty()) repo.save(id, patch)

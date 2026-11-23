@@ -29,6 +29,15 @@ class LabelsAndSchoolTest {
         assertEquals(emptyList(), Labels.toggle(listOf("Leo"), "Leo"))
     }
 
+    @Test fun `the editor sends labels only when the person changed them`() {
+        // Opened with no labels; the AI labelled the note meanwhile; the person changed nothing.
+        assertEquals(null, Labels.toSend(opened = emptyList(), chosen = emptyList()))
+        // The person picked a label: their choice is sent.
+        assertEquals(listOf("Leo"), Labels.toSend(opened = emptyList(), chosen = listOf("Leo")))
+        // The person took every label off: an empty list is sent, not nothing.
+        assertEquals(emptyList(), Labels.toSend(opened = listOf("Leo"), chosen = emptyList()))
+    }
+
     @Test fun `search finds words anywhere and label colon finds labels`() {
         val fields = listOf("Pay the swim club", "Swimming", "Family")
         assertTrue(NoteSearch.matches(fields, listOf("Leo"), ""))

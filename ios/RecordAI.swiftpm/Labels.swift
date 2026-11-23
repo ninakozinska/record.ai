@@ -40,6 +40,13 @@ enum Labels {
         current.contains(name) ? current.filter { $0 != name } : current + [name]
     }
 
+    /// The labels to save from the note editor, or nil to leave them alone. `opened` are the
+    /// labels the note had when the editor opened: the AI may label the note while it is open,
+    /// so comparing with its labels at save time would freeze the AI's labels as the person's.
+    static func toSend(opened: [String], chosen: [String]) -> [String]? {
+        chosen != opened ? chosen : nil
+    }
+
     /// A label colour as red, green, blue (0...1): the same palette as the web app's styles.
     static func rgb(_ color: String) -> (Double, Double, Double) {
         let hex: Int

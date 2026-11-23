@@ -391,7 +391,10 @@ const editor = {
     $('#editorTitle').textContent = n.title || t('Note');
     $('#editorGroup').value = n.user_group || '';
     $('#editorGroup').placeholder = n.ai_group ? t('Auto ({value})', { value: n.ai_group }) : t('Auto');
-    this.labels = [...(n.labels || [])];
+    // The labels as they were when the editor opened: the AI may label the note
+    // while it is open, and only a change the person made should be sent back.
+    this.openedLabels = [...(n.labels || [])];
+    this.labels = [...this.openedLabels];
     this.renderLabels();
     $('#editorWorld').value = worldOf(n.group, chosenWorlds) || '';
     $('#editorWorld').disabled = !n.group;
@@ -534,7 +537,7 @@ const editor = {
     if (p !== (n.user_priority || null)) patch.user_priority = p;
     if (this.due !== (n.user_due ?? null)) patch.user_due = this.due;
     if (this.remind !== (n.remind ?? null)) patch.remind = this.remind;
-    if (labelsState.allowed && JSON.stringify(this.labels) !== JSON.stringify(n.labels || [])) patch.user_labels = this.labels;
+    if (labelsState.allowed && JSON.stringify(this.labels) !== JSON.stringify(this.openedLabels)) patch.user_labels = this.labels;
     const to = $('#assignRow').hidden ? n.assigned_to ?? null : $('#editorAssign').value || null;
     if (to !== (n.assigned_to ?? null) && canAssign(to)) patch.assigned_to = to;
     if (Object.keys(patch).length) await local.save(this.id, patch);

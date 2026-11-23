@@ -11,3 +11,8 @@ __pycache__/
 
 # Book figures staged for upload (not part of the app)
 .figs/
+
+# Signing keys and their passwords never go in the repository (android/.gitignore too).
+*.jks
+*.keystore
+keystore.properties

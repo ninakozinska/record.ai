@@ -117,11 +117,12 @@ struct SuggestionsView: View {
             .navigationTitle(tr("✨ Suggested"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button(tr("Done")) { dismiss() } } }
-            .alert(tr("Edit the to-do"), isPresented: Binding(get: { editing != nil }, set: { if !$0 { editing = nil } })) {
+            // `presenting:` hands "Add" the to-do: the binding clears `editing` as the alert closes.
+            .alert(tr("Edit the to-do"), isPresented: Binding(get: { editing != nil }, set: { if !$0 { editing = nil } }), presenting: editing) { s in
                 TextField(tr("Edit the to-do"), text: $editedTitle)
                 Button(tr("Add")) {
                     let title = editedTitle.trimmingCharacters(in: .whitespacesAndNewlines)
-                    if let s = editing, !title.isEmpty { decide(s, add: true, title: title) }
+                    if !title.isEmpty { decide(s, add: true, title: title) }
                 }
                 Button(tr("Cancel"), role: .cancel) {}
             }
@@ -202,5 +203,8 @@ struct LegalLinks: View {
             if let url = URL(string: base + "/legal/support.html") { Link(tr("Help"), destination: url) }
         }
         .font(.footnote)
+        // In a Form row, plain buttons make the whole row one tap target (it would open
+        // the first link); borderless ones each open their own page.
+        .buttonStyle(.borderless)
     }
 }

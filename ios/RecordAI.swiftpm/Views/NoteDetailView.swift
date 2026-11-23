@@ -21,6 +21,7 @@ struct NoteDetailView: View {
     @State private var working = false
     @State private var canReadAloud = false
     @State private var labels: [String] = []
+    @State private var openedLabels: [String] = []   // as the editor opened (see Labels.toSend)
     @State private var askLabel = false
     @State private var newLabel = ""
 
@@ -297,7 +298,8 @@ struct NoteDetailView: View {
         due = note.userDue
         remind = note.remind ?? -1
         assignee = note.assignedTo ?? ""
-        labels = note.shownLabels
+        openedLabels = note.shownLabels
+        labels = openedLabels
         loaded = true
     }
 
@@ -318,7 +320,7 @@ struct NoteDetailView: View {
             else { info = tr("Giving tasks to others is part of the Family plan.") }
         }
         // Labels are Premium: a free account's choice would not be kept by the server.
-        if store.labelsState.allowed && labels != note.shownLabels { patch["user_labels"] = labels }
+        if store.labelsState.allowed, let chosen = Labels.toSend(opened: openedLabels, chosen: labels) { patch["user_labels"] = chosen }
         if note.isShared { for k in ["user_group", "user_priority", "user_due", "remind", "user_labels"] { patch[k] = nil } }
         if !patch.isEmpty { store.save(id: noteId, patch: patch) }
     }

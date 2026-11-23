@@ -185,11 +185,13 @@ struct NotesView: View {
             .sheet(item: $sharingGroup, onDismiss: { Task { await loadSchoolShares() } }) { t in
                 ShareView(kind: t.kind, target: t.target, label: t.kind == "school" ? tr("🎒 School") : t.target)
             }
-            .alert(askTitle, isPresented: Binding(get: { asking != nil }, set: { if !$0 { asking = nil } })) {
+            // `presenting:` hands the buttons what was asked: the binding clears `asking`
+            // as the alert closes, before "Add" runs.
+            .alert(askTitle, isPresented: Binding(get: { asking != nil }, set: { if !$0 { asking = nil } }), presenting: asking) { what in
                 TextField(askPrompt, text: $newName)
-                Button(tr("Add")) { addName() }
+                Button(tr("Add")) { addName(what) }
                 Button(tr("Cancel"), role: .cancel) { newName = "" }
-            } message: {
+            } message: { _ in
                 Text(askPrompt)
             }
             .overlay(alignment: .top) {
@@ -301,9 +303,8 @@ struct NotesView: View {
         }
     }
 
-    private func addName() {
+    private func addName(_ what: String) {
         let name = newName.trimmingCharacters(in: .whitespacesAndNewlines)
-        let what = asking
         newName = ""
         guard !name.isEmpty else { return }
         Task {

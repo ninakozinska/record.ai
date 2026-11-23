@@ -31,7 +31,9 @@ private struct Cache: Codable {
     /// The person's labels, groups and worlds, kept so the phone shows them offline too.
     var labels: LabelsState?
     var myGroups: [String]?
-    var worlds: [String: String]?
+    /// Groups moved between worlds, as JSON: the cache is read with `.convertFromSnakeCase`,
+    /// which would rename a dictionary's keys (group names such as "my_stuff").
+    var worldsJson: Data?
 }
 
 /// Holds the notes, saves them on the phone, and keeps them in sync with the server.
@@ -106,13 +108,13 @@ final class NoteStore {
         notes = Dictionary(uniqueKeysWithValues: cache.notes.map { ($0.id, $0) })
         labelsState = cache.labels ?? LabelsState()
         myGroups = cache.myGroups ?? []
-        chosenWorlds = cache.worlds ?? [:]
+        chosenWorlds = cache.worldsJson.flatMap { try? JSONDecoder.plain.decode([String: String].self, from: $0) } ?? [:]
         unsent = outbox.count
     }
 
     private func saveCache() {
         let cache = Cache(userId: cachedUserId, rev: rev, notes: Array(notes.values), outbox: outbox,
-                          labels: labelsState, myGroups: myGroups, worlds: chosenWorlds)
+                          labels: labelsState, myGroups: myGroups, worldsJson: try? JSONEncoder().encode(chosenWorlds))
         if let data = try? JSONEncoder.cache.encode(cache) {
             try? data.write(to: Self.cacheFile, options: [.atomic, .completeFileProtection])
         }
@@ -291,11 +293,11 @@ final class NoteStore {
     /// language (the phone's, like the web app's). Offline, the saved ones stay.
     func refreshAccount() async {
         guard let api, isLoggedIn else { return }
-        let l = try? await api.get("labels", as: LabelsState.self)
+        let l = try? JSONDecoder.plain.decode(LabelsState.self, from: await api.request("labels"))
         if let l { labelsState = l }
-        let g = try? await api.get("groups/mine", as: GroupNames.self)
+        let g = try? JSONDecoder.plain.decode(GroupNames.self, from: await api.request("groups/mine"))
         if let g { myGroups = g.names }
-        let w = try? await api.get("groups/worlds", as: WorldChoices.self)
+        let w = try? JSONDecoder.plain.decode(WorldChoices.self, from: await api.request("groups/worlds"))
         if let w { chosenWorlds = w.chosen }
         let s = try? await api.get("suggestions", as: SuggestionList.self)
         if let s { suggestions = s.suggestions }
@@ -628,7 +630,7 @@ final class NoteStore {
     /// Groups moved between worlds; the saved ones when offline.
     func worlds() async -> [String: String] {
         guard let api else { return chosenWorlds }
-        let w = try? await api.get("groups/worlds", as: WorldChoices.self)
+        let w = try? JSONDecoder.plain.decode(WorldChoices.self, from: await api.request("groups/worlds"))
         if let w { chosenWorlds = w.chosen }
         return chosenWorlds
     }
@@ -639,7 +641,7 @@ final class NoteStore {
         var next = chosenWorlds
         next[group.lowercased()] = world
         let data = try await api.request("groups/worlds", method: "PUT", json: ["chosen": next])
-        chosenWorlds = try JSONDecoder.server.decode(WorldChoices.self, from: data).chosen
+        chosenWorlds = try JSONDecoder.plain.decode(WorldChoices.self, from: data).chosen
         saveCache()
     }
 
@@ -647,7 +649,7 @@ final class NoteStore {
     func setMyGroups(_ names: [String]) async throws {
         guard let api else { throw APIError.offline }
         let data = try await api.request("groups/mine", method: "PUT", json: ["names": names])
-        myGroups = try JSONDecoder.server.decode(GroupNames.self, from: data).names
+        myGroups = try JSONDecoder.plain.decode(GroupNames.self, from: data).names
         saveCache()
     }
 
@@ -666,7 +668,7 @@ final class NoteStore {
         guard let api else { throw APIError.offline }
         let body = labels.map { ["name": $0.name, "color": $0.color] }
         let data = try await api.request("labels", method: "PUT", json: ["labels": body])
-        labelsState.labels = try JSONDecoder.server.decode(LabelList.self, from: data).labels
+        labelsState.labels = try JSONDecoder.plain.decode(LabelList.self, from: data).labels
         saveCache()
     }
 

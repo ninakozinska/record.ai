@@ -355,6 +355,11 @@ extension JSONDecoder {
         d.keyDecodingStrategy = .convertFromSnakeCase
         return d
     }()
+
+    /// For answers holding names the person chose (groups, worlds, labels): `.server`'s
+    /// snake-case conversion also renames dictionary keys, so "my_stuff" would come back
+    /// as "myStuff" and be saved that way on the next change.
+    static let plain = JSONDecoder()
 }
 
 extension JSONEncoder {

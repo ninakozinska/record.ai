@@ -34,6 +34,13 @@ object Labels {
     /** The note's labels with this one added, or taken off. */
     fun toggle(current: List<String>, name: String): List<String> = if (name in current) current - name else current + name
 
+    /**
+     * The labels to save from the note editor, or null to leave them alone. `opened` are the
+     * labels the note had when the editor opened: the AI may label the note while it is open,
+     * so comparing with its labels at save time would freeze the AI's labels as the person's.
+     */
+    fun toSend(opened: List<String>, chosen: List<String>): List<String>? = if (chosen != opened) chosen else null
+
     /** A label colour as ARGB, the same palette as the web app's styles. */
     fun argb(color: String): Long = when (color) {
         "indigo" -> 0xFF4338CA

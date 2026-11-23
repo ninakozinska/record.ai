@@ -1,9 +1,11 @@
 package ai.record.core
 
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -89,6 +91,10 @@ class NoteRepository(
     private var live: EventSource? = null
     private var liveWanted = false
     private var persistJob: Job? = null
+    // Changes whenever the signed-in person or their data changes (sign-in, logout, wipe):
+    // an answer that arrives after that belongs to the old session and is dropped.
+    private var session = 0
+    private var accountRefresh: Deferred<Unit>? = null
 
     init {
         storage.loadCache()?.let { c ->
@@ -126,6 +132,7 @@ class NoteRepository(
     }
 
     private fun wipe() {
+        session++
         rev = 0
         outbox = emptyList()
         cachedUserId = null
@@ -135,6 +142,7 @@ class NoteRepository(
     }
 
     private fun setUser(user: User?) {
+        session++
         storage.user = user
         _state.update { it.copy(user = user) }
     }
@@ -259,15 +267,50 @@ class NoteRepository(
     /**
      * The person's labels, groups, worlds and suggested to-dos, and the AI's
      * language (the phone's, like the web app's). Offline, the saved ones stay.
+     * Asked for several times at once (app start, live updates, the notes screen),
+     * it loads only once: later callers wait for the load already running.
      */
     suspend fun refreshAccount() {
-        val api = api ?: return
-        if (secrets.token == null) return
-        runCatching { api.labels() }.onSuccess { l -> _state.update { it.copy(labels = l) } }
-        runCatching { api.myGroups() }.onSuccess { g -> _state.update { it.copy(myGroups = g) } }
-        runCatching { api.worlds() }.onSuccess { w -> _state.update { it.copy(worlds = w) } }
-        runCatching { api.suggestions() }.onSuccess { s -> _state.update { it.copy(suggestions = s.suggestions) } }
+        val load = withContext(confined) {
+            accountRefresh?.takeIf { it.isActive }
+                ?: scope.async { runCatching { loadAccount() }; Unit }.also { accountRefresh = it }
+        }
+        load.await()
+    }
+
+    private suspend fun loadAccount() {
+        val (api, mine) = withContext(confined) { (if (secrets.token == null) null else api) to session }
+        if (api == null) return
+        // The network calls run outside `confined`; only the results are applied there.
+        val labels = runCatching { api.labels() }.getOrNull()
+        val groups = runCatching { api.myGroups() }.getOrNull()
+        val worlds = runCatching { api.worlds() }.getOrNull()
+        val suggestions = runCatching { api.suggestions() }.getOrNull()
         runCatching { if (api.language() != appLanguage) api.setLanguage(appLanguage) }
+        applyIfSameSession(mine) {
+            _state.update {
+                it.copy(
+                    labels = labels ?: it.labels,
+                    myGroups = groups ?: it.myGroups,
+                    worlds = worlds ?: it.worlds,
+                    suggestions = suggestions?.suggestions ?: it.suggestions,
+                )
+            }
+        }
+    }
+
+    /** The server to call now, and the session it belongs to (see [applyIfSameSession]). */
+    private suspend fun currentSession(): Pair<Api, Int> = withContext(confined) {
+        (api ?: throw ApiException.offline()) to session
+    }
+
+    /**
+     * Applies a server's answer on `confined` and saves it, unless the person logged out,
+     * or another account signed in, while the request was on its way.
+     */
+    private suspend fun applyIfSameSession(mine: Int, change: () -> Unit) = withContext(confined) {
+        if (mine != session) return@withContext
+        change()
         persistSoon()
     }
 
@@ -492,23 +535,26 @@ class NoteRepository(
     suspend fun setShareRole(id: String, role: String) { api?.setShareRole(id, role) }
     suspend fun unshare(id: String) { api?.unshare(id); flush() }
     /** Groups moved between Work and Family; empty when offline (names decide then). */
-    suspend fun worlds(): Map<String, String> = runCatching { api?.worlds() }.getOrNull()
-        ?.also { w -> _state.update { it.copy(worlds = w) } } ?: _state.value.worlds
+    suspend fun worlds(): Map<String, String> {
+        val (api, mine) = runCatching { currentSession() }.getOrNull() ?: return _state.value.worlds
+        val w = runCatching { api.worlds() }.getOrNull() ?: return _state.value.worlds
+        applyIfSameSession(mine) { _state.update { it.copy(worlds = w) } }
+        return _state.value.worlds
+    }
 
     /** Puts one group in "work", "family", "school" or "" (all worlds), on every device. */
     suspend fun setWorld(group: String, world: String) {
-        val api = api ?: throw ApiException.offline()
-        val next = _state.value.worlds + (group.lowercase() to world)
+        val (api, mine) = currentSession()
+        val next = withContext(confined) { _state.value.worlds + (group.lowercase() to world) }
         val saved = api.setWorlds(next)
-        _state.update { it.copy(worlds = saved) }
-        persistSoon()
+        applyIfSameSession(mine) { _state.update { it.copy(worlds = saved) } }
     }
 
     /** Saves "my groups" (the AI keeps them and files matching notes in them). */
     suspend fun setMyGroups(names: List<String>) {
-        val saved = (api ?: throw ApiException.offline()).setMyGroups(names)
-        _state.update { it.copy(myGroups = saved) }
-        persistSoon()
+        val (api, mine) = currentSession()
+        val saved = api.setMyGroups(names)
+        applyIfSameSession(mine) { _state.update { it.copy(myGroups = saved) } }
     }
 
     /** Adds a group of the person's own, or a child's school group ("School · Leo"). Returns its name. */
@@ -521,9 +567,9 @@ class NoteRepository(
 
     /** Saves the person's labels (Premium). */
     suspend fun setLabels(labels: List<Label>) {
-        val saved = (api ?: throw ApiException.offline()).setLabels(labels)
-        _state.update { it.copy(labels = it.labels.copy(labels = saved)) }
-        persistSoon()
+        val (api, mine) = currentSession()
+        val saved = api.setLabels(labels)
+        applyIfSameSession(mine) { _state.update { it.copy(labels = it.labels.copy(labels = saved)) } }
     }
 
     /** A new label (Premium), added to the person's list once. Returns its name as saved. */
