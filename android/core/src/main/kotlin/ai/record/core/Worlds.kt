@@ -46,4 +46,33 @@ object Worlds {
 
     fun shows(group: String, world: String, chosen: Map<String, String>): Boolean =
         world == ALL || (of(group, chosen) ?: world) == world
+
+    /** "School" or a child's "School · Leo": what sharing all of School covers. */
+    fun inSchool(group: String): Boolean = group.equals("School", ignoreCase = true) || group.startsWith(SCHOOL_PREFIX)
+
+    /** The group for a child: "School · Leo". */
+    fun childGroup(name: String): String = SCHOOL_PREFIX + name.trim()
+
+    /** The child's name in "School · Leo"; other groups as they are. */
+    fun childName(group: String): String = group.removePrefix(SCHOOL_PREFIX)
+
+    /**
+     * "🎒 Which child?": the children to offer for a school note the AI could not
+     * place under one child. Empty when there is nothing to ask (done, shared with
+     * me, already placed by the person, not in School, or no children yet).
+     */
+    fun childChoices(group: String, userGroup: String?, done: Boolean, shared: Boolean, myGroups: List<String>): List<String> {
+        if (done || shared || !userGroup.isNullOrBlank() || !group.equals("School", ignoreCase = true)) return emptyList()
+        return myGroups.filter { it.startsWith(SCHOOL_PREFIX) }
+    }
+
+    /** The person's groups shown even with no notes yet, after the groups that have notes. */
+    fun withMyGroups(groups: List<String>, myGroups: List<String>): List<String> = groups + myGroups.filter { it !in groups }
+
+    /** Does a share ("note", "group" or "school") cover this note, in this group? */
+    fun covers(kind: String, target: String, noteId: String, group: String): Boolean = when (kind) {
+        "note" -> target == noteId
+        "school" -> inSchool(group)
+        else -> target.equals(group, ignoreCase = true)
+    }
 }

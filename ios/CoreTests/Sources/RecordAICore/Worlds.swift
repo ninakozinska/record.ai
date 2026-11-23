@@ -40,6 +40,43 @@ enum Worlds {
     static func shows(_ group: String, in world: String, chosen: [String: String]) -> Bool {
         world == all || (of(group, chosen: chosen) ?? world) == world
     }
+
+    /// "School" or a child's "School · Leo": what sharing all of School covers.
+    static func inSchool(_ group: String) -> Bool {
+        group.lowercased() == "school" || group.hasPrefix(schoolPrefix)
+    }
+
+    /// The group for a child: "School · Leo".
+    static func childGroup(_ name: String) -> String {
+        schoolPrefix + name.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// The child's name in "School · Leo"; other groups as they are.
+    static func childName(_ group: String) -> String {
+        group.hasPrefix(schoolPrefix) ? String(group.dropFirst(schoolPrefix.count)) : group
+    }
+
+    /// "🎒 Which child?": the children to offer for a school note the AI could not
+    /// place under one child. Empty when there is nothing to ask (done, shared with
+    /// me, already placed by the person, not in School, or no children yet).
+    static func childChoices(group: String, userGroup: String?, done: Bool, shared: Bool, myGroups: [String]) -> [String] {
+        if done || shared || !(userGroup ?? "").isEmpty || group.lowercased() != "school" { return [] }
+        return myGroups.filter { $0.hasPrefix(schoolPrefix) }
+    }
+
+    /// The person's groups shown even with no notes yet, after the groups that have notes.
+    static func withMyGroups(_ groups: [String], _ myGroups: [String]) -> [String] {
+        groups + myGroups.filter { !groups.contains($0) }
+    }
+
+    /// Does a share ("note", "group" or "school") cover this note, in this group?
+    static func covers(kind: String, target: String, noteId: String, group: String) -> Bool {
+        switch kind {
+        case "note": return target == noteId
+        case "school": return inSchool(group)
+        default: return target.lowercased() == group.lowercased()
+        }
+    }
 }
 
 struct WorldChoices: Codable {

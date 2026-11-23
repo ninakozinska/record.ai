@@ -1,6 +1,7 @@
 package ai.record.android
 
 import android.app.Application
+import ai.record.core.Api
 import ai.record.core.FileStorage
 import ai.record.core.NoteRepository
 import androidx.lifecycle.DefaultLifecycleObserver
@@ -18,8 +19,11 @@ class RecordAiApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        val storage = FileStorage(File(filesDir, "SortMemo"))
+        // A new install starts on sortmemo.com; "Use a different server" on the login screen changes it.
+        if (storage.serverUrl == null) storage.serverUrl = Api.DEFAULT_SERVER
         repository = NoteRepository(
-            storage = FileStorage(File(filesDir, "SortMemo")),
+            storage = storage,
             secrets = KeystoreSecretStore(this),
             scope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
         )

@@ -58,7 +58,14 @@ data class Note(
     /** Family hub: who the note or item is for, and who ticked it off (account ids). */
     @SerialName("assigned_to") val assignedTo: String? = null,
     @SerialName("done_by") val doneBy: String? = null,
+    /** Labels (Premium): the person's choice (null = the AI's), the AI's, and the ones shown. */
+    @SerialName("user_labels") val userLabels: List<String>? = null,
+    @SerialName("ai_labels") val aiLabels: List<String>? = null,
+    val labels: List<String>? = null,
 ) {
+    /** The labels shown: the person's if they chose (even none), else the AI's. */
+    val shownLabels: List<String> get() = userLabels ?: aiLabels ?: labels ?: emptyList()
+
     /** The person's group if they chose one, else the AI's, else "Inbox". */
     val group: String get() = if (role != null) SHARED_GROUP else userGroup?.takeIf { it.isNotBlank() } ?: aiGroup?.takeIf { it.isNotBlank() } ?: "Inbox"
 
@@ -158,6 +165,19 @@ data class Note(
 
 @Serializable data class Backup(val id: String, val kind: String, @SerialName("created_at") val createdAt: Double, val notes: Int = 0)
 
+/** A to-do the AI suggests from meetings, notes or AI chats; nothing is added until the person adds it. */
+@Serializable data class Suggestion(
+    val id: String,
+    val title: String,
+    @SerialName("due_date") val dueDate: String? = null,
+    @SerialName("due_time") val dueTime: String? = null,
+    val reason: String? = null,
+    @SerialName("source_label") val sourceLabel: String? = null,
+    val top: Boolean = false,
+)
+
+@Serializable data class Suggestions(val suggestions: List<Suggestion> = emptyList())
+
 @Serializable data class ReorganizeResult(val updated: Int? = null, val skipped: Boolean? = null)
 
 /** A change waiting to be sent. `body` holds the changed note fields, as the server names them. */
@@ -174,6 +194,10 @@ data class Note(
     val rev: Long = 0,
     val notes: List<Note> = emptyList(),
     val outbox: List<OutboxItem> = emptyList(),
+    /** The person's labels, groups and worlds, kept so the phone shows them offline too. */
+    val labels: LabelsState = LabelsState(),
+    val myGroups: List<String> = emptyList(),
+    val worlds: Map<String, String> = emptyMap(),
 )
 
 internal val json = Json {

@@ -1,9 +1,9 @@
 import SwiftUI
 
-/// First screen: where is the SortMemo server (the Mac)?
+/// Where are the notes? sortmemo.com, or a SortMemo server of your own.
 struct ConnectView: View {
     @Environment(NoteStore.self) private var store
-    @State private var address = ""
+    @State private var address = "sortmemo.com"
     @State private var error: String?
     @State private var busy = false
 
@@ -17,13 +17,13 @@ struct ConnectView: View {
                             .foregroundStyle(.indigo)
                         Text(tr("Connect to your notes"))
                             .font(.title2.bold())
-                        Text(tr("Enter the address of your SortMemo server. On your Mac, open SortMemo in the browser and tap your initials (top right): the address is shown there."))
+                        Text(tr("SortMemo keeps your notes at sortmemo.com. If you run your own SortMemo server, type its address instead: open SortMemo in the browser on that computer and tap your initials (top right) to see it."))
                             .foregroundStyle(.secondary)
                     }
                     .padding(.vertical, 8)
                 }
                 Section(tr("Server address")) {
-                    TextField("http://172.20.10.2:3000", text: $address)
+                    TextField("sortmemo.com", text: $address)
                         .keyboardType(.URL)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
@@ -42,7 +42,7 @@ struct ConnectView: View {
                     }
                     .disabled(address.trimmingCharacters(in: .whitespaces).isEmpty || busy)
                 } footer: {
-                    Text(tr("Your iPhone and your Mac must be on the same network (for example your iPhone's hotspot), or connected with Tailscale."))
+                    Text(tr("Your own server at home: your iPhone and that computer must be on the same network, or connected with Tailscale."))
                 }
             }
             .navigationTitle("SortMemo")

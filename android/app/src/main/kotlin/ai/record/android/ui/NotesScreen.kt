@@ -79,6 +79,8 @@ import ai.record.core.NoteRepository
 import ai.record.core.Priority
 import ai.record.core.UiState
 import ai.record.core.Worlds
+import ai.record.core.NoteSearch
+import ai.record.core.Share
 import ai.record.core.noteOrder
 import ai.record.core.pastedLines
 import kotlinx.coroutines.launch
@@ -95,8 +97,13 @@ fun NotesScreen(repo: NoteRepository, state: UiState, sharedText: String?, onSha
     var searching by rememberSaveable { mutableStateOf(false) }
     var group by rememberSaveable { mutableStateOf<String?>(null) }
     var world by rememberSaveable { mutableStateOf(Worlds.ALL) }
-    var chosenWorlds by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
-    LaunchedEffect(state.user?.id) { chosenWorlds = repo.worlds() }
+    val chosenWorlds = state.worlds
+    LaunchedEffect(state.user?.id) { repo.refreshAccount() }
+    var label by rememberSaveable { mutableStateOf<String?>(null) }
+    // Names asked for: "group", "child" or "label".
+    var asking by remember { mutableStateOf<String?>(null) }
+    var sharingGroup by remember { mutableStateOf<Pair<String, String>?>(null) }
+    var suggested by remember { mutableStateOf(false) }
     var showDone by rememberSaveable { mutableStateOf(false) }
     var editing by rememberSaveable { mutableStateOf<String?>(null) }
     var menu by remember { mutableStateOf(false) }
@@ -133,12 +140,17 @@ fun NotesScreen(repo: NoteRepository, state: UiState, sharedText: String?, onSha
         if (sharedText != null) { onDraft(draft + sharedText); onSharedUsed() }
     }
 
-    val words = query.lowercase().split(" ").filter { it.isNotBlank() }
-    val groupNames = state.groupNames.filter { Worlds.shows(it, world, chosenWorlds) }
+    val groupNames = Worlds.withMyGroups(state.groupNames, state.myGroups).filter { Worlds.shows(it, world, chosenWorlds) }
+    // A label that was removed (on another device, say) no longer filters.
+    val activeLabel = label?.takeIf { l -> state.labels.labels.any { it.name == l } }
+    var myShares by remember { mutableStateOf<List<Share>>(emptyList()) }
+    LaunchedEffect(state.user?.id, sharingGroup) { runCatching { repo.shares().mine }.onSuccess { myShares = it } }
+    val schoolShareCount = myShares.count { it.kind == "school" }
     val filtered = state.visible.filter { n ->
-        Worlds.shows(n.group, world, chosenWorlds) && (group == null || n.group == group) && (words.isEmpty() || words.all { w ->
-            listOf(n.text, n.title.orEmpty(), n.summary.orEmpty(), n.group, n.tags.orEmpty().joinToString(" ")).joinToString(" ").lowercase().contains(w)
-        })
+        Worlds.shows(n.group, world, chosenWorlds) && (group == null || n.group == group) &&
+            (activeLabel == null || activeLabel in n.shownLabels) &&
+            NoteSearch.matches(listOf(n.text, n.title.orEmpty(), n.summary.orEmpty(), n.group) + n.tags.orEmpty() + state.items(n.id).map { it.text },
+                n.shownLabels, query)
     }
     val open = filtered.filter { !it.done }.sortedWith(noteOrder)
     val done = filtered.filter { it.done }.sortedByDescending { it.editedAt }
@@ -223,10 +235,36 @@ fun NotesScreen(repo: NoteRepository, state: UiState, sharedText: String?, onSha
                         SegmentedButton(selected = !byGroup, onClick = { byGroup = false }, shape = SegmentedButtonDefaults.itemShape(0, 2)) { Text(tr("Priority")) }
                         SegmentedButton(selected = byGroup, onClick = { byGroup = true }, shape = SegmentedButtonDefaults.itemShape(1, 2)) { Text(tr("Groups")) }
                     }
-                    if (groupNames.isNotEmpty()) {
+                    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilterChip(selected = group == null, onClick = { group = null }, label = { Text(tr("All")) })
+                        groupNames.forEach { g -> FilterChip(selected = group == g, onClick = { group = g }, label = { Text(if (world == Worlds.SCHOOL) Worlds.childName(g) else g) }) }
+                        if (world == Worlds.SCHOOL) {
+                            // One school group per child; and all of School shared at once.
+                            FilterChip(selected = false, onClick = { asking = "child" }, label = { Text(tr("＋ Child")) })
+                            val schoolShares = schoolShareCount
+                            FilterChip(selected = schoolShares > 0, onClick = { sharingGroup = "school" to "School" },
+                                label = { Text("👥 " + if (schoolShares > 0) tr("School shared · {n}").replace("{n}", "$schoolShares") else tr("Share School")) })
+                        } else {
+                            FilterChip(selected = false, onClick = { asking = "group" }, label = { Text(tr("＋ Group")) })
+                        }
+                    }
+                    // Labels, like Gmail's (Premium): tap one to see only its notes.
+                    if (state.labels.labels.isNotEmpty()) {
                         Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            FilterChip(selected = group == null, onClick = { group = null }, label = { Text(tr("All")) })
-                            groupNames.forEach { g -> FilterChip(selected = group == g, onClick = { group = g }, label = { Text(if (world == Worlds.SCHOOL) g.removePrefix(Worlds.SCHOOL_PREFIX) else g) }) }
+                            state.labels.labels.forEach { l ->
+                                LabelChip(state, l.name, selected = activeLabel == null || activeLabel == l.name) { label = if (activeLabel == l.name) null else l.name }
+                            }
+                            if (state.labels.allowed) FilterChip(selected = false, onClick = { asking = "label" }, label = { Text(tr("＋ Label")) })
+                        }
+                    }
+                    if (state.suggestions.isNotEmpty() && query.isBlank() && group == null) {
+                        val top = state.suggestions.firstOrNull { it.top }
+                        Surface(onClick = { suggested = true }, color = MaterialTheme.colorScheme.secondaryContainer, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
+                            Text(
+                                if (top != null) "⭐ " + tr("Your top to-do today:") + " " + top.title
+                                else "✨ " + tr("Suggested to-dos to review: {n}").replace("{n}", "${state.suggestions.size}"),
+                                modifier = Modifier.padding(12.dp),
+                            )
                         }
                     }
                     if (!state.aiEnabled) {
@@ -238,14 +276,25 @@ fun NotesScreen(repo: NoteRepository, state: UiState, sharedText: String?, onSha
             sections.forEach { section ->
                 stickyHeader(key = "h-" + section.title) {
                     Surface(color = MaterialTheme.colorScheme.background, modifier = Modifier.fillMaxWidth()) {
-                        Text("${section.title.uppercase()}  ${section.notes.size}",
-                            style = MaterialTheme.typography.labelLarge,
-                            color = section.color ?: MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("${section.title.uppercase()}  ${section.notes.size}",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = section.color ?: MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.weight(1f).padding(horizontal = 16.dp, vertical = 8.dp))
+                            // In Groups view: which world the group is in (tap to move it), and share the whole group.
+                            if (byGroup && section.title != ai.record.core.SHARED_GROUP) {
+                                val g = section.title
+                                TextButton(onClick = {
+                                    val next = when (Worlds.of(g, chosenWorlds)) { Worlds.WORK -> Worlds.FAMILY; Worlds.FAMILY -> Worlds.SCHOOL; Worlds.SCHOOL -> ""; else -> Worlds.WORK }
+                                    scope.launch { moveToWorld(repo, context, g, next) }
+                                }) { Text(worldLabel(Worlds.of(g, chosenWorlds)), style = MaterialTheme.typography.labelMedium) }
+                                TextButton(onClick = { sharingGroup = "group" to g }) { Text("👥", style = MaterialTheme.typography.labelLarge) }
+                            }
+                        }
                     }
                 }
                 items(section.notes, key = { it.id }) { note ->
-                    NoteRow(repo, state, note, showGroup = !byGroup, onOpen = { editing = note.id }, onDone = {
+                    NoteRow(repo, state, note, showGroup = !byGroup, onOpen = { editing = note.id }, onLabel = { label = it }, onDone = {
                         repo.setDone(note.id, true)
                         notify(tr("Marked done")) { repo.setDone(note.id, false) }
                     })
@@ -284,6 +333,29 @@ fun NotesScreen(repo: NoteRepository, state: UiState, sharedText: String?, onSha
 
     editing?.let { id -> NoteEditor(repo, state, id, onClose = { editing = null }) }
     if (account) AccountDialog(repo, state, onClose = { account = false })
+    if (suggested) SuggestionsDialog(repo, state, onClose = { suggested = false })
+    sharingGroup?.let { (kind, target) ->
+        ShareDialog(repo, kind, target, if (kind == "school") tr("🎒 School") else target, onClose = { sharingGroup = null })
+    }
+    when (asking) {
+        "child" -> NameDialog(tr("＋ Child"), tr("Your child's first name.\nSchool notes about them go in their own group:"), onClose = { asking = null }) { name ->
+            scope.launch {
+                runCatching { repo.addMyGroup(Worlds.childGroup(name)) }
+                    .onSuccess { g -> group = g; notify(tr("Added")) }
+                    .onFailure { notify(it.message ?: tr("You need to be online for this.")) }
+            }
+        }
+        "group" -> NameDialog(tr("＋ Group"), tr("New group (for example Baby or Work).\nThe AI will put matching notes in it:"), onClose = { asking = null }) { name ->
+            scope.launch {
+                runCatching { repo.addMyGroup(name) }
+                    .onSuccess { notify(tr("Added")) }
+                    .onFailure { notify(it.message ?: tr("You need to be online for this.")) }
+            }
+        }
+        "label" -> NameDialog(tr("＋ Label"), tr("New label (for example Leo, Bills or Doctor):"), onClose = { asking = null }) { name ->
+            scope.launch { runCatching { repo.addLabel(name) }.onFailure { notify(it.message ?: tr("You need to be online for this.")) } }
+        }
+    }
 
     if (confirmClear) {
         val mine = done.filter { !it.shared }
@@ -321,7 +393,7 @@ fun NotesScreen(repo: NoteRepository, state: UiState, sharedText: String?, onSha
 
 /** One note in the list. */
 @Composable
-private fun NoteRow(repo: NoteRepository, state: UiState, note: Note, showGroup: Boolean, onOpen: () -> Unit, onDone: () -> Unit) {
+private fun NoteRow(repo: NoteRepository, state: UiState, note: Note, showGroup: Boolean, onOpen: () -> Unit, onLabel: (String) -> Unit = {}, onDone: () -> Unit) {
     Row(
         Modifier.fillMaxWidth().clickable(onClick = onOpen).alpha(if (note.done) 0.6f else 1f).padding(horizontal = 12.dp, vertical = 6.dp),
     ) {
@@ -352,6 +424,13 @@ private fun NoteRow(repo: NoteRepository, state: UiState, note: Note, showGroup:
             if (note.images.isNotEmpty()) {
                 Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     note.images.forEach { NoteImage(repo, it, thumb = true, modifier = Modifier.size(84.dp).clip(RoundedCornerShape(8.dp))) }
+                }
+            }
+            WhichChild(repo, state, note)
+            // Its labels; tap one to see only the notes with it.
+            if (note.shownLabels.isNotEmpty()) {
+                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    note.shownLabels.forEach { l -> LabelChip(state, l, selected = true) { onLabel(l) } }
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {

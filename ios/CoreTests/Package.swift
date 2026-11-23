@@ -1,6 +1,6 @@
 // swift-tools-version: 5.9
-// Tests for the iPhone app's rules that don't need the screen: the Work and
-// Family worlds and the translations. The sources are links to the app's own
+// Tests for the iPhone app's rules that don't need the screen: the worlds,
+// labels, search and the translations. The sources are copies of the app's own
 // files. Run on a Mac: swift test --package-path ios/CoreTests
 import PackageDescription
 

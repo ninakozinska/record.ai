@@ -1,6 +1,12 @@
 import SwiftUI
 
 private struct EditTarget: Identifiable { let id: String }
+/// What to share from the list: a whole group, or all of School.
+private struct ShareTarget: Identifiable {
+    let kind: String
+    let target: String
+    var id: String { kind + ":" + target }
+}
 
 /// The main screen: write a note at the bottom, notes sorted by priority or group above.
 struct NotesView: View {
@@ -9,7 +15,13 @@ struct NotesView: View {
     @State private var query = ""
     @State private var group: String?
     @AppStorage("world") private var world = Worlds.all
-    @State private var chosenWorlds: [String: String] = [:]
+    @State private var label: String?
+    /// A name being asked for: "group", "child" or "label".
+    @State private var asking: String?
+    @State private var newName = ""
+    @State private var sharingGroup: ShareTarget?
+    @State private var showSuggested = false
+    @State private var schoolShares = 0
     @State private var showDone = false
     @State private var editing: EditTarget?
     @State private var showAccount = false
@@ -31,10 +43,22 @@ struct NotesView: View {
                     .onChange(of: world) { _, _ in group = nil }
                 }
                 .listRowBackground(Color.clear)
-                if !groupNames.isEmpty {
-                    Section { groupChips }
-                        .listRowInsets(EdgeInsets())
-                        .listRowBackground(Color.clear)
+                Section {
+                    groupChips
+                    if !store.labelsState.labels.isEmpty { labelChips }
+                }
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
+                if !store.suggestions.isEmpty && query.isEmpty && group == nil {
+                    Section {
+                        Button { showSuggested = true } label: {
+                            if let top = store.suggestions.first(where: { $0.top == true }) {
+                                Text("⭐ " + tr("Your top to-do today:") + " " + top.title)
+                            } else {
+                                Text("✨ " + tr("Suggested to-dos to review: {n}").replacingOccurrences(of: "{n}", with: "\(store.suggestions.count)"))
+                            }
+                        }
+                    }
                 }
                 if !store.isAIEnabled {
                     Section {
@@ -46,7 +70,7 @@ struct NotesView: View {
                 ForEach(sections, id: \.title) { section in
                     Section {
                         ForEach(section.notes) { note in
-                            NoteRow(note: note, showGroup: viewMode == "priority") { markDone(note) }
+                            NoteRow(note: note, showGroup: viewMode == "priority", onLabel: { label = $0 }, onDone: { markDone(note) })
                                 .contentShape(Rectangle())
                                 .onTapGesture { editing = EditTarget(id: note.id) }
                                 .swipeActions(edge: .trailing) {
@@ -61,8 +85,21 @@ struct NotesView: View {
                                 }
                         }
                     } header: {
-                        Text("\(section.title)  \(section.notes.count)")
-                            .foregroundStyle(section.color)
+                        HStack {
+                            Text("\(section.title)  \(section.notes.count)")
+                                .foregroundStyle(section.color)
+                            // In Groups view: the group's world (tap to move it), and share the whole group.
+                            if viewMode == "groups" && section.title != Note.sharedGroup {
+                                Spacer()
+                                Button(worldLabel(Worlds.of(section.title, chosen: store.chosenWorlds))) { cycleWorld(section.title) }
+                                    .font(.caption)
+                                    .textCase(nil)
+                                Button { sharingGroup = ShareTarget(kind: "group", target: section.title) } label: {
+                                    Image(systemName: "person.badge.plus")
+                                }
+                                .accessibilityLabel(tr("Share"))
+                            }
+                        }
                     }
                 }
                 if open.isEmpty {
@@ -89,7 +126,7 @@ struct NotesView: View {
                         }
                         if showDone {
                             ForEach(done) { note in
-                                NoteRow(note: note, showGroup: true) { markDone(note) }
+                                NoteRow(note: note, showGroup: true, onDone: { markDone(note) })
                                     .contentShape(Rectangle())
                                     .onTapGesture { editing = EditTarget(id: note.id) }
                             }
@@ -99,11 +136,14 @@ struct NotesView: View {
             }
             .listStyle(.insetGrouped)
             .searchable(text: $query, prompt: tr("Search notes"))
-            .task(id: store.user?.id) { chosenWorlds = await store.worlds() }
+            .task(id: store.user?.id) {
+                await store.refreshAccount()
+                await loadSchoolShares()
+            }
             .refreshable {
-                chosenWorlds = await store.worlds()
                 await store.pull()
                 await store.flush()
+                await store.refreshAccount()
             }
             .navigationTitle("SortMemo")
             .navigationBarTitleDisplayMode(.inline)
@@ -141,6 +181,17 @@ struct NotesView: View {
             .safeAreaInset(edge: .bottom) { ComposerView() }
             .sheet(item: $editing) { target in NoteDetailView(noteId: target.id) }
             .sheet(isPresented: $showAccount) { AccountView() }
+            .sheet(isPresented: $showSuggested) { SuggestionsView() }
+            .sheet(item: $sharingGroup, onDismiss: { Task { await loadSchoolShares() } }) { t in
+                ShareView(kind: t.kind, target: t.target, label: t.kind == "school" ? tr("🎒 School") : t.target)
+            }
+            .alert(askTitle, isPresented: Binding(get: { asking != nil }, set: { if !$0 { asking = nil } })) {
+                TextField(askPrompt, text: $newName)
+                Button(tr("Add")) { addName() }
+                Button(tr("Cancel"), role: .cancel) { newName = "" }
+            } message: {
+                Text(askPrompt)
+            }
             .overlay(alignment: .top) {
                 if let message {
                     HStack(spacing: 12) {
@@ -184,12 +235,35 @@ struct NotesView: View {
             HStack(spacing: 8) {
                 chip(tr("All"), selected: group == nil) { group = nil }
                 ForEach(groupNames, id: \.self) { name in
-                    chip(world == Worlds.school && name.hasPrefix(Worlds.schoolPrefix) ? String(name.dropFirst(Worlds.schoolPrefix.count)) : name,
-                         selected: group == name) { group = name }
+                    chip(world == Worlds.school ? Worlds.childName(name) : name, selected: group == name) { group = name }
+                }
+                if world == Worlds.school {
+                    // One school group per child; and all of School shared at once.
+                    chip(tr("＋ Child"), selected: false) { ask("child") }
+                    chip("👥 " + (schoolShares > 0 ? tr("School shared · {n}").replacingOccurrences(of: "{n}", with: "\(schoolShares)") : tr("Share School")),
+                         selected: false) { sharingGroup = ShareTarget(kind: "school", target: "School") }
+                } else {
+                    chip(tr("＋ Group"), selected: false) { ask("group") }
                 }
             }
             .padding(.horizontal, 4)
             .padding(.vertical, 6)
+        }
+    }
+
+    /// Labels, like Gmail's (Premium): tap one to see only its notes.
+    private var labelChips: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(store.labelsState.labels, id: \.name) { l in
+                    LabelChip(name: l.name, color: l.color, on: activeLabel == nil || activeLabel == l.name) {
+                        label = activeLabel == l.name ? nil : l.name
+                    }
+                }
+                if store.labelsState.allowed { chip(tr("＋ Label"), selected: false) { ask("label") } }
+            }
+            .padding(.horizontal, 4)
+            .padding(.bottom, 6)
         }
     }
 
@@ -204,6 +278,76 @@ struct NotesView: View {
         .buttonStyle(.plain)
     }
 
+    // MARK: Groups, children, labels
+
+    private func ask(_ what: String) {
+        newName = ""
+        asking = what
+    }
+
+    private var askTitle: String {
+        switch asking {
+        case "child": return tr("＋ Child")
+        case "label": return tr("＋ Label")
+        default: return tr("＋ Group")
+        }
+    }
+
+    private var askPrompt: String {
+        switch asking {
+        case "child": return tr("Your child's first name.\nSchool notes about them go in their own group:")
+        case "label": return tr("New label (for example Leo, Bills or Doctor):")
+        default: return tr("New group (for example Baby or Work).\nThe AI will put matching notes in it:")
+        }
+    }
+
+    private func addName() {
+        let name = newName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let what = asking
+        newName = ""
+        guard !name.isEmpty else { return }
+        Task {
+            do {
+                switch what {
+                case "child":
+                    group = try await store.addMyGroup(Worlds.childGroup(name))
+                    show(tr("Added"))
+                case "label":
+                    _ = try await store.addLabel(name)
+                default:
+                    try await store.addMyGroup(name)
+                    show(tr("Added"))
+                }
+            } catch {
+                show(error.localizedDescription)
+            }
+        }
+    }
+
+    /// Work → Family → School → all worlds → Work, for one group, on every device.
+    private func cycleWorld(_ group: String) {
+        let next: String
+        switch Worlds.of(group, chosen: store.chosenWorlds) {
+        case Worlds.work: next = Worlds.family
+        case Worlds.family: next = Worlds.school
+        case Worlds.school: next = ""
+        default: next = Worlds.work
+        }
+        Task {
+            do {
+                try await store.setWorld(group, next)
+                show(worldMoved(group, next))
+            } catch {
+                show(error.localizedDescription)
+            }
+        }
+    }
+
+    private func loadSchoolShares() async {
+        let mine = try? await store.shares().mine
+        if let mine { schoolShares = mine.filter { $0.kind == "school" }.count }
+    }
+
     // MARK: Data
 
     private struct NoteSection {
@@ -213,17 +357,22 @@ struct NotesView: View {
     }
 
     private var groupNames: [String] {
-        store.groupNames.filter { Worlds.shows($0, in: world, chosen: chosenWorlds) }
+        Worlds.withMyGroups(store.groupNames, store.myGroups).filter { Worlds.shows($0, in: world, chosen: store.chosenWorlds) }
+    }
+
+    /// A label that was removed (on another device, say) no longer filters.
+    private var activeLabel: String? {
+        guard let label, store.labelsState.labels.contains(where: { $0.name == label }) else { return nil }
+        return label
     }
 
     private var filtered: [Note] {
-        let words = query.lowercased().split(separator: " ").map(String.init)
-        return store.visibleNotes.filter { n in
-            if !Worlds.shows(n.group, in: world, chosen: chosenWorlds) { return false }
+        store.visibleNotes.filter { n in
+            if !Worlds.shows(n.group, in: world, chosen: store.chosenWorlds) { return false }
             if let group, n.group != group { return false }
-            if words.isEmpty { return true }
-            let hay = ([n.text, n.title ?? "", n.summary ?? "", n.group] + (n.tags ?? [])).joined(separator: " ").lowercased()
-            return words.allSatisfy { hay.contains($0) }
+            if let activeLabel, !n.shownLabels.contains(activeLabel) { return false }
+            let fields = [n.text, n.title ?? "", n.summary ?? "", n.group] + (n.tags ?? []) + store.items(of: n.id).map(\.text)
+            return NoteSearch.matches(fields: fields, labels: n.shownLabels, query: query)
         }
     }
 
@@ -281,6 +430,7 @@ struct NoteRow: View {
     @Environment(NoteStore.self) private var store
     var note: Note
     var showGroup: Bool
+    var onLabel: (String) -> Void = { _ in }
     var onDone: () -> Void = {}
 
     var body: some View {
@@ -319,6 +469,17 @@ struct NoteRow: View {
                                 NoteImage(name: name)
                                     .frame(width: 84, height: 84)
                                     .clipShape(RoundedRectangle(cornerRadius: 8))
+                            }
+                        }
+                    }
+                }
+                WhichChildRow(note: note)
+                // Its labels; tap one to see only the notes with it.
+                if !note.shownLabels.isEmpty {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 6) {
+                            ForEach(note.shownLabels, id: \.self) { l in
+                                LabelChip(name: l, color: store.labelsState.color(of: l), on: true) { onLabel(l) }
                             }
                         }
                     }

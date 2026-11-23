@@ -20,6 +20,9 @@ struct NoteDetailView: View {
     @State private var people = People(people: [], family: false)
     @State private var working = false
     @State private var canReadAloud = false
+    @State private var labels: [String] = []
+    @State private var askLabel = false
+    @State private var newLabel = ""
 
     private var canEdit: Bool { note?.canEdit ?? true }
     private var isShared: Bool { note?.isShared ?? false }
@@ -92,10 +95,21 @@ struct NoteDetailView: View {
                 }
                 if !isShared { Section {
                     TextField(groupPlaceholder, text: $group)
+                    // The world of the note's group: moves the whole group, on every device.
+                    Picker(tr("World"), selection: Binding(
+                        get: { Worlds.of(worldGroup, chosen: store.chosenWorlds) ?? "" },
+                        set: { w in moveWorld(w) }
+                    )) {
+                        Text(tr("💼 Work")).tag(Worlds.work)
+                        Text(tr("🏡 Family")).tag(Worlds.family)
+                        Text(tr("🎒 School")).tag(Worlds.school)
+                        Text(tr("All worlds")).tag("")
+                    }
                     Picker(tr("Priority"), selection: $priority) {
                         Text(autoPriorityLabel).tag("")
                         ForEach(Priority.allCases) { p in Text(p.label).tag(p.rawValue) }
                     }
+                    labelsRow
                 } header: {
                     Text(tr("Sorting"))
                 } footer: {
@@ -176,6 +190,13 @@ struct NoteDetailView: View {
                 }
             }
             .sheet(isPresented: $sharing) { ShareView(kind: "note", target: noteId, label: note?.displayTitle ?? tr("Note")) }
+            .alert(tr("＋ Label"), isPresented: $askLabel) {
+                TextField(tr("New label (for example Leo, Bills or Doctor):"), text: $newLabel)
+                Button(tr("Add")) { addLabel() }
+                Button(tr("Cancel"), role: .cancel) { newLabel = "" }
+            } message: {
+                Text(tr("New label (for example Leo, Bills or Doctor):"))
+            }
             .onAppear(perform: load)
             .task {
                 people = await store.people()
@@ -193,12 +214,64 @@ struct NoteDetailView: View {
             .sorted { $0.createdAt < $1.createdAt }
             .map { ($0.done ? "☑ " : "☐ ") + $0.text }
             .joined(separator: "\n")
-        let when = note.dueDate.map { "📅 " + $0 + (note.dueTime.map { " " + $0 } ?? "") } ?? ""
+        let when = note.dueDay.map { "📅 " + $0 + (note.dueHour.map { " " + $0 } ?? "") } ?? ""
         // The short link: "sortmemo.com/s" (messaging apps make it clickable without https://).
         let base = store.serverURL?.absoluteString ?? "https://sortmemo.com"
         let link = (base.hasPrefix("https://") ? String(base.dropFirst(8)) : base) + "/s"
         let footer = "— " + tr("Sent from SortMemo") + ": " + link
         return [title, body == title ? "" : body, items, when].filter { !$0.isEmpty }.joined(separator: "\n\n") + "\n\n" + footer
+    }
+
+    /// The group whose world is shown: the one typed here, else the note's.
+    private var worldGroup: String {
+        let g = group.trimmingCharacters(in: .whitespaces)
+        return g.isEmpty ? (note?.group ?? "Inbox") : g
+    }
+
+    private func moveWorld(_ world: String) {
+        let g = worldGroup
+        Task {
+            do {
+                try await store.setWorld(g, world)
+                info = worldMoved(g, world)
+            } catch {
+                info = error.localizedDescription
+            }
+        }
+    }
+
+    /// Labels, like Gmail's: several per note (Premium).
+    @ViewBuilder private var labelsRow: some View {
+        if !store.labelsState.allowed {
+            Text(tr("🏷 Labels, like in Gmail: several per note, search by label. Part of Premium."))
+                .font(.footnote).foregroundStyle(.secondary)
+        } else {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 6) {
+                    ForEach(store.labelsState.choices(onNote: labels), id: \.self) { l in
+                        LabelChip(name: l, color: store.labelsState.color(of: l), on: labels.contains(l)) {
+                            labels = Labels.toggle(labels, l)
+                        }
+                    }
+                    Button(tr("＋ Label")) { newLabel = ""; askLabel = true }
+                        .buttonStyle(.borderless)
+                        .font(.caption)
+                }
+            }
+        }
+    }
+
+    private func addLabel() {
+        let name = newLabel
+        newLabel = ""
+        Task {
+            do {
+                let saved = try await store.addLabel(name)
+                if !labels.contains(saved) { labels.append(saved) }
+            } catch {
+                info = error.localizedDescription
+            }
+        }
     }
 
     private var groupPlaceholder: String {
@@ -224,6 +297,7 @@ struct NoteDetailView: View {
         due = note.userDue
         remind = note.remind ?? -1
         assignee = note.assignedTo ?? ""
+        labels = note.shownLabels
         loaded = true
     }
 
@@ -243,7 +317,9 @@ struct NoteDetailView: View {
             if who == nil || isMe || people.family == true { patch["assigned_to"] = who.map { $0 as Any } ?? NSNull() }
             else { info = tr("Giving tasks to others is part of the Family plan.") }
         }
-        if note.isShared { for k in ["user_group", "user_priority", "user_due", "remind"] { patch[k] = nil } }
+        // Labels are Premium: a free account's choice would not be kept by the server.
+        if store.labelsState.allowed && labels != note.shownLabels { patch["user_labels"] = labels }
+        if note.isShared { for k in ["user_group", "user_priority", "user_due", "remind", "user_labels"] { patch[k] = nil } }
         if !patch.isEmpty { store.save(id: noteId, patch: patch) }
     }
 }

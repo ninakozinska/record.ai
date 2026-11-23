@@ -32,10 +32,10 @@ import androidx.compose.ui.unit.dp
 import ai.record.core.NoteRepository
 import kotlinx.coroutines.launch
 
-/** First screen: where is the SortMemo server? */
+/** Where are the notes? sortmemo.com, or a SortMemo server of your own. */
 @Composable
 fun ConnectScreen(repo: NoteRepository) {
-    var address by remember { mutableStateOf("") }
+    var address by remember { mutableStateOf("sortmemo.com") }
     var error by remember { mutableStateOf<String?>(null) }
     var busy by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
@@ -54,14 +54,14 @@ fun ConnectScreen(repo: NoteRepository) {
         Icon(Icons.Filled.Edit, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
         Text(tr("Connect to your notes"), style = MaterialTheme.typography.headlineSmall)
         Text(
-            tr("Enter the address of your SortMemo server. On your computer, open SortMemo in the browser and tap your initials (top right): the address is shown there."),
+            tr("SortMemo keeps your notes at sortmemo.com. If you run your own SortMemo server, type its address instead: open SortMemo in the browser on that computer and tap your initials (top right) to see it."),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         OutlinedTextField(
             value = address,
             onValueChange = { address = it },
             label = { Text(tr("Server address")) },
-            placeholder = { Text("http://192.168.1.20:3000") },
+            placeholder = { Text("sortmemo.com") },
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Go),
             keyboardActions = KeyboardActions(onGo = { if (!busy) connect() }),
@@ -72,7 +72,7 @@ fun ConnectScreen(repo: NoteRepository) {
             if (busy) CircularProgressIndicator(Modifier.padding(end = 8.dp)) else Text(tr("Connect"))
         }
         Text(
-            tr("Your phone and your computer must be on the same network, or connected with Tailscale."),
+            tr("Your own server at home: your phone and that computer must be on the same network, or connected with Tailscale."),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

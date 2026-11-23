@@ -42,6 +42,8 @@ import androidx.compose.ui.window.DialogProperties
 import ai.record.core.NoteRepository
 import ai.record.core.Priority
 import ai.record.core.UiState
+import ai.record.core.Labels
+import ai.record.core.Worlds
 import kotlinx.coroutines.launch
 
 /** Open a note: edit it, see what the AI found, choose a group or priority yourself. */
@@ -57,6 +59,8 @@ fun NoteEditor(repo: NoteRepository, state: UiState, id: String, onClose: () -> 
     var due by remember(id) { mutableStateOf(note.userDue) }
     var remind by remember(id) { mutableStateOf(note.remind) }
     var assignee by remember(id) { mutableStateOf(note.assignedTo) }
+    var labels by remember(id) { mutableStateOf(note.shownLabels) }
+    var askLabel by remember { mutableStateOf(false) }
     var people by remember { mutableStateOf(People()) }
     var working by remember { mutableStateOf(false) }
     var canReadAloud by remember { mutableStateOf(false) }
@@ -80,8 +84,10 @@ fun NoteEditor(repo: NoteRepository, state: UiState, id: String, onClose: () -> 
         if (due != note.userDue) patch["user_due"] = due
         if (remind != note.remind) patch["remind"] = remind
         if (assignee != note.assignedTo) patch["assigned_to"] = assignee
+        // Labels are Premium: a free account's choice would not be kept by the server.
+        if (state.labels.allowed && labels != note.shownLabels) patch["user_labels"] = labels
         if (!canEdit) return
-        if (note.shared) patch -= setOf("user_group", "user_priority", "user_due", "remind")
+        if (note.shared) patch -= setOf("user_group", "user_priority", "user_due", "remind", "user_labels")
         if (patch.isNotEmpty()) repo.save(id, patch)
     }
 
@@ -164,6 +170,35 @@ fun NoteEditor(repo: NoteRepository, state: UiState, id: String, onClose: () -> 
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
+                // The world of the note's group (moves the whole group, on every device).
+                val worldGroup = group.trim().ifEmpty { note.group }
+                if (!note.shared) {
+                    Text(tr("World"), style = MaterialTheme.typography.labelLarge)
+                    val current = Worlds.of(worldGroup, state.worlds).orEmpty()
+                    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf(Worlds.WORK, Worlds.FAMILY, Worlds.SCHOOL, "").forEach { w ->
+                            FilterChip(selected = current == w, onClick = {
+                                if (current != w) scope.launch { moveToWorld(repo, context, worldGroup, w) }
+                            }, label = { Text(worldLabel(w.ifEmpty { null })) })
+                        }
+                    }
+                }
+                // Labels, like Gmail's: several per note (Premium).
+                if (!note.shared) {
+                    if (!state.labels.allowed) {
+                        Text(tr("🏷 Labels, like in Gmail: several per note, search by label. Part of Premium."),
+                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    } else Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        state.labels.choices(labels).forEach { l ->
+                            LabelChip(state, l, selected = l in labels) { labels = Labels.toggle(labels, l) }
+                        }
+                        FilterChip(selected = false, onClick = { askLabel = true }, label = { Text(tr("＋ Label")) })
+                    }
+                } else if (note.shownLabels.isNotEmpty()) {
+                    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        note.shownLabels.forEach { l -> LabelChip(state, l, selected = true) {} }
+                    }
+                }
                 if (!note.shared) Box {
                     OutlinedButton(onClick = { priorityMenu = true }, modifier = Modifier.fillMaxWidth()) {
                         val auto = Priority.of(note.aiPriority)?.let { "Auto (${it.label})" } ?: tr("Auto")
@@ -230,6 +265,14 @@ fun NoteEditor(repo: NoteRepository, state: UiState, id: String, onClose: () -> 
     }
 
     if (sharing) ShareDialog(repo, "note", id, note.displayTitle, onClose = { sharing = false })
+
+    if (askLabel) NameDialog(tr("＋ Label"), tr("New label (for example Leo, Bills or Doctor):"), onClose = { askLabel = false }) { name ->
+        scope.launch {
+            runCatching { repo.addLabel(name) }
+                .onSuccess { saved -> if (saved !in labels) labels = labels + saved }
+                .onFailure { error = it.message }
+        }
+    }
 
     if (confirmDelete) {
         AlertDialog(
