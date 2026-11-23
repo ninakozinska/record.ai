@@ -9,7 +9,7 @@
         android:shortcutLongLabel="@string/hear_today_long">
         <intent
             android:action="ai.record.android.HEAR_TODAY"
-            android:targetPackage="com.ninakozinska.recordai"
+            android:targetPackage="com.sortmemo.app"
             android:targetClass="ai.record.android.MainActivity" />
     </shortcut>
 </shortcuts>
