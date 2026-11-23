@@ -19,7 +19,7 @@ Requires Android 8.0 or newer.
 1. On the phone, open **github.com/ninakozinska/record.ai** → **Actions** → the latest green **Tests** run.
 2. Under **Artifacts**, download **record-ai-android** (you need to be logged in to GitHub). It's a zip; open it and tap the `.apk` file inside.
 3. Android asks to allow installing apps from this source (Chrome or Files). Tap **Settings**, turn it on, go back and tap **Install**.
-4. Open SortMemo, enter your server address (in the web app on your Mac, tap your initials to see it), and log in.
+4. Open SortMemo and log in (it uses sortmemo.com; for a server of your own, tap **Use a different server**).
 
 To update, install a newer `.apk` the same way. Your notes stay.
 
@@ -45,4 +45,4 @@ To update, install a newer `.apk` the same way. Your notes stay.
 
 The app follows the same sync rules as the web and iPhone apps; see [docs/DEVELOPMENT.md](../docs/DEVELOPMENT.md).
 
-**About the downloadable app:** it is signed with a development key, which is fine for your own phones. Publishing on Google Play needs a proper release key (see the next-steps list).
+**About the downloadable app:** it is signed with a development key, which is fine for your own phones. For Google Play, the app is signed with your upload key: see [docs/ReleaseAppStore.md](../docs/ReleaseAppStore.md) (`./gradlew :app:bundleRelease`, or the **Android release** workflow on GitHub).

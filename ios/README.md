@@ -23,7 +23,9 @@ You need a Mac with **Xcode**. Xcode is free, but it's a big download, so use Wi
    If Xcode says the bundle identifier is not available, change `com.ninakozinska.recordai` to something unique, such as `com.yourname.recordai`.
 7. At the top of the Xcode window, pick **your iPhone** as the device, then press **▶ (Run)**.
 8. The first time, the iPhone says **"Untrusted Developer"**. On the iPhone, go to Settings → **General** → **VPN & Device Management** → your Apple ID → **Trust**. Then press ▶ again.
-9. In the app, enter your server address. To find it, open SortMemo in the browser on your Mac and tap your initials (top right). Then log in.
+9. In the app, log in. It uses sortmemo.com; for a server of your own, tap **Use a different server** and type its address (open SortMemo in the browser on that computer and tap your initials, top right, to see it).
+
+To publish it on the App Store, follow [docs/ReleaseAppStore.md](../docs/ReleaseAppStore.md).
 
 **With a free Apple ID, the app stops opening after 7 days.** Connect the iPhone and press ▶ in Xcode again; your notes stay. A paid Apple Developer account ($99/year) makes it last a year and lets you share the app through TestFlight.
 

@@ -29,8 +29,8 @@ enum ReadAloud {
 
     /// "Hear today": what to say, from the server; for Siri too, which runs without the app's screen.
     static func todayText() async -> String {
-        let server = UserDefaults.standard.string(forKey: "serverURL").flatMap { URL(string: $0) }
-        guard let server, let token = Keychain.load("token") else { return tr("Log in to SortMemo first.") }
+        let server = UserDefaults.standard.string(forKey: "serverURL").flatMap { URL(string: $0) } ?? API.defaultServer
+        guard let token = Keychain.load("token") else { return tr("Log in to SortMemo first.") }
         do {
             let day = try await API(baseURL: server, token: token).get("today/spoken", as: SpokenDay.self)
             return day.canRead ? day.text : tr("Reading aloud is part of Premium.")
