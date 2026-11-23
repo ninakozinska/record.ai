@@ -11,7 +11,7 @@ android {
     defaultConfig {
         // The app's permanent name in Google Play. It can never change once the
         // app is published, and must match the app made in Play Console.
-        applicationId = "com.ninakozinska.recordai"
+        applicationId = "com.sortmemo.app"
         minSdk = 26
         targetSdk = 36
         // Raise versionCode by 1 for every upload to Google Play; versionName is what people see.

@@ -20,7 +20,7 @@ You need a Mac with **Xcode**. Xcode is free, but it's a big download, so use Wi
 4. **Connect the iPhone to the Mac with a cable** (only needed the first time). On the iPhone, tap **Trust**.
 5. In Finder, open the project folder → **ios** → double-click **RecordAI.swiftpm**. It opens in Xcode.
 6. In Xcode's left sidebar, click **SortMemo**, then the **Signing & Capabilities** tab. Under **Team**, choose your name (**Personal Team**).
-   If Xcode says the bundle identifier is not available, change `com.ninakozinska.recordai` to something unique, such as `com.yourname.recordai`.
+   If Xcode says the bundle identifier is not available, change `com.sortmemo.app` to something unique, such as `com.yourname.sortmemo` (only for your own test builds; the store version keeps com.sortmemo.app).
 7. At the top of the Xcode window, pick **your iPhone** as the device, then press **▶ (Run)**.
 8. The first time, the iPhone says **"Untrusted Developer"**. On the iPhone, go to Settings → **General** → **VPN & Device Management** → your Apple ID → **Trust**. Then press ▶ again.
 9. In the app, log in. It uses sortmemo.com; for a server of your own, tap **Use a different server** and type its address (open SortMemo in the browser on that computer and tap your initials, top right, to see it).

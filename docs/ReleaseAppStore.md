@@ -29,8 +29,8 @@ summed up at the end of this guide).
 |---|---|
 | App name in the stores | **SortMemo: AI Notes & Lists** (26 characters; at most 30). If Apple says the name is taken, use **SortMemo – Family Notes**. |
 | Name under the icon on the phone | SortMemo |
-| iPhone **Bundle ID** | `com.ninakozinska.recordai` |
-| Android **package name** (applicationId) | `com.ninakozinska.recordai` |
+| iPhone **Bundle ID** | `com.sortmemo.app` |
+| Android **package name** (applicationId) | `com.sortmemo.app` |
 | Version | **1.0.0** (iPhone build **1**, Android version code **1**) |
 | Category | Productivity (Apple second category: Lifestyle) |
 | Price | Free. Version 1.0.0 sells nothing inside the app (see "Premium" below). |
@@ -164,7 +164,7 @@ simpler and can be moved to an organization later through Apple support.
 1. Go to developer.apple.com/account → **Certificates, IDs & Profiles** →
    **Identifiers** → the blue **+**.
 2. Choose **App IDs** → Continue → **App** → Continue.
-3. Description: `SortMemo`. Bundle ID: **Explicit**, `com.ninakozinska.recordai`
+3. Description: `SortMemo`. Bundle ID: **Explicit**, `com.sortmemo.app`
    (or the new one you decided on).
 4. Leave all capabilities off. **Continue** → **Register**.
 
@@ -172,7 +172,7 @@ simpler and can be moved to an organization later through Apple support.
 
 1. Go to appstoreconnect.apple.com → **Apps** → **+** → **New App**.
 2. Platforms: **iOS**. Name: **SortMemo: AI Notes & Lists**. Primary language:
-   **English (U.S.)**. Bundle ID: choose `com.ninakozinska.recordai` from the
+   **English (U.S.)**. Bundle ID: choose `com.sortmemo.app` from the
    list. SKU: `sortmemo-ios`. User access: **Full Access**. Click **Create**.
 3. Under the app's **App Information** page, add **Italian** (top right,
    next to the language name) and the other languages from STORE.md if you
@@ -186,7 +186,7 @@ simpler and can be moved to an organization later through Apple support.
 2. In the left sidebar click **SortMemo** (the top line), then the
    **Signing & Capabilities** tab. Under **Team** choose your paid team (your
    name or company, **not** "Personal Team"). Check that the Bundle Identifier
-   says `com.ninakozinska.recordai`.
+   says `com.sortmemo.app`.
 3. At the top of the window, where it shows a device, choose **Any iOS Device
    (arm64)**.
 4. Menu **Product** → **Archive**. Wait a few minutes. The **Organizer** window
@@ -469,7 +469,7 @@ android/app/build.gradle.kts (2, 3, …) and `versionName` for each new release
 2. App name: **SortMemo: AI Notes & Lists**. Default language: **English (United
    States) – en-US**. App or game: **App**. Free or paid: **Free**. Tick the
    two declarations → **Create app**.
-3. The package name is set by the first upload (B6): `com.ninakozinska.recordai`.
+3. The package name is set by the first upload (B6): `com.sortmemo.app`.
 
 ### B5. "Set up your app": the forms 🔐
 
@@ -624,7 +624,7 @@ Before you submit:
 - [ ] 🔐 Test email sent to support@sortmemo.com, and it arrived
 - [ ] 🔐 Sign-up stays invite-only; review notes say "Sign-up is invite-only during our alpha; please use the demo account above." (optional: an "App Review" invite code)
 - [ ] 🔐 Demo account made, logs in, shows example notes and Premium (change its password after the review)
-- [ ] 🔐 Decided: keep `com.ninakozinska.recordai` (or changed it **before** the first upload)
+- [x] Decided: the app ID is `com.sortmemo.app` (23 Nov 2026; it can never change after the first upload)
 - [ ] 🔐 Decided what to answer if Apple asks for in-app purchase
 - [ ] 🔐 EU trader details entered (Apple and Google)
 

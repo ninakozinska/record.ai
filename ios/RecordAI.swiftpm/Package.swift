@@ -19,7 +19,7 @@ let package = Package(
             targets: ["AppModule"],
             // The app's permanent name in the App Store: it must match the app made
             // in App Store Connect, and can never change once the app is published.
-            bundleIdentifier: "com.ninakozinska.recordai",
+            bundleIdentifier: "com.sortmemo.app",
             teamIdentifier: "",
             // What people see (1.0.0), and the build number: raise the build number
             // by 1 for every upload to App Store Connect.
