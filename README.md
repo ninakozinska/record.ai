@@ -80,6 +80,7 @@ There are **native phone apps** for iPhone ([`ios/`](ios/)) and Android ([`andro
 
 - iPhone: see [ios/README.md](ios/README.md) (needs a Mac with Xcode).
 - Android: see [android/README.md](android/README.md) (download the app from GitHub, or build it with Android Studio).
+- Publishing them on the App Store and Google Play, step by step: [docs/ReleaseAppStore.md](docs/ReleaseAppStore.md) (store texts in [docs/STORE.md](docs/STORE.md); what each app can do: [docs/PARITY.md](docs/PARITY.md)).
 
 ## Install it on your devices
 
@@ -125,7 +126,7 @@ Open your server's URL, log in, then:
 | `RESEND_API_KEY`, `MAIL_FROM` | *(none)* | Sends "Forgot your password?" emails through [Resend](https://resend.com) (`MAIL_FROM` like `SortMemo <hello@your-domain>`, on a domain verified there). Without them the reset link is only written to the server log. |
 | `MAIL_REPLY_TO` | *(none)* | Where replies to those emails go, such as `support@your-domain` (a mailbox you read). |
 | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_SOLO`, `STRIPE_PRICE_FAMILY` | *(none)* | Opens payments for Solo and Family through Stripe. Step by step: [docs/PAYMENTS.md](docs/PAYMENTS.md). |
-| `PUBLIC_URL` | *(the address used)* | The app's public address, used in emailed links (e.g. `https://record-ai-nina.fly.dev`). |
+| `PUBLIC_URL` | *(the address used)* | The app's public address, used in emailed links (e.g. `https://sortmemo.com`). |
 | `PORT` | `3000` | HTTP port. |
 | `TRUST_PROXY` | `loopback` | Which proxy to believe about visitors' addresses. Behind a host's proxy (Fly.io, Render) set `1`, or one person's wrong passwords slow down everyone. |
 | `DATA_DIR` | `./data` | Where the SQLite database and photos are stored. **Back this up.** |
