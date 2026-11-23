@@ -299,9 +299,10 @@ final class NoteStore {
         if let w { chosenWorlds = w.chosen }
         let s = try? await api.get("suggestions", as: SuggestionList.self)
         if let s { suggestions = s.suggestions }
+        // The server says null until a language was chosen.
         let data = try? await api.request("language")
         let answer = data.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
-        if let lang = answer?["lang"] as? String, lang != appLanguage {
+        if let answer, (answer["lang"] as? String) != appLanguage {
             _ = try? await api.request("language", method: "PUT", json: ["lang": appLanguage])
         }
         saveCache()

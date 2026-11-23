@@ -207,10 +207,10 @@ class Api(val baseUrl: String, private val token: String?, private val client: O
             put("labels", JsonArray(labels.map { l -> buildJsonObject { put("name", l.name); put("color", l.color) } }))
         }))).labels
 
-    @kotlinx.serialization.Serializable private data class Language(val lang: String = "en")
+    @kotlinx.serialization.Serializable private data class Language(val lang: String? = null)
 
     /** The language the AI names new groups in (the app's words follow the phone). */
-    suspend fun language(): String = decode<Language>(call("language")).lang
+    suspend fun language(): String? = decode<Language>(call("language")).lang
 
     suspend fun setLanguage(lang: String) { call("language", "PUT", jsonBody(buildJsonObject { put("lang", lang) })) }
 
