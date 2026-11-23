@@ -1,5 +1,11 @@
 # SortMemo on sortmemo.com
 
+**Status: done 22 Nov 2026.** Fly certificates for sortmemo.com and
+www.sortmemo.com are issued, sortmemos.com and notescircle.com forward to
+sortmemo.com, `PUBLIC_URL` in fly.toml is https://sortmemo.com, and the old
+sortnotes.com certificates are removed from Fly. Step 3 waits until a sign-in
+or calendar service is registered.
+
 The app is renamed SortMemo everywhere people see it. It still runs at
 https://record-ai-nina.fly.dev and, since 22 November 2026, at
 **https://sortmemo.com** (the main address). The old one keeps working.
@@ -44,9 +50,12 @@ Claude changes `PUBLIC_URL` in fly.toml to https://sortmemo.com and the uptime
 check to the new address, and merges once the tests pass. From then on,
 password emails, invite links and sign-in use the new address.
 
-## 3. Tell the sign-in and calendar services the new address (5 minutes each)
+## 3. Tell the sign-in and calendar services the address (5 minutes each)
 
-Add these addresses **next to** the old ones (keep the old ones for a month):
+No sign-in or calendar service is registered yet (only email and password
+sign-in is live), so there is nothing to do now. Do this only when you
+register one (docs/SOCIAL_LOGIN.md, docs/CALENDARS.md), and register it with
+sortmemo.com from the start:
 
 | Service | Where | Address to add |
 |---|---|---|
@@ -57,8 +66,7 @@ Add these addresses **next to** the old ones (keep the old ones for a month):
 | GitHub sign-in | GitHub → Settings → Developer settings → OAuth Apps → your app → Authorization callback URL | https://sortmemo.com/api/auth/oauth/github/callback |
 | Apple sign-in (when set up) | Apple Developer → Identifiers → your Services ID → Return URLs | https://sortmemo.com/api/auth/oauth/apple/callback |
 
-Only services you have already registered need this. GitHub allows one
-callback URL per app: change it when step 2 is done.
+GitHub allows one callback URL per app: use the sortmemo.com one.
 
 ## 4. The other two domains forward to sortmemo.com
 
@@ -74,4 +82,4 @@ future family-sharing plan) simply send visitors on. For each, in GoDaddy:
 ## 5. Emails from your own address
 
 Resend for the emails the app sends, and iCloud+ for your own mailbox
-(nina@ and support@sortmemo.com): every step is in EMAIL.md.
+(nina@, support@ and hello@sortmemo.com): done, every step is in EMAIL.md.

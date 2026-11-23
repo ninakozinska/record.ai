@@ -14,15 +14,17 @@ Every provider asks: *"After someone signs in, which address should I send them 
 Good options:
 
 - **Tailscale** (free): your `https://….ts.net` address. It only works on your own devices that have Tailscale.
-- **Online hosting** with your own domain, e.g. `https://notes.yourname.com`. Do this before inviting other people.
+- **Online hosting** with your own domain, like SortMemo's own `https://sortmemo.com`. Do this before inviting other people.
 
-Write your address into the settings file (`.env` in the SortMemo folder):
+On a Mac, write your address into the settings file (`.env` in the SortMemo folder):
 
 ```
 PUBLIC_URL=https://your-mac.tail1234.ts.net
 ```
 
-Below, **`<address>`** means this address. For each provider, the "redirect URL" or "callback URL" to enter is:
+**On sortmemo.com (Fly.io):** the address is `https://sortmemo.com`, already set as `PUBLIC_URL` in fly.toml (don't set it again as a secret). Register the redirect URLs with sortmemo.com, never with Fly's internal record-ai-nina.fly.dev address. Wherever the steps below say "add to `.env`", put the same lines on the server instead, from Terminal in the record.ai folder, for example `fly secrets set GOOGLE_CLIENT_ID=… GOOGLE_CLIENT_SECRET=…`; the app restarts by itself.
+
+Below, **`<address>`** means this address (on SortMemo's own server: `https://sortmemo.com`, so Google's is `https://sortmemo.com/api/auth/oauth/google/callback`). For each provider, the "redirect URL" or "callback URL" to enter is:
 
 | Provider | Redirect URL to enter |
 |---|---|
@@ -63,6 +65,13 @@ After adding keys to `.env`, **restart SortMemo**. The server's start-up message
    APPLE_KEY_ID=…
    APPLE_PRIVATE_KEY_FILE=AuthKey_XXXXXXXXXX.p8
    ```
+
+   **On sortmemo.com (Fly.io)** there is no folder to put the file in: put the key's contents in a secret instead, from Terminal in the folder where the `.p8` file is (the server reads `APPLE_PRIVATE_KEY`):
+   ```
+   fly secrets set APPLE_CLIENT_ID=com.yourname.recordai.web APPLE_TEAM_ID=… APPLE_KEY_ID=…
+   fly secrets set APPLE_PRIVATE_KEY="$(cat AuthKey_XXXXXXXXXX.p8)"
+   ```
+   Under **Domains** in step 3 that is `sortmemo.com`, and the Return URL is `https://sortmemo.com/api/auth/oauth/apple/callback`. Then delete the `.p8` file from the Downloads folder (keep a copy in your password manager).
 
 The App Store requires Sign in with Apple in any iPhone app that offers Google, Facebook and the like. So turn on Apple before publishing the iPhone app.
 

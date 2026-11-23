@@ -14,8 +14,9 @@ the rest. All of it is free.
 
 **About 1 hour in all.** Do them in this order. Each one can be switched on alone.
 
-Throughout, the server address is `https://record-ai-nina.fly.dev`. When you move to
-your own domain, add the new addresses next to the old ones, the same way.
+Throughout, the server address is `https://sortmemo.com`. (Fly's internal
+address, record-ai-nina.fly.dev, still works but is not the one to register:
+sign-in and calendar services send people back to the address you register.)
 
 > Never paste a secret into a chat, an email or a screenshot. Copy each one
 > straight into the Terminal command at the end. When you're done, just tell Claude "done".
@@ -44,8 +45,8 @@ If you don't have one yet, create it now. It will serve both.
 2. **APIs & Services → Library**: search **Google Calendar API**, open it, click **Enable**.
 3. **Google Auth Platform** (older screens: **OAuth consent screen**):
    - **Branding**: app name *SortMemo*, your support email. App home page and
-     privacy policy: `https://record-ai-nina.fly.dev/` and
-     `https://record-ai-nina.fly.dev/legal/privacy.html`.
+     privacy policy: `https://sortmemo.com/` and
+     `https://sortmemo.com/legal/privacy.html`.
    - **Audience**: **External**. Under **Test users**, add your Gmail address, your
      partner's address and those of your first beta testers (up to 100).
    - **Data access → Add or remove scopes**: tick
@@ -55,7 +56,7 @@ If you don't have one yet, create it now. It will serve both.
 4. **Clients** (or **Credentials**): open your **Web application** client, or
    **Create client → Web application** if you have none.
    - Under **Authorized redirect URIs**, add
-     `https://record-ai-nina.fly.dev/api/calendars/google/callback`
+     `https://sortmemo.com/api/calendars/google/callback`
    - Click **Save**.
 5. Copy the **Client ID** and the **Client secret**. If this is the same client as
    "Continue with Google", the server already knows them; skip to the next section.
@@ -78,7 +79,7 @@ You can use the same app registration as "Continue with Microsoft", if you made 
    - Name: *SortMemo*
    - Supported account types: **Accounts in any organizational directory and personal
      Microsoft accounts**
-   - Redirect URI: **Web**, `https://record-ai-nina.fly.dev/api/calendars/microsoft/callback`
+   - Redirect URI: **Web**, `https://sortmemo.com/api/calendars/microsoft/callback`
    - **Register**.
 
    If the app already existed: **Authentication → Add a platform or Add URI** and add
@@ -105,7 +106,7 @@ without it.
    - Name: *SortMemo*
    - Kind of app: **Web**
    - Environment: **Production** (Sandbox only allows `localhost` addresses)
-   - Redirect URI: `https://record-ai-nina.fly.dev/api/calendars/calendly/callback`
+   - Redirect URI: `https://sortmemo.com/api/calendars/calendly/callback`
 3. Save. Calendly then shows three values: **Client ID**, **Client secret** and
    **Webhook signing key**. Copy all three now; the secret and the signing key are shown once.
 
@@ -137,9 +138,11 @@ Leave out a line for a service you skipped.
 fly secrets set \
   GOOGLE_CLIENT_ID=… GOOGLE_CLIENT_SECRET=… \
   MICROSOFT_CLIENT_ID=… MICROSOFT_CLIENT_SECRET=… \
-  CALENDLY_CLIENT_ID=… CALENDLY_CLIENT_SECRET=… CALENDLY_WEBHOOK_KEY=… \
-  PUBLIC_URL=https://record-ai-nina.fly.dev
+  CALENDLY_CLIENT_ID=… CALENDLY_CLIENT_SECRET=… CALENDLY_WEBHOOK_KEY=…
 ```
+
+The public address (`PUBLIC_URL=https://sortmemo.com`) is already in fly.toml;
+don't add it here, as a secret would override it.
 
 The app restarts by itself. If Google or Microsoft keys were already set for sign-in,
 leave those lines out: the same keys serve both.

@@ -54,29 +54,53 @@ both files first (🛠, five minutes). After the first upload it is too late.
 
 ## Before you start: six things to settle
 
-1. 🔐 **Finish the privacy policy.** public/legal/privacy.html still says
-   "Draft" and has text in [brackets] (your business name, address, VAT
-   number, contact email, Anthropic's terms, the age). Both stores reject apps
-   whose privacy policy is unfinished. Fill it in (a helper can edit the page;
-   the facts are yours), ideally after a lawyer or commercialista has read it.
-   Check terms.html and support.html the same way.
-2. 🔐 **A support email address that works**, for example
-   support@sortmemo.com. Both stores show it publicly. docs/EMAIL.md explains
-   how to receive mail at sortmemo.com.
-3. 🔐 **New people can sign up on sortmemo.com.** The apps let people create an
-   account, and reviewers sometimes try. On Fly.io the setting
-   `ALLOW_SIGNUP=true` must be on (`fly secrets set ALLOW_SIGNUP=true`), not an
-   invite code.
+1. 🔐 **Finish the legal pages.** Three pages in public/legal/ still say
+   "Draft" at the top: privacy.html, terms.html and delete-account.html. The
+   contact address is already filled in everywhere (support@sortmemo.com).
+   What is still to do, exactly:
+   - **privacy.html**: the "Draft, 31 October 2026" banner; `[Business name]`,
+     `[address]`, `[VAT number]`; `[When subscriptions inside the apps
+     launch:]` (keep the line about Apple and Google only once the apps sell
+     something, otherwise delete it); `[Confirm and list transfers outside the
+     EU, e.g. Anthropic in the US, with the safeguards used.]`; `[Check the age
+     for Italy and for the app stores.]`.
+   - **terms.html**: the "Draft, 29 October 2026" banner; `[business name]`,
+     `[address]`; `[Limitation of liability, as allowed by Italian and EU
+     consumer law.]`; `[Add the EU 14-day withdrawal rules for purchases on the
+     web.]`.
+   - **delete-account.html**: the "Draft, 31 October 2026" banner (nothing
+     else in brackets).
+   - **support.html**: nothing in brackets; check that the answers are true.
+
+   Both stores reject apps whose privacy policy is unfinished. Fill them in (a
+   helper can edit the pages; the facts are yours), ideally after a lawyer or
+   commercialista has read them, then remove the Draft banners.
+2. 🔐 **A support email address that works.** Done: support@sortmemo.com
+   exists (iCloud+, see docs/EMAIL.md) and has been tested. Both stores show
+   it publicly: send it a test email before submitting, to check it still
+   arrives.
+3. 🔐 **Keep sign-up invite-only.** Don't open sign-up for everyone
+   (no `ALLOW_SIGNUP=true`): the reviewers don't need it, because the demo
+   account (point 4) is made directly on the server. In the review notes
+   (A7, B5) write: "Sign-up is invite-only during our alpha; please use the
+   demo account above." Optionally, make one personal invite link for the
+   reviewers in the owner's dashboard (🎟 Alpha invites), named "App Review",
+   and paste its code in the review notes too, in case they want to try
+   signing up.
 4. 🔐 **A demo account for the reviewers**, with Premium and example notes. In
    Terminal, run (choose your own password, at least 12 characters):
 
    ```bash
-   fly ssh console -C "node scripts/demo-account.mjs appreview@sortmemo.com 'Choose-A-Long-Password-1'"
+   fly ssh console -C "node /app/scripts/demo-account.mjs appreview@sortmemo.com 'Choose-A-Long-Password-1'"
    ```
 
-   The address does not need to receive email. Write the email and password
-   in your password manager: both stores ask for them. Log in with it once on
-   sortmemo.com to check it shows the example notes.
+   (The app lives in the /app folder on the server, so the full path is
+   needed.) The address does not need to receive email. Write the email and
+   password in your password manager: both stores ask for them. Log in with it
+   once on sortmemo.com to check it shows the example notes. After the review,
+   change the demo account's password (run the same command with a new
+   password, or log in and change it under your initials), and give the
+   reviewers the new one at the next submission.
 5. 🔐 **Premium in the apps.** Apple and Google only allow digital
    subscriptions to be sold inside an app with their own payment system, and
    forbid buttons or links that send people to pay on a website. Version 1.0.0
@@ -110,7 +134,7 @@ year.
 |---|---|---|
 | Shown in the App Store as the seller | Your own name | Your company's name |
 | Needs | Your Apple ID and an ID document | A company (legal entity), a **D-U-N-S number**, a website on its own domain, and the right to sign for the company |
-| Time | Usually 1–2 days | 1–3 weeks (getting a D-U-N-S number is free but slow) |
+| Time | Usually 1–2 days | 1 to 2 weeks (getting a D-U-N-S number is free but slow) |
 
 If SortMemo is run by a company (for example an Italian SRL), choose
 **Organization**. Look up or request the company's D-U-N-S number first, free,
@@ -126,7 +150,11 @@ simpler and can be moved to an organization later through Apple support.
 ### A2. Install Xcode and sign in 🔐
 
 1. Install **Xcode** from the Mac App Store (free, very large: use Wi-Fi). Open
-   it once; when it asks which platforms to install, include **iOS**.
+   it once; when it asks which platforms to install, include **iOS**. The
+   current Xcode needs a recent macOS: if the Mac App Store says your Mac is
+   too old, update macOS first (Apple menu → System Settings → General →
+   Software Update). Apple only accepts uploads built with the current iOS
+   SDK, which comes with the current Xcode, so keep Xcode up to date.
 2. Xcode → **Settings…** → **Accounts** → **+** → **Apple ID**, and sign in with
    the Apple ID that has the developer membership. Your team appears with the
    role "Account Holder".
@@ -173,6 +201,21 @@ simpler and can be moved to an organization later through Apple support.
 The app already tells Apple it uses only standard encryption (HTTPS), so you
 are not asked about export compliance.
 
+**Check the privacy manifest once (first upload).** The app's privacy
+manifest (PrivacyInfo.xcprivacy) must be inside the app, at its top level. The
+project is a Swift package, which may put such files one folder deeper, in a
+separate bundle, where Apple doesn't look. After step 4 (Archive), in the
+Organizer window: right-click the archive → **Show in Finder** → right-click
+the `.xcarchive` file → **Show Package Contents** → **Products** →
+**Applications** → right-click the app (**SortMemo**) → **Show Package
+Contents**. `PrivacyInfo.xcprivacy` must be right there, not only inside a
+folder whose name ends in `.bundle`. (Or: right-click the archive in the
+Organizer → **Generate Privacy Report**; the report must list SortMemo's data
+types.) If it is missing, or if App Store Connect later emails a warning
+**ITMS-91053** ("Missing API declaration"), ask Claude (or a developer) to
+move the iPhone app to a regular Xcode project, which places the file
+correctly; then archive and upload again.
+
 For every later upload, a helper raises the build number by 1 in
 ios/RecordAI.swiftpm/Package.swift (`bundleVersion: "2"`, then `"3"`…), and the
 version (`displayVersion`) for each new release, such as `"1.0.1"`.
@@ -184,8 +227,9 @@ version (`displayVersion`) for each new release, such as `"1.0.1"`.
    people from your team (they must be added under **Users and Access** first).
 2. Install **TestFlight** from the App Store on your iPhone, open the invitation
    email, tap **Install**.
-3. Try everything once: sign up, log in, write, dictate, take a photo, open a
-   note, labels, the School world, share, Hear today, log out, log in again.
+3. Try everything once: sign up with an invite link, log in, write, dictate,
+   take a photo, open a note, labels, the School world, share, Hear today,
+   log out, log in again.
 4. Friends outside your team: **External Testing** → new group → add their
    emails. The first external build is checked by Apple (about a day).
 
@@ -257,7 +301,8 @@ something new, both must change together.
    > School switch to see a group per child; open a note to set labels, the
    > date or the world. Account deletion: tap the initials (top right) →
    > Account → Delete my account. The app sells nothing; there are no in-app
-   > purchases in this version.
+   > purchases in this version. Sign-up is invite-only during our alpha;
+   > please use the demo account above.
 
 8. Version Release: **Manually release this version** (so you choose the day).
 
@@ -273,12 +318,13 @@ ever sell something).
 
 Apple needs at least one set for a **6.9-inch iPhone: 1320 × 2868 pixels**
 (portrait). It shrinks them for smaller iPhones. A second set for **6.5-inch:
-1284 × 2778 (or 1242 × 2688)** is optional but recommended. 3 to 5 pictures
+1284 × 2778** (iPhone 14 Plus) is optional but recommended. 3 to 5 pictures
 per set is plenty; up to 10 are allowed.
 
 1. In Xcode, at the top where the device is chosen, pick a **Pro Max**
-   simulator (for example "iPhone 17 Pro Max": 6.9-inch). For 6.5-inch pick
-   an **iPhone 14 Plus** or **15 Plus** (1284 × 2778).
+   simulator (for example "iPhone 17 Pro Max": 6.9-inch, 1320 × 2868). For
+   6.5-inch pick an **iPhone 14 Plus** (1284 × 2778); add it under Window →
+   Devices and Simulators → Simulators → **+** if it isn't listed.
 2. Press **▶ (Run)**. The app opens in the Simulator. Log in with the demo
    account.
 3. Show something worth seeing, then press **⌘S** (Simulator → File → Save
@@ -312,13 +358,21 @@ no other company's phone frames or logos.
 ### B1. Create the Google Play developer account 🔐
 
 1. Go to play.google.com/console and sign in with the Google account that
-   should own SortMemo (a dedicated one, such as a sortmemo.com Google
-   Workspace account, is best; it can't be changed later).
+   should own SortMemo. A dedicated one is best, and it can't be changed
+   later: a free Google account created with nina@sortmemo.com (on
+   accounts.google.com choose **Create account** → **Use your existing
+   email**) is enough; no Google Workspace needed.
 2. Choose **Yourself** (personal account) or **An organization or business**.
-   An organization needs a **D-U-N-S number** (the same as for Apple) and the
+   An organization needs a **D-U-N-S number** (the same as for Apple; 1 to 2
+   weeks to get one if you don't have it yet) and the
    organization's website and phone; a personal account needs only your ID.
 3. Pay the **$25** one-time fee, verify your identity (ID document) and your
    phone number. This can take a few days.
+4. **You need a real Android phone** (your own or a borrowed one). Google asks
+   new developer accounts to verify that they have one, by signing in to the
+   **Play Console** app on it, and you need a phone to try the app before
+   releasing it (B6). An emulator on the Mac doesn't count for the
+   verification.
 
 **Important for personal accounts made after November 2023:** before an app
 can go public, it must run a **closed test with at least 12 testers who stay
@@ -342,12 +396,15 @@ password. Make it once:
 
 3. It asks for a password (type it twice; nothing shows while you type), then
    your name, organization, city, country code (`IT`). Answer, then `yes`.
+   The key file is in the PKCS12 format, so the **key password is the same as
+   the key store password**: wherever a "key password" is asked (B3), type
+   that same password.
 4. **Keep it safe:** save the file `sortmemo-upload.jks`, the password and the
    alias (`upload`) in your password manager (1Password, Bitwarden, or a
    secure note in Apple Passwords), and a copy of the file on a USB stick kept
    at home. **Never** put the file or the password in the repository, in an
-   email or in a chat. (The repository ignores `.jks` files to prevent
-   accidents.)
+   email or in a chat. (The repository ignores `.jks` and `.keystore` files,
+   in the android folder and at the top level, to prevent accidents.)
 
 If the upload key is ever lost, Play Console can give you a new one
 (Setup → App integrity → **Request upload key reset**): annoying, not fatal.
@@ -364,7 +421,8 @@ Bundle** (`.aab`).
 2. Menu **Build** → **Generate Signed App Bundle or APK…** → **Android App
    Bundle** → Next.
 3. Key store path: **Choose existing…** → `~/Documents/SortMemo-keys/sortmemo-upload.jks`.
-   Key store password, Key alias `upload`, Key password. Next.
+   Key store password, Key alias `upload`, Key password (the same as the key
+   store password). Next.
 4. Build variant **release** → **Create**. When it finishes, click **locate**:
    the file is `android/app/release/app-release.aab`.
 
@@ -377,7 +435,8 @@ Bundle** (`.aab`).
    - `SORTMEMO_UPLOAD_KEYSTORE_BASE64`: paste (⌘V)
    - `SORTMEMO_UPLOAD_STORE_PASSWORD`: the key store password
    - `SORTMEMO_UPLOAD_KEY_ALIAS`: `upload`
-   - `SORTMEMO_UPLOAD_KEY_PASSWORD`: the key password
+   - `SORTMEMO_UPLOAD_KEY_PASSWORD`: the key password (the same as the key
+     store password)
 3. Then, each time: **Actions** → **Android release** → **Run workflow**. When
    it is green, download **sortmemo-android-aab** under **Artifacts** and
    unzip it: inside is `app-release.aab`.
@@ -421,6 +480,7 @@ On the app's **Dashboard**, under "Set up your app", open each task:
   instructions**: name "Demo account", the demo email and password, and the
   same notes as for Apple (A7, App Review Information).
 - **Ads**: "No, my app does not contain ads".
+- **Advertising ID**: "Does your app use advertising ID?" **No**.
 - **Content rating**: Start questionnaire → your email → Category **All other
   app types** (or "Utility, productivity, communication…"). Answer **No** to
   violence, sexuality, language, controlled substances, gambling and
@@ -450,7 +510,10 @@ On the app's **Dashboard**, under "Set up your app", open each task:
 
 1. "Does your app collect or share any of the required user data types?"
    **Yes**. "Is all of the user data collected by your app encrypted in
-   transit?" **Yes**. "Which of the following methods of account creation does
+   transit?" **Yes**: the app talks to sortmemo.com only over HTTPS. (The
+   app's allowance for plain http is only for people who connect it to a
+   server they run themselves on their home network; sortmemo.com is always
+   reached over HTTPS.) "Which of the following methods of account creation does
    your app support?" **Username and password** (add "OAuth" only if you turn
    on Continue with Google etc.). Account deletion link:
    **https://sortmemo.com/legal/delete-account.html**. "Do you provide a way
@@ -469,12 +532,13 @@ On the app's **Dashboard**, under "Set up your app", open each task:
 | Photos and videos | Photos | Optional | App functionality |
 | App activity | App interactions | Required | Analytics, App functionality |
 | App activity | Other user-generated content (notes, lists, feedback) | Required | App functionality |
-| Calendar | Calendar events (only if a calendar is connected, on the web) | Optional | App functionality |
 | App info and performance | Diagnostics (server error reports) | Required | App functionality |
 | Device or other IDs | Device or other IDs (a random id made by the app) | Required | Analytics |
 
 Not collected: location, financial info, health, messages, audio (dictation
-keeps only the text), files and docs, contacts, web browsing.
+keeps only the text), files and docs, contacts, web browsing, calendar
+(calendars are connected only in the web app, never through the Android app;
+Apple's privacy answers in A7 leave them out for the same reason).
 
 ### B6. Test, then go public 🔐
 
@@ -532,7 +596,7 @@ again if the logo changes.
 | **Crashes and dead buttons** (Apple 2.1, Google Broken functionality) | Try the TestFlight / internal test build first (A6, B6). Apple also opens iPhone apps on an iPad: try it once in an iPad simulator. |
 | **Minimum functionality** (Apple 4.2) | A native app: offline notes, dictation, camera, live sync, sharing, Siri "Hear today". |
 | **Content shared by users** (Apple 1.2) | Notes are shared only with people the owner invites by email; there is no public feed or chat with strangers. |
-| **Target API level** (Google) | The Android app targets Android 15 (API 35). Google raises this every year around August: if Play Console warns that a newer target is needed, a helper raises `targetSdk` in android/app/build.gradle.kts. |
+| **Target API level** (Google) | The Android app targets Android 16 (API 36), the level Google Play currently requires for new apps and updates. Google raises the requirement each August: if Play Console warns that a newer target is needed, a helper raises `targetSdk` (and `compileSdk`) in android/app/build.gradle.kts. |
 | **12 testers for 14 days** (Google, new personal accounts) | Plan it from day one (B1, B6). |
 
 ---
@@ -556,10 +620,10 @@ again if the logo changes.
 
 Before you submit:
 
-- [ ] 🔐 Privacy policy, terms and support pages finished (no "Draft", no [brackets])
-- [ ] 🔐 Support email works
-- [ ] 🔐 `ALLOW_SIGNUP=true` on sortmemo.com; sign up from the app works
-- [ ] 🔐 Demo account made, logs in, shows example notes and Premium
+- [ ] 🔐 Privacy policy, terms, delete-account and support pages finished (no "Draft", no [brackets]; the list is in "Before you start", point 1)
+- [ ] 🔐 Test email sent to support@sortmemo.com, and it arrived
+- [ ] 🔐 Sign-up stays invite-only; review notes say "Sign-up is invite-only during our alpha; please use the demo account above." (optional: an "App Review" invite code)
+- [ ] 🔐 Demo account made, logs in, shows example notes and Premium (change its password after the review)
 - [ ] 🔐 Decided: keep `com.ninakozinska.recordai` (or changed it **before** the first upload)
 - [ ] 🔐 Decided what to answer if Apple asks for in-app purchase
 - [ ] 🔐 EU trader details entered (Apple and Google)
@@ -568,7 +632,7 @@ App Store:
 
 - [ ] 🔐 Apple Developer Program active
 - [ ] 🔐 Bundle ID registered, app created in App Store Connect
-- [ ] 🔐 Build uploaded and tried in TestFlight
+- [ ] 🔐 Build uploaded and tried in TestFlight; privacy manifest checked inside the app (A5)
 - [ ] 🔐 App Information, age rating 4+, price Free, App Privacy published
 - [ ] 🛠 Screenshots 6.9" (and 6.5") uploaded
 - [ ] 🔐 Description, keywords, support URL, copyright, review notes with demo account
@@ -576,7 +640,7 @@ App Store:
 
 Google Play:
 
-- [ ] 🔐 Developer account verified
+- [ ] 🔐 Developer account verified (with a real Android phone)
 - [ ] 🔐 Upload key made and saved in two safe places
 - [ ] 🛠 Signed `.aab` built (Android Studio, GitHub or Terminal)
 - [ ] 🔐 App created; all "Set up your app" tasks done, Data safety submitted

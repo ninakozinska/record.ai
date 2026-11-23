@@ -6,7 +6,7 @@
 export function mailer({ env = process.env, fetch = globalThis.fetch, log = console } = {}) {
   const key = env.RESEND_API_KEY;
   const from = env.MAIL_FROM;
-  // Where replies go, e.g. support@your-domain (a mailbox you read); optional.
+  // Where replies go, e.g. support@sortmemo.com (a mailbox you read); optional.
   const replyTo = env.MAIL_REPLY_TO;
   return {
     configured: !!(key && from),

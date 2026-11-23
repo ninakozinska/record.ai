@@ -17,8 +17,10 @@ from `public/icons/icon.svg`.
 
 Version 1.0.0 of the apps sells nothing inside the app, so the texts don't
 mention prices or how to buy Premium (Apple and Google don't allow pointing
-to another way to pay). They also leave out reminders and the morning
-briefing: those arrive as notifications only from the web app for now.
+to another way to pay). They also describe only what the iPhone and
+Android apps do today (docs/PARITY.md): no reminders or morning briefing (those
+arrive as notifications only from the web app for now), no connected
+calendars and no "download all my notes" (both are on the web only).
 
 ## Store texts
 
@@ -39,7 +41,6 @@ briefing: those arrive as notifications only from the web app for now.
   • Labels like in Gmail, several per note, and search by label
   • Share a list, a group or all of School with your partner, live on every device
   • Hear your day read aloud, and suggested to-dos from your notes
-  • Your calendars both ways: Google, Outlook, iCloud and Calendly
   • Works offline; syncs when you're back online
   • In English, Italian, French, Spanish, Portuguese, German and Polish
 
@@ -64,7 +65,6 @@ briefing: those arrive as notifications only from the web app for now.
   • Etichette come in Gmail, più di una per nota, e ricerca per etichetta
   • Condividi una lista, un gruppo o tutta la Scuola con il partner, in tempo reale su ogni dispositivo
   • Ascolta la tua giornata letta ad alta voce, e cose da fare suggerite dalle tue note
-  • I tuoi calendari in entrambe le direzioni: Google, Outlook, iCloud e Calendly
   • Funziona offline e si sincronizza quando torni online
   • In italiano, inglese, francese, spagnolo, portoghese, tedesco e polacco
 
@@ -75,7 +75,7 @@ briefing: those arrive as notifications only from the web app for now.
 ### Français
 
 - **Sous-titre :** Notes triées par l'IA
-- **Mots-clés :** notes,tâches,famille,listes,rappels,agenda,partage,calendrier,courses,IA,travail,enfants
+- **Mots-clés :** notes,tâches,famille,listes,école,agenda,partage,calendrier,courses,IA,travail,enfants
 - **Description courte :** Notez-le, l'IA trie : notes, listes et dates pour le travail et la famille.
 - **Description complète :**
 
@@ -83,17 +83,16 @@ briefing: those arrive as notifications only from the web app for now.
 
   • Des listes à cocher : commencez les lignes par « - » ou collez une liste
   • Partagez une liste ou tout un groupe avec votre partenaire, en direct sur tous les appareils
-  • Vos agendas dans les deux sens : Google, Outlook, iCloud et Calendly
   • Mondes Travail et Famille : un bouton pour ne voir que l'essentiel du moment
   • Fonctionne hors ligne, se synchronise au retour du réseau
   • En français, anglais, italien, espagnol, portugais, allemand et polonais
 
-  Vos notes restent à vous : pas de pub, pas de revente de données, téléchargez ou supprimez tout à tout moment. Hébergé à Francfort, en Allemagne.
+  Vos notes restent à vous : pas de pub, pas de revente de données, supprimez votre compte et tout son contenu à tout moment. Hébergé à Francfort, en Allemagne.
 
 ### Español
 
 - **Subtítulo:** Notas ordenadas por la IA
-- **Palabras clave:** notas,tareas,familia,listas,recordatorios,agenda,compartir,calendario,compra,IA,trabajo,niños
+- **Palabras clave:** notas,tareas,familia,listas,escuela,agenda,compartir,calendario,compra,IA,trabajo,niños
 - **Descripción breve:** Apúntalo y la IA lo ordena: notas, listas y fechas para trabajo y familia.
 - **Descripción completa:**
 
@@ -101,17 +100,16 @@ briefing: those arrive as notifications only from the web app for now.
 
   • Listas para marcar: empieza las líneas con "- " o pega una lista
   • Comparte una lista o un grupo entero con tu pareja, en directo en todos los dispositivos
-  • Tus calendarios en ambos sentidos: Google, Outlook, iCloud y Calendly
   • Mundos Trabajo y Familia: un interruptor para ver solo lo que importa ahora
   • Funciona sin conexión y se sincroniza al volver
   • En español, inglés, italiano, francés, portugués, alemán y polaco
 
-  Tus notas siguen siendo tuyas: sin anuncios ni venta de datos, descarga o elimina todo cuando quieras. Alojado en Fráncfort, Alemania.
+  Tus notas siguen siendo tuyas: sin anuncios ni venta de datos, elimina tu cuenta y todo lo que contiene cuando quieras. Alojado en Fráncfort, Alemania.
 
 ### Português
 
 - **Subtítulo:** Notas organizadas pela IA
-- **Palavras-chave:** notas,tarefas,família,listas,lembretes,agenda,partilha,calendário,compras,IA,trabalho,filhos
+- **Palavras-chave:** notas,tarefas,família,listas,escola,agenda,partilha,calendário,compras,IA,trabalho,filhos
 - **Descrição curta:** Escreva e a IA organiza: notas, listas e datas para trabalho e família.
 - **Descrição completa:**
 
@@ -119,17 +117,16 @@ briefing: those arrive as notifications only from the web app for now.
 
   • Listas para marcar: comece as linhas com "- " ou cole uma lista
   • Partilhe uma lista ou um grupo inteiro com o seu par, em tempo real em todos os dispositivos
-  • Os seus calendários nos dois sentidos: Google, Outlook, iCloud e Calendly
   • Mundos Trabalho e Família: um botão para ver só o que importa agora
   • Funciona offline e sincroniza quando volta a ter rede
   • Em português, inglês, italiano, francês, espanhol, alemão e polaco
 
-  As suas notas continuam suas: sem anúncios, sem venda de dados, descarregue ou apague tudo quando quiser. Alojado em Frankfurt, na Alemanha.
+  As suas notas continuam suas: sem anúncios, sem venda de dados, apague a sua conta e tudo o que ela contém quando quiser. Alojado em Frankfurt, na Alemanha.
 
 ### Deutsch
 
 - **Untertitel:** Notizen, sortiert von KI
-- **Schlüsselwörter:** Notizen,Aufgaben,Familie,Listen,Erinnerungen,Planer,teilen,Kalender,Einkauf,KI,Arbeit,Kinder
+- **Schlüsselwörter:** Notizen,Aufgaben,Familie,Listen,Schule,Planer,teilen,Kalender,Einkauf,KI,Arbeit,Kinder
 - **Kurzbeschreibung:** Aufschreiben, die KI sortiert: Notizen, Listen, Termine für Job und Familie.
 - **Beschreibung:**
 
@@ -137,17 +134,16 @@ briefing: those arrive as notifications only from the web app for now.
 
   • Listen zum Abhaken: Zeilen mit „- “ beginnen oder eine Liste einfügen
   • Eine Liste oder eine ganze Gruppe mit dem Partner teilen, live auf jedem Gerät
-  • Deine Kalender in beide Richtungen: Google, Outlook, iCloud und Calendly
   • Welten Arbeit und Familie: ein Schalter, und du siehst nur, was gerade zählt
   • Funktioniert offline und synchronisiert, sobald du wieder online bist
   • Auf Deutsch, Englisch, Italienisch, Französisch, Spanisch, Portugiesisch und Polnisch
 
-  Deine Notizen bleiben deine: keine Werbung, kein Datenverkauf, alles jederzeit herunterladen oder löschen. Gehostet in Frankfurt.
+  Deine Notizen bleiben deine: keine Werbung, kein Datenverkauf, lösche dein Konto und alles darin jederzeit. Gehostet in Frankfurt.
 
 ### Polski
 
 - **Podtytuł:** Notatki porządkowane przez AI
-- **Słowa kluczowe:** notatki,zadania,rodzina,listy,przypomnienia,planer,wspólne,kalendarz,zakupy,AI,praca,dzieci
+- **Słowa kluczowe:** notatki,zadania,rodzina,listy,szkoła,planer,wspólne,kalendarz,zakupy,AI,praca,dzieci
 - **Krótki opis:** Zapisz, AI poukłada: notatki, listy i daty do pracy i dla rodziny.
 - **Pełny opis:**
 
@@ -155,15 +151,14 @@ briefing: those arrive as notifications only from the web app for now.
 
   • Listy do odhaczania: zacznij wiersze od „- ” albo wklej listę
   • Udostępnij listę lub całą grupę partnerowi, na żywo na każdym urządzeniu
-  • Twoje kalendarze w obie strony: Google, Outlook, iCloud i Calendly
   • Światy Praca i Rodzina: jeden przełącznik, by widzieć tylko to, co ważne teraz
   • Działa offline i synchronizuje się po powrocie do sieci
   • Po polsku, angielsku, włosku, francusku, hiszpańsku, portugalsku i niemiecku
 
-  Twoje notatki zostają twoje: bez reklam i handlu danymi, pobierz lub usuń wszystko w każdej chwili. Hostowane we Frankfurcie w Niemczech.
+  Twoje notatki zostają twoje: bez reklam i handlu danymi, usuń konto i wszystko, co zawiera, w każdej chwili. Hostowane we Frankfurcie w Niemczech.
 
 ## Before you paste: three things to check
 
-- The calendar line only becomes true once the calendar keys are on the server (docs/CALENDARS.md). Until then, leave that line out.
-- Reminders and the morning briefing are left out on purpose: on the iPhone and Android apps they need Apple's and Google's push keys first (docs/PARITY.md). Add the line back when the apps send notifications.
+- Connected calendars (Google, Outlook, iCloud, Calendly) are left out on purpose: they are connected only in the web app, and only once the calendar keys are on the server (docs/CALENDARS.md). Add a line when the phone apps can connect them.
+- Reminders and the morning briefing are left out on purpose: on the iPhone and Android apps they need Apple's and Google's push keys first (docs/PARITY.md). Add them back (text and keywords) when the apps send notifications.
 - The apps are free in the stores. If Premium is ever sold inside the apps, prices come from App Store Connect and Play Console, not from these texts.

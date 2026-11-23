@@ -1,7 +1,7 @@
 // Makes the demo account that Apple's and Google's reviewers log in with,
 // with Premium and a few example notes (no AI calls). Running it again
 // resets the password and the example notes.
-// Usage, on the server:  fly ssh console -C "node scripts/demo-account.mjs review@your-domain 'a long password'"
+// Usage, on the server:  fly ssh console -C "node /app/scripts/demo-account.mjs appreview@sortmemo.com 'a long password'"
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -11,7 +11,7 @@ import { hashPassword, MIN_PASSWORD } from '../server/auth.js';
 if (fs.existsSync('.env')) process.loadEnvFile('.env');
 const [email, password] = process.argv.slice(2);
 if (!email || !password) {
-  console.error('Usage: node scripts/demo-account.mjs review@your-domain "a long password"');
+  console.error('Usage: node /app/scripts/demo-account.mjs appreview@sortmemo.com "a long password"');
   process.exit(1);
 }
 if (password.length < MIN_PASSWORD) {
