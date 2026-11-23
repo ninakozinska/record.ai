@@ -1,0 +1,59 @@
+# Is the live app at sortmemo.com healthy and named right? Run by hand
+# (Actions → Live check → Run workflow) and after every deploy. It only reads
+# public pages: no accounts are made, nothing is changed.
+name: Live check
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ['Deploy to Fly.io']
+    types: [completed]
+permissions:
+  contents: read
+jobs:
+  check:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      URL: ${{ vars.APP_URL || 'https://sortmemo.com' }}
+    steps:
+      - name: Give a fresh deploy a minute
+        if: github.event_name == 'workflow_run'
+        run: sleep 60
+      - name: Check the pages
+        run: |
+          fail=0
+          ok()  { echo "✓ $1"; }
+          bad() { echo "✗ $1"; fail=1; }
+          get() { curl -fsSL --max-time 20 "$1"; }
+
+          body=$(get "$URL/api/health") && echo "$body" | grep -q '"ok":true' && echo "$body" | grep -q '"app":"SortMemo"' \
+            && ok "health: $body" || bad "health: ${body:-no answer}"
+
+          for page in / /welcome.html /legal/privacy.html /legal/terms.html /legal/support.html /legal/delete-account.html /manifest.webmanifest; do
+            html=$(get "$URL$page") || { bad "$page does not load"; continue; }
+            echo "$html" | grep -q 'SortMemo' && ok "$page says SortMemo" || bad "$page does not say SortMemo"
+            echo "$html" | grep -qi 'sortnotes' && bad "$page still mentions SortNotes" || ok "$page has no SortNotes"
+          done
+
+          get "$URL/" | grep -q '<title>SortMemo</title>' && ok "web app title" || bad "web app title"
+          code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$URL/api/notes")
+          [ "$code" = "401" ] && ok "API asks for a login (401)" || bad "API without login answered $code"
+
+          # Short link in sent notes ("Sent from SortMemo: sortmemo.com/s")
+          loc=$(curl -s -o /dev/null -w '%{redirect_url}' --max-time 20 "$URL/s")
+          echo "$loc" | grep -q 'welcome.html' && ok "short link /s → welcome" || bad "short link /s → '$loc'"
+
+          # Other addresses
+          get "https://www.sortmemo.com/api/health" | grep -q '"ok":true' && ok "www.sortmemo.com" || bad "www.sortmemo.com"
+          get "https://record-ai-nina.fly.dev/api/health" | grep -q '"ok":true' && ok "old fly.dev address still works" || bad "old fly.dev address"
+          for d in sortmemos.com notescircle.com; do
+            final=$(curl -sL -o /dev/null -w '%{url_effective}' --max-time 30 "http://$d" || true)
+            echo "$final" | grep -q 'sortmemo.com' && ok "$d → $final" || echo "• $d → '${final:-no answer}' (GoDaddy forwarding may still be activating)"
+          done
+
+          # Certificate
+          exp=$(echo | openssl s_client -servername sortmemo.com -connect sortmemo.com:443 2>/dev/null | openssl x509 -noout -enddate 2>/dev/null)
+          [ -n "$exp" ] && ok "certificate: $exp" || bad "certificate"
+
+          exit $fail
