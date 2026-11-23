@@ -1,6 +1,8 @@
 # Put SortMemo online with Fly.io
 
-Your notes then live on a small server in Frankfurt, reachable from anywhere at `https://<your-app>.fly.dev`. Your Mac no longer needs to be on.
+Your notes then live on a small server in Frankfurt, reachable from anywhere at **https://sortmemo.com**. Your Mac no longer needs to be on.
+
+Two addresses lead to the same server: `https://record-ai-nina.fly.dev` is Fly's internal address (it works from the first deploy, and Fly and these steps use it), and **https://sortmemo.com** is the public one (set up in [DOMAIN.md](DOMAIN.md)). Give people, phones and other services sortmemo.com.
 
 **What it costs:** about $3.50 a month.
 - A 512 MB machine: about $3.19.
@@ -58,7 +60,7 @@ If Fly warns that one volume alone has no copy on another machine, type `y`. You
 fly deploy --remote-only
 ```
 
-This takes 2–4 minutes; Fly builds the app on its own computers. When it says the machine is healthy, open **https://record-ai-nina.fly.dev**. You'll see SortMemo asking you to create an account. **Don't create one yet** if you're moving your notes in the next step.
+This takes 2–4 minutes; Fly builds the app on its own computers. When it says the machine is healthy, open **https://record-ai-nina.fly.dev** (Fly's internal address; https://sortmemo.com works too once the domain is set up). You'll see SortMemo asking you to create an account. **Don't create one yet** if you're moving your notes in the next step.
 
 ## 4. Move your notes from your Mac
 
@@ -78,7 +80,7 @@ This takes 2–4 minutes; Fly builds the app on its own computers. When it says 
    A `»` prompt appears. Type this line, then press Control + D to leave:
 
    ```
-   put /Users/kozinskanina/record-data.tar.gz /data/import.tar.gz
+   put /Users/<your Mac user name>/record-data.tar.gz /data/import.tar.gz
    ```
 
 4. Restart the app. It unpacks the file when it starts:
@@ -87,7 +89,7 @@ This takes 2–4 minutes; Fly builds the app on its own computers. When it says 
    fly apps restart record-ai-nina
    ```
 
-Open https://record-ai-nina.fly.dev and log in with **the same email and password as on your Mac**. Your notes are there.
+Open https://sortmemo.com and log in with **the same email and password as on your Mac**. Your notes are there.
 
 From now on, use the online address everywhere. Don't keep adding notes on the Mac's own copy, or you'll have two separate sets of notes.
 
@@ -106,8 +108,8 @@ The app restarts by itself and starts organizing notes.
 
 ## 6. Point your phones and browsers at the new address
 
-- **Web:** bookmark https://record-ai-nina.fly.dev. On a phone, use **Add to Home Screen** so it works like an app.
-- **iPhone and Android apps:** log out (your initials → Log out), tap **Use a different server**, and enter `https://record-ai-nina.fly.dev`.
+- **Web:** bookmark https://sortmemo.com. On a phone, use **Add to Home Screen** so it works like an app.
+- **iPhone and Android apps:** they start on https://sortmemo.com, so there is nothing to change. An app that was pointed at another server: log out (your initials → Log out), tap **Use a different server**, and enter `https://sortmemo.com`.
 
 ## Later: automatic updates (optional)
 
@@ -121,6 +123,6 @@ The workflow `.github/workflows/deploy-fly.yml` then deploys every change that r
 ## Good to know
 
 - **Backups:** Fly snapshots the disk every day and keeps each snapshot 5 days. To see them, run `fly volumes snapshots list <volume id>`. To find the id, run `fly volumes list`.
-- **Forgot your password?** Run `fly ssh console --app record-ai-nina -C "node scripts/reset-password.mjs you@example.com 'new password'"`.
+- **Forgot your password?** Run `fly ssh console --app record-ai-nina -C "node /app/scripts/reset-password.mjs you@example.com 'new password'"` (the app lives in /app on the server).
 - **What's happening on the server:** `fly logs --app record-ai-nina`.
-- **"Continue with Google" and the others:** use `https://record-ai-nina.fly.dev` as the address in [SOCIAL_LOGIN.md](SOCIAL_LOGIN.md), and put the keys in with `fly secrets set`.
+- **"Continue with Google" and the others:** use `https://sortmemo.com` as the address in [SOCIAL_LOGIN.md](SOCIAL_LOGIN.md), and put the keys in with `fly secrets set`.

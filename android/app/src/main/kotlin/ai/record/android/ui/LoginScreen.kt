@@ -76,7 +76,7 @@ fun LoginScreen(repo: NoteRepository, state: UiState) {
             when {
                 signingUp && policy?.firstAccount == true -> tr("This is the first account on your server. It will own all notes already saved there.")
                 signingUp -> tr("Your notes are private to your account.")
-                else -> tr("Log in with the same email and password as on your computer.")
+                else -> tr("Log in with your SortMemo email and password.")
             },
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -146,8 +146,9 @@ fun LoginScreen(repo: NoteRepository, state: UiState) {
             }
         }
         TextButton(onClick = { scope.launch { repo.forgetServer() } }) {
-            Text(tr("Use a different server"), color = MaterialTheme.colorScheme.error)
+            Text(tr("Use a different server"))
         }
         state.serverUrl?.let { Text("Connected to $it", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        LegalLinks(state.serverUrl)
     }
 }

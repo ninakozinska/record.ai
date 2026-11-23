@@ -18,7 +18,7 @@ nothing is sold: "Get Premium" only counts who would buy (`upgrade_click`).
 3. **Developers → API keys**: copy the **Secret key** (`sk_test_…`, later `sk_live_…`).
    Never paste it in a chat or a screenshot.
 4. **Developers → Webhooks → Add endpoint**:
-   - URL: `https://record-ai-nina.fly.dev/api/billing/webhook`
+   - URL: `https://sortmemo.com/api/billing/webhook`
    - Events: `checkout.session.completed`, `customer.subscription.created`,
      `customer.subscription.updated`, `customer.subscription.deleted`
 
@@ -29,9 +29,11 @@ nothing is sold: "Get Premium" only counts who would buy (`upgrade_click`).
 
    ```
    fly secrets set STRIPE_SECRET_KEY=sk_… STRIPE_WEBHOOK_SECRET=whsec_… \
-     STRIPE_PRICE_SOLO=price_… STRIPE_PRICE_FAMILY=price_… \
-     PUBLIC_URL=https://record-ai-nina.fly.dev
+     STRIPE_PRICE_SOLO=price_… STRIPE_PRICE_FAMILY=price_…
    ```
+
+   (The server's public address, `PUBLIC_URL=https://sortmemo.com`, is already
+   in fly.toml. Don't set it as a secret: a secret would override fly.toml.)
 
    The app restarts and "Get Premium" now shows the two plans.
 7. **Try it** in Test mode with the card `4242 4242 4242 4242`, any future

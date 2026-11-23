@@ -28,6 +28,12 @@ private struct Cache: Codable {
     var rev: Int
     var notes: [Note]
     var outbox: [OutboxItem]
+    /// The person's labels, groups and worlds, kept so the phone shows them offline too.
+    var labels: LabelsState?
+    var myGroups: [String]?
+    /// Groups moved between worlds, as JSON: the cache is read with `.convertFromSnakeCase`,
+    /// which would rename a dictionary's keys (group names such as "my_stuff").
+    var worldsJson: Data?
 }
 
 /// Holds the notes, saves them on the phone, and keeps them in sync with the server.
@@ -45,6 +51,14 @@ final class NoteStore {
 
     // Data
     private(set) var notes: [String: Note] = [:]
+    /// The person's labels (Premium) and whether they may set them.
+    private(set) var labelsState = LabelsState()
+    /// Groups the person made, a child's "School · Leo" too: they show even with no notes.
+    private(set) var myGroups: [String] = []
+    /// Groups moved to another world (lowercase name → "work", "family", "school" or "").
+    private(set) var chosenWorlds: [String: String] = [:]
+    /// Suggested to-dos waiting for the person to add or dismiss them.
+    private(set) var suggestions: [Suggestion] = []
     @ObservationIgnored private var rev = 0
     @ObservationIgnored private var outbox: [OutboxItem] = []
     @ObservationIgnored private var cachedUserId: String?
@@ -61,7 +75,8 @@ final class NoteStore {
     var isAIEnabled: Bool { ai?.enabled ?? true }
 
     init() {
-        serverURL = UserDefaults.standard.string(forKey: "serverURL").flatMap { URL(string: $0) }
+        // A new install starts on sortmemo.com; "Use a different server" on the login screen changes it.
+        serverURL = UserDefaults.standard.string(forKey: "serverURL").flatMap { URL(string: $0) } ?? API.defaultServer
         token = Keychain.load("token")
         if let data = UserDefaults.standard.data(forKey: "user") {
             user = try? JSONDecoder().decode(User.self, from: data)
@@ -91,11 +106,15 @@ final class NoteStore {
         rev = cache.rev
         outbox = cache.outbox
         notes = Dictionary(uniqueKeysWithValues: cache.notes.map { ($0.id, $0) })
+        labelsState = cache.labels ?? LabelsState()
+        myGroups = cache.myGroups ?? []
+        chosenWorlds = cache.worldsJson.flatMap { try? JSONDecoder.plain.decode([String: String].self, from: $0) } ?? [:]
         unsent = outbox.count
     }
 
     private func saveCache() {
-        let cache = Cache(userId: cachedUserId, rev: rev, notes: Array(notes.values), outbox: outbox)
+        let cache = Cache(userId: cachedUserId, rev: rev, notes: Array(notes.values), outbox: outbox,
+                          labels: labelsState, myGroups: myGroups, worldsJson: try? JSONEncoder().encode(chosenWorlds))
         if let data = try? JSONEncoder.cache.encode(cache) {
             try? data.write(to: Self.cacheFile, options: [.atomic, .completeFileProtection])
         }
@@ -107,6 +126,10 @@ final class NoteStore {
         rev = 0
         outbox = []
         cachedUserId = nil
+        labelsState = LabelsState()
+        myGroups = []
+        chosenWorlds = [:]
+        suggestions = []
         try? FileManager.default.removeItem(at: Self.cacheFile)
         try? FileManager.default.removeItem(at: Self.imagesFolder)
         saveCache()
@@ -261,8 +284,30 @@ final class NoteStore {
         Task {
             await pull()
             await flush()
+            await refreshAccount()
         }
         startLive()
+    }
+
+    /// The person's labels, groups, worlds and suggested to-dos, and the AI's
+    /// language (the phone's, like the web app's). Offline, the saved ones stay.
+    func refreshAccount() async {
+        guard let api, isLoggedIn else { return }
+        let l = try? JSONDecoder.plain.decode(LabelsState.self, from: await api.request("labels"))
+        if let l { labelsState = l }
+        let g = try? JSONDecoder.plain.decode(GroupNames.self, from: await api.request("groups/mine"))
+        if let g { myGroups = g.names }
+        let w = try? JSONDecoder.plain.decode(WorldChoices.self, from: await api.request("groups/worlds"))
+        if let w { chosenWorlds = w.chosen }
+        let s = try? await api.get("suggestions", as: SuggestionList.self)
+        if let s { suggestions = s.suggestions }
+        // The server says null until a language was chosen.
+        let data = try? await api.request("language")
+        let answer = data.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
+        if let answer, (answer["lang"] as? String) != appLanguage {
+            _ = try? await api.request("language", method: "PUT", json: ["lang": appLanguage])
+        }
+        saveCache()
     }
 
     func stopLive() {
@@ -364,6 +409,8 @@ final class NoteStore {
                 next.aiError = s.aiError
                 next.rev = s.rev
                 next.doneBy = s.doneBy
+                next.aiLabels = s.aiLabels
+                next.labels = s.labels
                 s = next
             }
             notes[s.id] = s
@@ -446,6 +493,7 @@ final class NoteStore {
         if patch.keys.contains("remind") { note.remind = patch["remind"] as? Int }
         if patch.keys.contains("assigned_to") { note.assignedTo = patch["assigned_to"] as? String }
         if let parent = patch["parent_id"] as? String { note.parentId = parent }
+        if patch.keys.contains("user_labels") { note.userLabels = patch["user_labels"] as? [String] }
         note.editedAt = max(now, before.editedAt + 1)
         let isNew = notes[id] == nil
         if isNew || note.text != before.text || note.images != before.images { note.aiStatus = "pending" }
@@ -572,16 +620,90 @@ final class NoteStore {
     /// Leaves a note shared with me (it disappears from my devices).
     func leave(_ note: Note) async throws {
         let withMe = try await shares().withMe
-        let group = note.userGroup ?? note.aiGroup ?? ""
+        // The owner's group, not "Shared with me": the share may be the note, its group or all of School.
+        let group = [note.userGroup, note.aiGroup].compactMap { $0 }.first { !$0.isEmpty } ?? "Inbox"
         let share = withMe.first { $0.kind == "note" && $0.target == note.id }
-            ?? withMe.first { $0.kind == "group" && $0.owner?.id == note.userId && $0.target.lowercased() == group.lowercased() }
+            ?? withMe.first { $0.owner?.id == note.userId && Worlds.covers(kind: $0.kind, target: $0.target, noteId: note.id, group: group) }
         if let share { try await unshare(share.id) }
     }
 
-    /// Groups moved between Work and Family; empty when offline (names decide then).
+    /// Groups moved between worlds; the saved ones when offline.
     func worlds() async -> [String: String] {
-        guard let api else { return [:] }
-        return (try? await api.get("groups/worlds", as: WorldChoices.self).chosen) ?? [:]
+        guard let api else { return chosenWorlds }
+        let w = try? JSONDecoder.plain.decode(WorldChoices.self, from: await api.request("groups/worlds"))
+        if let w { chosenWorlds = w.chosen }
+        return chosenWorlds
+    }
+
+    /// Puts one group in "work", "family", "school" or "" (all worlds), on every device.
+    func setWorld(_ group: String, _ world: String) async throws {
+        guard let api else { throw APIError.offline }
+        var next = chosenWorlds
+        next[group.lowercased()] = world
+        let data = try await api.request("groups/worlds", method: "PUT", json: ["chosen": next])
+        chosenWorlds = try JSONDecoder.plain.decode(WorldChoices.self, from: data).chosen
+        saveCache()
+    }
+
+    /// Saves "my groups" (the AI keeps them and files matching notes in them).
+    func setMyGroups(_ names: [String]) async throws {
+        guard let api else { throw APIError.offline }
+        let data = try await api.request("groups/mine", method: "PUT", json: ["names": names])
+        myGroups = try JSONDecoder.plain.decode(GroupNames.self, from: data).names
+        saveCache()
+    }
+
+    /// Adds a group of the person's own, or a child's school group ("School · Leo"). Returns its name.
+    @discardableResult
+    func addMyGroup(_ name: String) async throws -> String {
+        let clean = name.split(whereSeparator: { $0.isWhitespace }).joined(separator: " ")
+        if !clean.isEmpty && !myGroups.contains(where: { $0.lowercased() == clean.lowercased() }) {
+            try await setMyGroups(myGroups + [clean])
+        }
+        return clean
+    }
+
+    /// Saves the person's labels (Premium).
+    func setLabels(_ labels: [NoteLabel]) async throws {
+        guard let api else { throw APIError.offline }
+        let body = labels.map { ["name": $0.name, "color": $0.color] }
+        let data = try await api.request("labels", method: "PUT", json: ["labels": body])
+        labelsState.labels = try JSONDecoder.plain.decode(LabelList.self, from: data).labels
+        saveCache()
+    }
+
+    /// A new label (Premium), added to the person's list once. Returns its name as saved.
+    func addLabel(_ name: String) async throws -> String {
+        guard labelsState.allowed else { throw APIError(status: 402, message: "Labels are part of Premium.") }
+        let next = labelsState.adding(name)
+        if next != labelsState.labels { try await setLabels(next) }
+        let clean = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        return labelsState.labels.first { $0.name.lowercased() == clean.lowercased() }?.name ?? clean
+    }
+
+    /// Suggested to-dos: add one (optionally with an edited title) or dismiss it.
+    func decideSuggestion(_ id: String, add: Bool, title: String? = nil) async throws {
+        guard let api else { throw APIError.offline }
+        var body: [String: Any] = [:]
+        if let title { body["title"] = title }
+        let action = add ? "add" : "dismiss"
+        let data = try await api.request("suggestions/\(id)/\(action)", method: "POST", json: body)
+        suggestions = try JSONDecoder.server.decode(SuggestionList.self, from: data).suggestions
+        if add { await pull() } // the new note
+    }
+
+    /// Asks the AI for suggestions now (once an hour).
+    func suggestNow() async throws {
+        guard let api else { throw APIError.offline }
+        let data = try await api.request("suggestions/run", method: "POST", json: [:])
+        suggestions = try JSONDecoder.server.decode(SuggestionList.self, from: data).suggestions
+    }
+
+    /// "Send feedback": a few words to the people who make SortMemo.
+    func sendFeedback(_ text: String) async throws {
+        guard let api else { throw APIError.offline }
+        let clean = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        _ = try await api.request("feedback", method: "POST", json: ["text": clean, "platform": "ios"])
     }
 
     func plan() async throws -> Plan {

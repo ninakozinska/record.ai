@@ -77,7 +77,8 @@ struct LoginView: View {
                     }
                 }
                 Section {
-                    Button(tr("Use a different server"), role: .destructive) { store.forgetServer() }
+                    LegalLinks(server: store.serverURL)
+                    Button(tr("Use a different server")) { store.forgetServer() }
                 } footer: {
                     if let url = store.serverURL { Text("Connected to \(url.absoluteString)") }
                 }
@@ -99,7 +100,7 @@ struct LoginView: View {
         if signingUp && policy?.firstAccount == true {
             return tr("This is the first account on your server. It will own all notes already saved there.")
         }
-        return signingUp ? tr("Your notes are private to your account.") : tr("Log in with the same email and password as on your Mac.")
+        return signingUp ? tr("Your notes are private to your account.") : tr("Log in with your SortMemo email and password.")
     }
 
     /// Opens the provider's sign-in page in Apple's secure sheet; it comes back

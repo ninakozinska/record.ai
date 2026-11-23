@@ -34,6 +34,7 @@ import java.text.DateFormat
 import java.util.Date
 import ai.record.core.NoteRepository
 import ai.record.core.UiState
+import ai.record.core.Labels
 import kotlinx.coroutines.launch
 
 /** Name and email, change password, log out. */
@@ -50,6 +51,8 @@ fun AccountDialog(repo: NoteRepository, state: UiState, onClose: () -> Unit) {
     var backups by remember { mutableStateOf<List<Backup>>(emptyList()) }
     var restoring by remember { mutableStateOf<Backup?>(null) }
     var deleting by remember { mutableStateOf(false) }
+    var feedback by remember { mutableStateOf(false) }
+    if (feedback) FeedbackDialog(repo, onClose = { feedback = false })
     LaunchedEffect(reload) {
         info = runCatching { repo.accountInfo() }.getOrNull()
         plan = runCatching { repo.plan() }.getOrNull()
@@ -138,6 +141,40 @@ fun AccountDialog(repo: NoteRepository, state: UiState, onClose: () -> Unit) {
                         }
                     }
                 }
+                // Labels and groups the person made: remove them here, add them from the notes.
+                if (state.labels.labels.isNotEmpty()) {
+                    HorizontalDivider()
+                    Text(tr("🏷 My labels"), style = MaterialTheme.typography.titleSmall)
+                    state.labels.labels.forEach { l ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("🏷 " + l.name, color = Color(Labels.argb(l.color)), modifier = Modifier.weight(1f))
+                            if (state.labels.allowed) TextButton(onClick = {
+                                scope.launch {
+                                    runCatching { repo.setLabels(state.labels.labels.filter { it.name != l.name }) }
+                                        .onFailure { message = (it.message ?: tr("You need to be online for this.")) to true }
+                                }
+                            }) { Text(tr("Remove")) }
+                        }
+                    }
+                }
+                if (state.myGroups.isNotEmpty()) {
+                    HorizontalDivider()
+                    Text(tr("My groups"), style = MaterialTheme.typography.titleSmall)
+                    state.myGroups.forEach { g ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(g, modifier = Modifier.weight(1f))
+                            TextButton(onClick = {
+                                scope.launch {
+                                    runCatching { repo.setMyGroups(state.myGroups - g) }
+                                        .onFailure { message = (it.message ?: tr("You need to be online for this.")) to true }
+                                }
+                            }) { Text(tr("Remove")) }
+                        }
+                    }
+                }
+                HorizontalDivider()
+                TextButton(onClick = { feedback = true }) { Text(tr("💬 Send feedback")) }
+                LegalLinks(state.serverUrl)
                 HorizontalDivider()
                 TextButton(onClick = { deleting = true }) { Text(tr("Delete my account"), color = MaterialTheme.colorScheme.error) }
             }

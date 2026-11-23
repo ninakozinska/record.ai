@@ -215,8 +215,9 @@ struct ShareView: View {
                     Button(tr("Share")) { share() }.disabled(!email.contains("@"))
                     if let message { Text(message).font(.footnote).foregroundStyle(.secondary) }
                 } footer: {
-                    Text(kind == "group" ? tr("Everyone you add sees every note in this group, also ones added later.")
-                                         : tr("They see this note and its items on their phone or computer."))
+                    Text(kind == "school" ? tr("All of School: every child, also children you add later, with dates and lists.")
+                         : kind == "group" ? tr("Everyone you add sees every note in this group, also ones added later.")
+                         : tr("They see this note and its items on their phone or computer."))
                 }
                 if !shares.isEmpty {
                     Section(tr("Shared with")) {
@@ -250,7 +251,7 @@ struct ShareView: View {
     private func reload() async {
         do {
             shares = try await store.shares().mine.filter {
-                $0.kind == kind && (kind == "group" ? $0.target.lowercased() == target.lowercased() : $0.target == target)
+                $0.kind == kind && (kind == "school" || (kind == "group" ? $0.target.lowercased() == target.lowercased() : $0.target == target))
             }
         } catch {
             message = error.localizedDescription

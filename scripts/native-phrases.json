@@ -71,6 +71,14 @@
   "pl": "Dodaj do mojego kalendarza",
   "pt": "Adicionar ao meu calendário"
  },
+ "Added": {
+  "de": "Hinzugefügt",
+  "es": "Añadido",
+  "fr": "Ajouté",
+  "it": "Aggiunto",
+  "pl": "Dodano",
+  "pt": "Adicionado"
+ },
  "Allow edits": {
   "de": "Bearbeiten erlauben",
   "es": "Permitir editar",
@@ -326,6 +334,14 @@
   "it": "Accedi con la stessa email e password del computer.",
   "pl": "Zaloguj się tym samym e-mailem i hasłem co na komputerze.",
   "pt": "Entre com o mesmo email e palavra-passe do computador."
+ },
+ "Log in with your SortMemo email and password.": {
+  "de": "Melde dich mit deiner SortMemo-E-Mail und deinem Passwort an.",
+  "es": "Inicia sesión con el correo y la contraseña de SortMemo.",
+  "fr": "Connectez-vous avec l'e-mail et le mot de passe de votre compte SortMemo.",
+  "it": "Accedi con l'email e la password di SortMemo.",
+  "pl": "Zaloguj się e-mailem i hasłem do SortMemo.",
+  "pt": "Inicie sessão com o email e a palavra-passe do SortMemo."
  },
  "Log out of SortMemo on this iPhone?": {
   "de": "Auf diesem iPhone von SortMemo abmelden?",
@@ -583,6 +599,14 @@
   "pl": "Szukaj notatek",
   "pt": "Pesquisar notas"
  },
+ "Send": {
+  "de": "Senden",
+  "es": "Enviar",
+  "fr": "Envoyer",
+  "it": "Invia",
+  "pl": "Wyślij",
+  "pt": "Enviar"
+ },
  "Server": {
   "de": "Server",
   "es": "Servidor",
@@ -614,6 +638,14 @@
   "it": "Condivisa con",
   "pl": "Udostępniono",
   "pt": "Partilhado com"
+ },
+ "SortMemo keeps your notes at sortmemo.com. If you run your own SortMemo server, type its address instead: open SortMemo in the browser on that computer and tap your initials (top right) to see it.": {
+  "de": "SortMemo speichert deine Notizen auf sortmemo.com. Wenn du einen eigenen SortMemo-Server hast, gib stattdessen seine Adresse ein: Öffne SortMemo im Browser auf diesem Computer und tippe oben rechts auf deine Initialen, um sie zu sehen.",
+  "es": "SortMemo guarda tus notas en sortmemo.com. Si tienes tu propio servidor SortMemo, escribe su dirección: abre SortMemo en el navegador de ese ordenador y toca tus iniciales (arriba a la derecha) para verla.",
+  "fr": "SortMemo garde vos notes sur sortmemo.com. Si vous avez votre propre serveur SortMemo, tapez plutôt son adresse : ouvrez SortMemo dans le navigateur de cet ordinateur et touchez vos initiales (en haut à droite) pour la voir.",
+  "it": "SortMemo conserva le tue note su sortmemo.com. Se usi un server SortMemo tuo, scrivi qui il suo indirizzo: apri SortMemo nel browser su quel computer e tocca le tue iniziali (in alto a destra) per vederlo.",
+  "pl": "SortMemo przechowuje notatki na sortmemo.com. Jeśli masz własny serwer SortMemo, wpisz jego adres: otwórz SortMemo w przeglądarce na tym komputerze i stuknij swoje inicjały (w prawym górnym rogu), aby go zobaczyć.",
+  "pt": "O SortMemo guarda as suas notas em sortmemo.com. Se tiver o seu próprio servidor SortMemo, escreva o endereço dele: abra o SortMemo no navegador desse computador e toque nas suas iniciais (canto superior direito) para o ver."
  },
  "Sorting": {
   "de": "Sortierung",
@@ -814,6 +846,22 @@
   "it": "Le note tornano com'erano allora. Quelle scritte dopo vengono eliminate. Prima viene fatto un backup di come sono ora, così puoi annullare.",
   "pl": "Notatki wrócą do tamtego stanu. Napisane później zostaną usunięte. Najpierw powstanie kopia obecnego stanu, więc możesz to cofnąć.",
   "pt": "As notas voltam a como estavam. As escritas depois são apagadas. Primeiro é feita uma cópia do estado atual, para poder anular."
+ },
+ "Your own server at home: your iPhone and that computer must be on the same network, or connected with Tailscale.": {
+  "de": "Eigener Server zu Hause: Das iPhone und dieser Computer müssen im selben Netzwerk sein oder über Tailscale verbunden.",
+  "es": "Tu propio servidor en casa: el iPhone y ese ordenador deben estar en la misma red, o conectados con Tailscale.",
+  "fr": "Votre propre serveur à la maison : l'iPhone et cet ordinateur doivent être sur le même réseau, ou reliés avec Tailscale.",
+  "it": "Server tuo a casa: l'iPhone e quel computer devono essere sulla stessa rete, o collegati con Tailscale.",
+  "pl": "Własny serwer w domu: iPhone i ten komputer muszą być w tej samej sieci albo połączone przez Tailscale.",
+  "pt": "O seu próprio servidor em casa: o iPhone e esse computador têm de estar na mesma rede, ou ligados com o Tailscale."
+ },
+ "Your own server at home: your phone and that computer must be on the same network, or connected with Tailscale.": {
+  "de": "Eigener Server zu Hause: Das Telefon und dieser Computer müssen im selben Netzwerk sein oder über Tailscale verbunden.",
+  "es": "Tu propio servidor en casa: el teléfono y ese ordenador deben estar en la misma red, o conectados con Tailscale.",
+  "fr": "Votre propre serveur à la maison : le téléphone et cet ordinateur doivent être sur le même réseau, ou reliés avec Tailscale.",
+  "it": "Server tuo a casa: il telefono e quel computer devono essere sulla stessa rete, o collegati con Tailscale.",
+  "pl": "Własny serwer w domu: telefon i ten komputer muszą być w tej samej sieci albo połączone przez Tailscale.",
+  "pt": "O seu próprio servidor em casa: o telemóvel e esse computador têm de estar na mesma rede, ou ligados com o Tailscale."
  },
  "Your phone and your computer must be on the same network, or connected with Tailscale.": {
   "de": "Handy und Computer müssen im selben Netz sein oder über Tailscale verbunden.",

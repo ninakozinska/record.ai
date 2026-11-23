@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Added to the app's Info.plist by Package.swift (additionalInfoPlistContentFilePath).
+     The camera, microphone, speech and local network texts are in Package.swift. -->
+<plist version="1.0">
+<dict>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>SortMemo shows your photos only when you choose one to add to a note.</string>
+	<!-- SortMemo uses only standard HTTPS: no export compliance documents are needed. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+</dict>
+</plist>

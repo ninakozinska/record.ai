@@ -15,6 +15,7 @@ struct AccountView: View {
     @State private var restoring: Backup?
     @State private var deleting = false
     @State private var deleteEmail = ""
+    @State private var feedback = false
 
     var body: some View {
         NavigationStack {
@@ -115,6 +116,47 @@ struct AccountView: View {
                         if plan.premium { Text(tr("A backup of your notes is made every day and kept 30 days.")) }
                     }
                 }
+                // Labels and groups the person made: remove them here, add them from the notes.
+                if !store.labelsState.labels.isEmpty {
+                    Section(tr("🏷 My labels")) {
+                        ForEach(store.labelsState.labels, id: \.name) { l in
+                            HStack {
+                                LabelChip(name: l.name, color: l.color, on: true)
+                                Spacer()
+                                if store.labelsState.allowed {
+                                    Button(tr("Remove")) {
+                                        Task {
+                                            do { try await store.setLabels(store.labelsState.labels.filter { $0.name != l.name }) }
+                                            catch { show(error.localizedDescription, error: true) }
+                                        }
+                                    }
+                                    .buttonStyle(.borderless)
+                                }
+                            }
+                        }
+                    }
+                }
+                if !store.myGroups.isEmpty {
+                    Section(tr("My groups")) {
+                        ForEach(store.myGroups, id: \.self) { g in
+                            HStack {
+                                Text(g)
+                                Spacer()
+                                Button(tr("Remove")) {
+                                    Task {
+                                        do { try await store.setMyGroups(store.myGroups.filter { $0 != g }) }
+                                        catch { show(error.localizedDescription, error: true) }
+                                    }
+                                }
+                                .buttonStyle(.borderless)
+                            }
+                        }
+                    }
+                }
+                Section {
+                    Button(tr("💬 Send feedback")) { feedback = true }
+                    LegalLinks(server: store.serverURL)
+                }
                 Section {
                     Button(tr("Delete my account"), role: .destructive) { deleting = true }
                 } footer: {
@@ -122,6 +164,7 @@ struct AccountView: View {
                 }
             }
             .task { await loadInfo() }
+            .sheet(isPresented: $feedback) { FeedbackView() }
             .alert(tr("Restore this backup?"), isPresented: Binding(get: { restoring != nil }, set: { if !$0 { restoring = nil } })) {
                 Button(tr("Restore")) {
                     guard let b = restoring else { return }

@@ -5,7 +5,7 @@ struct APIError: LocalizedError {
     var message: String
     var errorDescription: String? { message }
 
-    static let offline = APIError(status: 0, message: "Cannot reach your SortMemo server. Is your Mac on, with SortMemo running?")
+    static let offline = APIError(status: 0, message: "Cannot reach SortMemo. Check your internet connection and try again.")
 }
 
 /// Talks to the SortMemo server (the same API the web app uses).
@@ -13,9 +13,12 @@ struct API {
     var baseURL: URL
     var token: String?
 
+    /// Where the app connects unless the person chooses their own server.
+    static let defaultServer = URL(string: "https://sortmemo.com")!
+
     /// A computer at home (an IP address, "localhost", a ".local" name, or anything
     /// with a port such as :3000) speaks plain http; a server on the internet
-    /// (record-ai-nina.fly.dev) only https. A login sent over http to such a
+    /// (sortmemo.com) only https. A login sent over http to such a
     /// server is redirected and loses its password, so guessing right matters.
     static func isLocal(_ address: String) -> Bool {
         let host = String(address.split(separator: "/", maxSplits: 1).first ?? "")

@@ -22,7 +22,7 @@ Notes you **type, dictate, or photograph**. They sync across your phone, your co
 - **Your choices win**: open a note to set its group or priority yourself (📌). The AI won't change it until you set it back to *Auto*.
 - **Same notes on every device**: changes show up live on your other devices.
 - **Works offline**: notes and photos are saved on the device first and upload when you're back online.
-- **Installable** on iPhone, Android, Windows, macOS, Linux and ChromeOS. It's one app (a Progressive Web App), so there are no app stores to deal with.
+- **Installable** on iPhone, Android, Windows, macOS, Linux and ChromeOS as a web app (a Progressive Web App), straight from the browser. There are also native iPhone and Android apps (below), getting ready for the App Store and Google Play.
 
 ## Run it on a Mac (free, easiest)
 
@@ -80,6 +80,7 @@ There are **native phone apps** for iPhone ([`ios/`](ios/)) and Android ([`andro
 
 - iPhone: see [ios/README.md](ios/README.md) (needs a Mac with Xcode).
 - Android: see [android/README.md](android/README.md) (download the app from GitHub, or build it with Android Studio).
+- Publishing them on the App Store and Google Play, step by step: [docs/ReleaseAppStore.md](docs/ReleaseAppStore.md) (store texts in [docs/STORE.md](docs/STORE.md); what each app can do: [docs/PARITY.md](docs/PARITY.md)).
 
 ## Install it on your devices
 
@@ -100,7 +101,7 @@ Open your server's URL, log in, then:
 - **More accounts:** set `ALLOW_SIGNUP=true` (anyone can sign up) or `SIGNUP_CODE=…` (sign up with an invite code), then restart.
 - **In the app** (tap your initials, top right): change your password, log out, or log out all other devices. Changing the password also logs out the other devices.
 - **Security:** passwords are stored hashed with scrypt, session tokens are stored hashed, and repeated wrong passwords are slowed down (10 tries per 15 minutes). Logging out removes your notes from that device.
-- **Forgot your password?** On the server, run `npm run reset-password -- you@example.com "new password"`.
+- **Forgot your password?** Tap "Forgot your password?" on the login screen: a reset link arrives by email (on sortmemo.com it comes from hello@sortmemo.com). On a server without email set up (see `RESEND_API_KEY` below), run `npm run reset-password -- you@example.com "new password"` on the server instead.
 
 ## Configuration
 
@@ -108,7 +109,7 @@ Open your server's URL, log in, then:
 |---|---|---|
 | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_SOLO`, `STRIPE_PRICE_FAMILY` | *(none)* | Opens payments for Solo and Family through Stripe. Step by step: [docs/PAYMENTS.md](docs/PAYMENTS.md). |
 | `SENTRY_DSN` | *(none)* | Sends server errors to [Sentry](https://sentry.io) (free tier): make a Node.js project there and copy its DSN. Reports hold where the error happened and the account id, never note text or emails. |
-| `PUBLIC_URL` | *(the address in the browser)* | The HTTPS address people use, e.g. `https://notes.example.com`. Needed for "Continue with Google" etc. |
+| `PUBLIC_URL` | *(the address in the browser)* | The HTTPS address people use, e.g. `https://sortmemo.com` (set in fly.toml for SortMemo's own server). Used in emailed links, and needed for "Continue with Google" etc. |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, … | *(none)* | Turn on "Continue with Google / Apple / Microsoft / Facebook / LinkedIn / X / GitHub". Step by step: [docs/SOCIAL_LOGIN.md](docs/SOCIAL_LOGIN.md). |
 | `ALLOW_SIGNUP` | `false` | `true` lets anyone who can reach the server create an account. |
 | `SIGNUP_CODE` | *(none)* | Lets people create an account only with this invite code. |
@@ -122,10 +123,8 @@ Open your server's URL, log in, then:
 | `ADMIN_EMAILS` | *(none)* | Comma-separated emails that may open the dashboard (/admin.html) besides the owner (the first account). |
 | `OPTIMIZER` | *(on)* | `off` stops the hourly optimization loops and the daily backups. See [docs/OPTIMIZATION.md](docs/OPTIMIZATION.md). |
 | `AI_UNLIMITED` | *(none)* | Comma-separated emails that have no monthly AI limit either. |
-| `RESEND_API_KEY`, `MAIL_FROM` | *(none)* | Sends "Forgot your password?" emails through [Resend](https://resend.com) (`MAIL_FROM` like `SortMemo <hello@your-domain>`, on a domain verified there). Without them the reset link is only written to the server log. |
-| `MAIL_REPLY_TO` | *(none)* | Where replies to those emails go, such as `support@your-domain` (a mailbox you read). |
-| `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_SOLO`, `STRIPE_PRICE_FAMILY` | *(none)* | Opens payments for Solo and Family through Stripe. Step by step: [docs/PAYMENTS.md](docs/PAYMENTS.md). |
-| `PUBLIC_URL` | *(the address used)* | The app's public address, used in emailed links (e.g. `https://record-ai-nina.fly.dev`). |
+| `RESEND_API_KEY`, `MAIL_FROM` | *(none)* | Sends "Forgot your password?" emails through [Resend](https://resend.com) (`MAIL_FROM` like `SortMemo <hello@sortmemo.com>`, on a domain verified there). Without them the reset link is only written to the server log. |
+| `MAIL_REPLY_TO` | *(none)* | Where replies to those emails go, such as `support@sortmemo.com` (a mailbox you read). |
 | `PORT` | `3000` | HTTP port. |
 | `TRUST_PROXY` | `loopback` | Which proxy to believe about visitors' addresses. Behind a host's proxy (Fly.io, Render) set `1`, or one person's wrong passwords slow down everyone. |
 | `DATA_DIR` | `./data` | Where the SQLite database and photos are stored. **Back this up.** |
@@ -163,7 +162,7 @@ GitHub runs every test on each push.
 ## Known limitations
 
 - **Dictation** uses the browser's speech recognition: Chrome, Edge, Safari (including iPhone) and Android. Firefox doesn't support it, so use your keyboard's 🎤 key instead.
-- There is no email, so a forgotten password is reset on the server: `npm run reset-password -- you@example.com "new password"`.
+- Without email set up (`RESEND_API_KEY`, `MAIL_FROM`), a forgotten password is reset on the server: `npm run reset-password -- you@example.com "new password"`. On sortmemo.com the reset link arrives by email from hello@sortmemo.com.
 - Photos are shrunk to 1600px before upload to keep sync and AI calls fast.
 
 ## License

@@ -6,6 +6,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -29,7 +30,7 @@ import kotlin.coroutines.resumeWithException
 
 class ApiException(val status: Int, message: String) : Exception(message) {
     companion object {
-        fun offline() = ApiException(0, "Cannot reach your SortMemo server. Is your computer on, with SortMemo running?")
+        fun offline() = ApiException(0, "Cannot reach SortMemo. Check your internet connection and try again.")
     }
 }
 
@@ -50,11 +51,13 @@ class Api(val baseUrl: String, private val token: String?, private val client: O
 
         private val JSON_TYPE = "application/json".toMediaType()
 
-        /** Turns what the person typed ("192.168.1.20:3000") into a server address, or null. */
+        /** Where the app connects unless the person chooses their own server. */
+        const val DEFAULT_SERVER = "https://sortmemo.com"
+
         /**
          * A computer at home (an IP address, "localhost", a ".local" name, or anything
          * with a port such as :3000) speaks plain http; a server on the internet
-         * (record-ai-nina.fly.dev) only https. A login sent over http to such a server
+         * (sortmemo.com) only https. A login sent over http to such a server
          * is redirected and loses its password, so guessing right matters.
          */
         internal fun isLocal(address: String): Boolean {
@@ -96,8 +99,9 @@ class Api(val baseUrl: String, private val token: String?, private val client: O
         }
     }
 
-    private suspend fun post(path: String, body: JsonElement): ByteArray =
-        call(path, "POST", json.encodeToString(JsonElement.serializer(), body).toRequestBody(JSON_TYPE))
+    private fun jsonBody(value: JsonElement): RequestBody = json.encodeToString(JsonElement.serializer(), value).toRequestBody(JSON_TYPE)
+
+    private suspend fun post(path: String, body: JsonElement): ByteArray = call(path, "POST", jsonBody(body))
 
     private inline fun <reified T> decode(bytes: ByteArray): T = json.decodeFromString(bytes.decodeToString())
 
@@ -178,8 +182,51 @@ class Api(val baseUrl: String, private val token: String?, private val client: O
 
     @kotlinx.serialization.Serializable private data class WorldChoices(val chosen: Map<String, String> = emptyMap())
 
-    /** Groups the person moved between Work and Family ("" = both). */
+    /** Groups the person moved between Work, Family and School ("" = all). */
     suspend fun worlds(): Map<String, String> = decode<WorldChoices>(call("groups/worlds")).chosen
+
+    /** Saves every group's world (group name in lowercase → "work", "family", "school" or ""). */
+    suspend fun setWorlds(chosen: Map<String, String>): Map<String, String> =
+        decode<WorldChoices>(call("groups/worlds", "PUT", jsonBody(buildJsonObject { put("chosen", JsonObject(chosen.mapValues { JsonPrimitive(it.value) })) }))).chosen
+
+    @kotlinx.serialization.Serializable private data class GroupNames(val names: List<String> = emptyList())
+
+    /** "My groups": groups the person made (a child's "School · Leo" too); they show even with no notes. */
+    suspend fun myGroups(): List<String> = decode<GroupNames>(call("groups/mine")).names
+
+    suspend fun setMyGroups(names: List<String>): List<String> =
+        decode<GroupNames>(call("groups/mine", "PUT", jsonBody(buildJsonObject { put("names", JsonArray(names.map { JsonPrimitive(it) })) }))).names
+
+    /** The person's labels (Premium), whether they may set them, and the colours. */
+    suspend fun labels(): LabelsState = decode(call("labels"))
+
+    @kotlinx.serialization.Serializable private data class LabelList(val labels: List<Label> = emptyList())
+
+    suspend fun setLabels(labels: List<Label>): List<Label> =
+        decode<LabelList>(call("labels", "PUT", jsonBody(buildJsonObject {
+            put("labels", JsonArray(labels.map { l -> buildJsonObject { put("name", l.name); put("color", l.color) } }))
+        }))).labels
+
+    @kotlinx.serialization.Serializable private data class Language(val lang: String? = null)
+
+    /** The language the AI names new groups in (the app's words follow the phone). */
+    suspend fun language(): String? = decode<Language>(call("language")).lang
+
+    suspend fun setLanguage(lang: String) { call("language", "PUT", jsonBody(buildJsonObject { put("lang", lang) })) }
+
+    /** "Send feedback": goes to the owner's dashboard. */
+    suspend fun feedback(text: String) { post("feedback", buildJsonObject { put("text", text); put("platform", "android") }) }
+
+    // --- suggested to-dos ---
+
+    suspend fun suggestions(): Suggestions = decode(call("suggestions"))
+
+    /** Asks the AI for suggestions now (once an hour). */
+    suspend fun suggestNow(): Suggestions = decode(post("suggestions/run", JsonObject(emptyMap())))
+
+    /** "add" (optionally with an edited title) or "dismiss"; returns what is left to review. */
+    suspend fun decideSuggestion(id: String, action: String, title: String? = null): Suggestions =
+        decode(post("suggestions/$id/$action", buildJsonObject { if (title != null) put("title", title) }))
 
     // --- plan, backups, account ---
 

@@ -58,6 +58,13 @@ struct Note: Codable, Identifiable, Equatable {
     /// Family hub: who the note or item is for, and who ticked it off (account ids).
     var assignedTo: String? = nil
     var doneBy: String? = nil
+    /// Labels (Premium): the person's choice (nil = the AI's), the AI's, and the ones shown.
+    var userLabels: [String]? = nil
+    var aiLabels: [String]? = nil
+    var labels: [String]? = nil
+
+    /// The labels shown: the person's if they chose (even none), else the AI's.
+    var shownLabels: [String] { userLabels ?? aiLabels ?? labels ?? [] }
 
     /// Shared with me by someone else.
     var isShared: Bool { role != nil }
@@ -124,6 +131,7 @@ extension Note {
         case aiGroup, aiPriority, priorityReason, tags, dueDate, aiStatus, aiError, rev
         case dueTime, userDue, aiDueDate, aiDueTime, parentId, userId, role, ownerName, revoked
         case remind, assignedTo, doneBy
+        case userLabels, aiLabels, labels
     }
 
     /// Tolerant: a "no longer shared" marker from the server has only id, rev and the flags.
@@ -160,14 +168,17 @@ extension Note {
         remind = try c.decodeIfPresent(Int.self, forKey: .remind)
         assignedTo = try c.decodeIfPresent(String.self, forKey: .assignedTo)
         doneBy = try c.decodeIfPresent(String.self, forKey: .doneBy)
+        userLabels = try c.decodeIfPresent([String].self, forKey: .userLabels)
+        aiLabels = try c.decodeIfPresent([String].self, forKey: .aiLabels)
+        labels = try c.decodeIfPresent([String].self, forKey: .labels)
     }
 }
 
 /// A share I made (`mine`), or one made with me (`withMe`, with its owner).
 struct Share: Codable, Identifiable {
     var id: String
-    var kind: String          // "note" or "group"
-    var target: String        // note id or group name
+    var kind: String          // "note", "group" or "school" (all of School)
+    var target: String        // note id or group name ("School" for all of School)
     var role: String          // "edit" or "view"
     var email: String?
     var name: String?
@@ -192,6 +203,29 @@ struct SpokenDay: Codable {
     var text: String
     var lang: String
     var canRead: Bool
+}
+
+/// A to-do the AI suggests from meetings, notes or AI chats; nothing is added until the person adds it.
+struct Suggestion: Codable, Identifiable, Equatable {
+    var id: String
+    var title: String
+    var dueDate: String?
+    var dueTime: String?
+    var reason: String?
+    var sourceLabel: String?
+    var top: Bool?
+}
+
+struct SuggestionList: Codable {
+    var suggestions: [Suggestion]
+}
+
+struct GroupNames: Codable {
+    var names: [String]
+}
+
+struct LabelList: Codable {
+    var labels: [NoteLabel]
 }
 
 struct Backup: Codable, Identifiable {
@@ -321,6 +355,11 @@ extension JSONDecoder {
         d.keyDecodingStrategy = .convertFromSnakeCase
         return d
     }()
+
+    /// For answers holding names the person chose (groups, worlds, labels): `.server`'s
+    /// snake-case conversion also renames dictionary keys, so "my_stuff" would come back
+    /// as "myStuff" and be saved that way on the next change.
+    static let plain = JSONDecoder()
 }
 
 extension JSONEncoder {

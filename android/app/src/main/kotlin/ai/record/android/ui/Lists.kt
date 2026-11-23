@@ -42,6 +42,7 @@ import ai.record.core.Note
 import ai.record.core.NoteRepository
 import ai.record.core.Share
 import ai.record.core.UiState
+import ai.record.core.Worlds
 import ai.record.core.pastedLines
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -209,7 +210,7 @@ fun ShareDialog(repo: NoteRepository, kind: String, target: String, label: Strin
     var message by remember { mutableStateOf<String?>(null) }
     suspend fun reload() {
         runCatching { repo.shares() }.onSuccess { s ->
-            shares = s.mine.filter { it.kind == kind && it.target.equals(target, ignoreCase = kind == "group") }
+            shares = s.mine.filter { it.kind == kind && (kind == "school" || it.target.equals(target, ignoreCase = kind == "group")) }
         }.onFailure { message = it.message }
     }
     LaunchedEffect(target) { reload() }
@@ -218,8 +219,11 @@ fun ShareDialog(repo: NoteRepository, kind: String, target: String, label: Strin
         title = { Text("Share \"$label\"") },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(if (kind == "group") tr("Everyone you add sees every note in this group, also ones added later.")
-                    else tr("They see this note and its items on their phone or computer."),
+                Text(when (kind) {
+                    "school" -> tr("All of School: every child, also children you add later, with dates and lists.")
+                    "group" -> tr("Everyone you add sees every note in this group, also ones added later.")
+                    else -> tr("They see this note and its items on their phone or computer.")
+                },
                     style = MaterialTheme.typography.bodySmall)
                 OutlinedTextField(email, { email = it }, label = { Text(tr("Their email")) }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -258,9 +262,9 @@ fun ShareDialog(repo: NoteRepository, kind: String, target: String, label: Strin
 /** For a note shared with me: leave it (it disappears from my devices). */
 suspend fun leaveShared(repo: NoteRepository, note: Note) {
     val withMe = repo.shares().withMe
+    // The owner's group, not "Shared with me": the share may be the note, its group or all of School.
+    val group = note.userGroup?.takeIf { it.isNotBlank() } ?: note.aiGroup?.takeIf { it.isNotBlank() } ?: "Inbox"
     val share = withMe.firstOrNull { it.kind == "note" && it.target == note.id }
-        ?: withMe.firstOrNull { s ->
-            s.kind == "group" && s.owner?.id == note.userId && s.target.equals(note.userGroup ?: note.aiGroup, ignoreCase = true)
-        }
+        ?: withMe.firstOrNull { s -> s.owner?.id == note.userId && Worlds.covers(s.kind, s.target, note.id, group) }
     share?.let { repo.unshare(it.id) }
 }

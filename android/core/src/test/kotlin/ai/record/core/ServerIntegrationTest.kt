@@ -103,6 +103,39 @@ class ServerIntegrationTest {
         assertTrue(phone.state.value.notes.isEmpty())
     }
 
+    @Test fun `labels, children, worlds and the AI's language, like the web app`() = runBlocking<Unit> {
+        val phone = newRepo()
+        phone.connect("127.0.0.1:${url.substringAfterLast(':')}")
+        phone.signup("Nina", "nina@example.com", "correct horse", "")
+        phone.refreshAccount()
+        // The server's owner has everything, labels included.
+        assertTrue(phone.state.value.labels.allowed)
+        assertEquals("Leo", phone.addLabel(" Leo "))
+        assertEquals("Leo", phone.addLabel("leo"), "the same label in another case is not added twice")
+        assertEquals(listOf("Leo"), phone.state.value.labels.labels.map { it.name })
+
+        // A child's school group, shown even before it has notes.
+        assertEquals("School · Mia", phone.addMyGroup(Worlds.childGroup("Mia")))
+        phone.setWorld("Groceries", Worlds.FAMILY)
+
+        // A note with a label, sent like any other change.
+        val id = phone.create("Swim club fee", emptyList())
+        phone.save(id, mapOf("user_labels" to listOf("Leo")))
+        val web = Api(url, Api(url, null).login("nina@example.com", "correct horse").token)
+        eventually("label saved") { web.notesNow().any { it.id == id && it.labels == listOf("Leo") } }
+        assertEquals(listOf("Leo"), phone.state.value.notes[id]?.shownLabels)
+
+        // Another device sees the same labels, groups and worlds.
+        assertEquals(listOf("Leo"), web.labels().labels.map { it.name })
+        assertEquals(listOf("School · Mia"), web.myGroups())
+        assertEquals(Worlds.FAMILY, web.worlds()["groceries"])
+        assertEquals(appLanguage, web.language(), "the AI names new groups in the phone's language")
+
+        // Suggestions come as a (here empty) list; feedback is accepted.
+        assertEquals(emptyList(), phone.state.value.suggestions)
+        phone.feedback("Lovely app")
+    }
+
     @Test fun `edits made offline are kept and sent later`() = runBlocking<Unit> {
         val dir = Files.createTempDirectory("recordai-offline").toFile()
         val phone = newRepo(dir)
