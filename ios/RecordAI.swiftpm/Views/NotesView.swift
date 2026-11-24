@@ -178,6 +178,7 @@ struct NotesView: View {
                     }
                 }
             }
+            .scrollDismissesKeyboard(.interactively)
             .safeAreaInset(edge: .bottom) { ComposerView() }
             .sheet(item: $editing) { target in NoteDetailView(noteId: target.id) }
             .sheet(isPresented: $showAccount) { AccountView() }

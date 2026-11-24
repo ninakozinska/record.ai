@@ -13,11 +13,13 @@ struct NoteInputs: View {
     @State private var baseText = ""
     @State private var showCamera = false
     @State private var photoItems: [PhotosPickerItem] = []
+    @FocusState private var typing: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             TextField(placeholder, text: $text, axis: .vertical)
                 .lineLimit(minLines...10)
+                .focused($typing)
             if !images.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
@@ -60,6 +62,13 @@ struct NoteInputs: View {
                     Image(systemName: "photo.on.rectangle")
                 }
                 .accessibilityLabel(tr("Add photos"))
+
+                // Return adds a new line in a note, so the keyboard needs its own way down.
+                if typing {
+                    Spacer()
+                    Button { typing = false } label: { Image(systemName: "keyboard.chevron.compact.down") }
+                        .accessibilityLabel(tr("Hide keyboard"))
+                }
             }
             .font(.title3)
         }
@@ -149,5 +158,11 @@ struct ComposerView: View {
         store.create(text: text.trimmingCharacters(in: .whitespacesAndNewlines), images: images)
         text = ""
         images = []
+        hideKeyboard()
     }
+}
+
+/// Closes the keyboard, wherever the typing is.
+@MainActor func hideKeyboard() {
+    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
 }
