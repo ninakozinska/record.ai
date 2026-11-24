@@ -6,11 +6,21 @@ import SwiftUI
 enum ReadAloud {
     static let synthesizer = AVSpeechSynthesizer()
 
-    /// The iPhone's voices, the app's language first.
+    /// The iPhone's voices: the app's language first, the best quality first,
+    /// without Apple's joke voices (Bells, Bubbles, Good News…).
     static var voices: [AVSpeechSynthesisVoice] {
         let all = AVSpeechSynthesisVoice.speechVoices()
+            .filter { !$0.voiceTraits.contains(.isNoveltyVoice) }
+            .sorted { ($0.quality.rawValue, $1.name) > ($1.quality.rawValue, $0.name) }
         let mine = all.filter { $0.language.hasPrefix(appLanguage) }
         return mine + all.filter { !$0.language.hasPrefix(appLanguage) }
+    }
+
+    /// The chosen voice, or the best one for the app's language.
+    static var current: AVSpeechSynthesisVoice? {
+        let chosen = UserDefaults.standard.string(forKey: "voice") ?? ""
+        let all = voices
+        return all.first { $0.identifier == chosen } ?? all.first
     }
 
     /// Reads the text, or stops if something is being read.
@@ -19,9 +29,13 @@ enum ReadAloud {
             synthesizer.stopSpeaking(at: .immediate)
             return
         }
+        // Spoken audio: heard even with the silent switch on, and after dictation
+        // (which leaves the audio set up for recording).
+        let session = AVAudioSession.sharedInstance()
+        try? session.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
+        try? session.setActive(true)
         let utterance = AVSpeechUtterance(string: text)
-        let chosen = UserDefaults.standard.string(forKey: "voice") ?? ""
-        utterance.voice = AVSpeechSynthesisVoice(identifier: chosen) ?? voices.first
+        utterance.voice = current
         let speed = UserDefaults.standard.double(forKey: "voiceRate")
         utterance.rate = AVSpeechUtteranceDefaultSpeechRate * Float(speed > 0 ? speed : 1)
         synthesizer.speak(utterance)
@@ -84,6 +98,12 @@ struct VoiceSection: View {
             Text(tr("🔊 Read aloud"))
         } footer: {
             Text(tr("Notes and your day read aloud, with the voice you like. The voices come from this device."))
+        }
+        .onAppear {
+            // An empty, removed or joke voice: show the one that will really be used.
+            if !ReadAloud.voices.contains(where: { $0.identifier == voice }) {
+                voice = ReadAloud.current?.identifier ?? ""
+            }
         }
     }
 }
