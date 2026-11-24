@@ -4,6 +4,9 @@
      The camera, microphone, speech and local network texts are in Package.swift. -->
 <plist version="1.0">
 <dict>
+	<!-- The name under the icon on the home screen. -->
+	<key>CFBundleDisplayName</key>
+	<string>SortMemo</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>SortMemo shows your photos only when you choose one to add to a note.</string>
 	<!-- SortMemo uses only standard HTTPS: no export compliance documents are needed. -->
