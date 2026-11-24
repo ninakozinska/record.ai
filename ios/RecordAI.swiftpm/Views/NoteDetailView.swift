@@ -164,6 +164,7 @@ struct NoteDetailView: View {
                 }
                 if let note { HistorySection(note: note, people: people.people) }
             }
+            .scrollDismissesKeyboard(.interactively)
             .navigationTitle(note?.displayTitle ?? tr("Note"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
