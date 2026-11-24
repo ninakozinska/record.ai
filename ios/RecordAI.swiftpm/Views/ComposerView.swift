@@ -8,6 +8,9 @@ struct NoteInputs: View {
     @Binding var images: [String]
     var minLines = 1
     var placeholder = tr("Write a note, or tap 🎤 to dictate…")
+    /// The new-note bar: the text field in its own white box with a coloured border,
+    /// so it stands out from the search field below it.
+    var boxed = false
 
     @State private var dictation = Dictation()
     @State private var baseText = ""
@@ -20,6 +23,16 @@ struct NoteInputs: View {
             TextField(placeholder, text: $text, axis: .vertical)
                 .lineLimit(minLines...10)
                 .focused($typing)
+                .padding(.horizontal, boxed ? 12 : 0)
+                .padding(.vertical, boxed ? 10 : 0)
+                .background {
+                    if boxed {
+                        RoundedRectangle(cornerRadius: 14)
+                            .fill(Color(.systemBackground))
+                            .overlay(RoundedRectangle(cornerRadius: 14)
+                                .strokeBorder(Color.indigo.opacity(typing ? 0.9 : 0.5), lineWidth: typing ? 2 : 1.5))
+                    }
+                }
             if !images.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
@@ -110,7 +123,7 @@ struct ComposerView: View {
 
     var body: some View {
         HStack(alignment: .bottom, spacing: 10) {
-            NoteInputs(text: $text, images: $images)
+            NoteInputs(text: $text, images: $images, boxed: true)
                 .onChange(of: text) { old, new in
                     // Several lines pasted at once: ask how to add them.
                     if ownChange { ownChange = false; return }
