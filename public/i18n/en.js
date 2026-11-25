@@ -228,7 +228,7 @@ export default {
   "Coming to Premium. Which would you use most?": "Coming to Premium. Which would you use most?",
   "⏰ Smart reminders": "⏰ Smart reminders",
   "👨‍👩‍👧 Give tasks to family": "👨‍👩‍👧 Give tasks to family",
-  "📸 School letter → tasks": "📸 School letter → tasks",
+  "📸 School tasks": "📸 School tasks",
   "⬇ Download all my notes": "⬇ Download all my notes",
   "📊 Dashboard": "📊 Dashboard",
   "📅 Calendar": "📅 Calendar",

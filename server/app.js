@@ -531,7 +531,7 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth, mail, bill
     res.json({ rev: store.rev, results, notes });
   });
 
-  // "School letter → tasks": the tasks in a note become notes of their own, with
+  // "School tasks": the tasks in a note become notes of their own, with
   // their dates, in the same group. Free accounts: once a month.
   const FREE_LETTERS = 1;
   app.post('/api/notes/:id/tasks', async (req, res) => {
