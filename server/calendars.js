@@ -174,7 +174,10 @@ export const PROVIDERS = {
     extra: { access_type: 'offline', prompt: 'consent', include_granted_scopes: 'true' },
     writes: true,
     async account(api) {
-      return (await api('GET', 'https://www.googleapis.com/calendar/v3/calendars/primary')).id || '';
+      // The events list carries the calendar's name (for the main calendar, the
+      // person's email). Asking for the calendar itself would need a wider
+      // permission than "view and edit events", and Google refuses it.
+      return (await api('GET', `${GOOGLE_API}?maxResults=1`)).summary || '';
     },
     async list(api, { from, to, tz }) {
       const q = new URLSearchParams({ singleEvents: 'true', orderBy: 'startTime', maxResults: '250', timeMin: new Date(from).toISOString(), timeMax: new Date(to).toISOString() });

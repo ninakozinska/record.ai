@@ -25,9 +25,10 @@ function fakeGoogle() {
     const method = init.method || 'GET';
     calls.push({ method, url: u, body: init.body });
     if (u.host === 'oauth2.googleapis.com') return json({ access_token: 'at', refresh_token: 'refresh-token-in-the-clear', expires_in: 3600 });
-    if (u.pathname === '/calendar/v3/calendars/primary') return json({ id: 'nina@gmail.com' });
+    // Like Google: with only the calendar.events permission, the calendar itself is off limits.
+    if (u.pathname === '/calendar/v3/calendars/primary') return json({ error: { code: 403, message: 'Insufficient Permission' } }, 403);
     const id = decodeURIComponent(u.pathname.split('/events/')[1] || '');
-    if (method === 'GET') return json({ items: [...events.values()] });
+    if (method === 'GET') return json({ summary: 'nina@gmail.com', items: [...events.values()] });
     if (method === 'POST') {
       const e = { id: `ev${++n}`, ...JSON.parse(init.body) };
       events.set(e.id, e);
