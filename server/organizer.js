@@ -48,7 +48,10 @@ const reorganizeEvery = () => Number(process.env.REORGANIZE_EVERY || 20);
 // reorganize = 5), because all of them run on the server owner's AI account.
 // The owner (the first account, plus any email in AI_UNLIMITED) has no limit.
 // AI_MONTHLY_LIMIT=0 turns the limit off. The free local AI (Ollama) has none.
+// The Family plan gets more (AI_MONTHLY_LIMIT_FAMILY), because it serves a whole
+// household and costs more.
 const monthlyLimit = () => Number(process.env.AI_MONTHLY_LIMIT ?? 300);
+const familyLimit = () => Number(process.env.AI_MONTHLY_LIMIT_FAMILY ?? 500);
 const REORGANIZE_COST = 5;
 const thisMonth = () => new Date().toISOString().slice(0, 7);
 function nextMonthStart() {
@@ -175,7 +178,8 @@ export class Organizer {
       !monthlyLimit() ||
       this.store.firstUserId() === userId ||
       (process.env.AI_UNLIMITED || '').toLowerCase().split(',').map((e) => e.trim()).includes(this.store.getUser(userId)?.email.toLowerCase());
-    return { used: Number(this.store.getMeta(`ai_used:${userId}:${thisMonth()}`) || 0), limit: unlimited ? null : monthlyLimit(), resets: nextMonthStart() };
+    const limit = this.store.planOf(userId) === 'family' ? Math.max(familyLimit(), monthlyLimit()) : monthlyLimit();
+    return { used: Number(this.store.getMeta(`ai_used:${userId}:${thisMonth()}`) || 0), limit: unlimited ? null : limit, resets: nextMonthStart() };
   }
 
   /** Counts AI use against the person's monthly limit; false when it would go over. */

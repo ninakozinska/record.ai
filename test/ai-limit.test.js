@@ -102,3 +102,19 @@ test('a full reorganize counts as 5; AI_UNLIMITED and AI_MONTHLY_LIMIT=0 lift th
     t.restore();
   }
 });
+
+test('the Family plan gets a larger monthly allowance', () => {
+  const t = setup({ AI_MONTHLY_LIMIT: '300', AI_MONTHLY_LIMIT_FAMILY: '500' });
+  try {
+    assert.equal(t.organizer.usage(t.tom.id).limit, 300, 'free');
+    t.store.setPlan(t.tom.id, 'solo');
+    assert.equal(t.organizer.usage(t.tom.id).limit, 300, 'solo');
+    t.store.setPlan(t.tom.id, 'family');
+    assert.equal(t.organizer.usage(t.tom.id).limit, 500, 'family');
+    // Never below the general limit, if that one is raised.
+    process.env.AI_MONTHLY_LIMIT = '800';
+    assert.equal(t.organizer.usage(t.tom.id).limit, 800);
+  } finally {
+    t.restore();
+  }
+});
