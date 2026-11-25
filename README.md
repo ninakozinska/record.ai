@@ -120,6 +120,7 @@ Open your server's URL, log in, then:
 | `OLLAMA_URL` | `http://127.0.0.1:11434` | Where Ollama runs. |
 | `REORGANIZE_EVERY` | `20` | Run a full reorganize after this many newly organized notes. |
 | `AI_MONTHLY_LIMIT` | `300` | AI uses per person per month with Claude (organizing a note = 1, a full reorganize = 5). After that, notes are still saved and synced, and the AI sorts them again next month. The first account (the owner) has no limit. `0` = no limit for anyone. |
+| `AI_MONTHLY_LIMIT_FAMILY` | `500` | The same allowance for people on the Family plan, which serves a whole household (never lower than `AI_MONTHLY_LIMIT`). |
 | `ADMIN_EMAILS` | *(none)* | Comma-separated emails that may open the dashboard (/admin.html) besides the owner (the first account). |
 | `OPTIMIZER` | *(on)* | `off` stops the hourly optimization loops and the daily backups. See [docs/OPTIMIZATION.md](docs/OPTIMIZATION.md). |
 | `AI_UNLIMITED` | *(none)* | Comma-separated emails that have no monthly AI limit either. |
