@@ -772,18 +772,25 @@ export class Calendars {
       this.pending.delete(String(req.query.state || ''));
       const back = (q) => res.redirect(`/?${new URLSearchParams(q)}`);
       if (!flow || flow.provider !== req.params.provider || flow.userId !== req.user.id || flow.expires < this.now()) {
+        console.error(`Connecting ${req.params.provider} failed: ${flow ? 'the connection did not match or had expired' : 'unknown or already used state'}`);
         return back({ calendar_error: 'The connection took too long or was already used. Please try again.' });
       }
       const p = PROVIDERS[flow.provider];
-      if (req.query.error || !req.query.code) return back({ calendar_error: `${p.name} was not connected.` });
+      if (req.query.error || !req.query.code) {
+        console.error(`Connecting ${flow.provider} failed: the provider answered ${String(req.query.error || 'without a code').slice(0, 100)}`);
+        return back({ calendar_error: `${p.name} was not connected.` });
+      }
       try {
         const data = await this.tokenRequest(flow.provider, { grant_type: 'authorization_code', code: String(req.query.code), redirect_uri: flow.redirectUri, code_verifier: flow.verifier });
         const link = await this.addLink(req.user.id, flow.provider, {
           access: data.access_token, refresh: data.refresh_token || null, expires: this.now() + (Number(data.expires_in) || 3600) * 1000,
         });
+        if (link?.last_error) console.error(`Connected ${flow.provider}, but the first sync failed:`, link.last_error);
         back({ calendar: flow.provider, ...(link?.last_error ? { calendar_error: link.last_error.replace(/^reconnect: /, '') } : {}) });
       } catch (err) {
-        if (!(err instanceof CalendarError)) console.error(`Connecting ${flow.provider} failed:`, err.message);
+        // Logged every time (the message names the step, never a token), so a failed
+        // connection can be traced from the server log.
+        console.error(`Connecting ${flow.provider} failed:`, err.message);
         back({ calendar_error: err instanceof CalendarError ? err.message : `${p.name} could not be connected. Please try again.` });
       }
     });
