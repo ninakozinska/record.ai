@@ -400,7 +400,7 @@ try {
   await tom.click('[data-mine]');
   console.log('✓ family hub: a task for Tom, and who ticked what');
 
-  // School letter → tasks: a long note becomes two dated tasks.
+  // School tasks: a long note becomes two dated tasks.
   await desktop.fill('#composer textarea', 'Dear parents, on 12 March the class visits the museum. Please sign the form by 6 March and pack a lunch.');
   await desktop.click('#composer [data-role=save]');
   await desktop.waitForSelector('.note:has(h3:text("Dear parents, on 12 March the class vis")):not(:has(.ai-pending))');

@@ -1,4 +1,4 @@
-// "School letter → tasks": the tasks in a note become notes with their dates.
+// "School tasks": the tasks in a note become notes with their dates.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';

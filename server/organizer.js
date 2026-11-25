@@ -90,7 +90,7 @@ export function vagueTitle(title, groups) {
   return groups.some((g) => g.toLowerCase() === t);
 }
 
-// "School letter → tasks": everything a letter, invitation or timetable asks
+// "School tasks": everything a letter, invitation or timetable asks
 // the person to do or attend, each with its date.
 const TaskList = z.object({
   tasks: z.array(z.object({

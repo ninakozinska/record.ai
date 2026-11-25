@@ -227,7 +227,7 @@ export default {
   "Coming to Premium. Which would you use most?": "Bald in Premium. Was würdest du am meisten nutzen?",
   "⏰ Smart reminders": "⏰ Smarte Erinnerungen",
   "👨‍👩‍👧 Give tasks to family": "👨‍👩‍👧 Aufgaben an die Familie geben",
-  "📸 School letter → tasks": "📸 Elternbrief → Aufgaben",
+  "📸 School tasks": "📸 Aufgaben aus der Schule",
   "⬇ Download all my notes": "⬇ Alle meine Notizen herunterladen",
   "📊 Dashboard": "📊 Dashboard",
   "📅 Calendar": "📅 Kalender",
