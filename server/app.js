@@ -15,6 +15,8 @@ import { Assistants } from './assistants.js';
 import { inWorld } from '../public/worlds.js';
 import { Insights, EVENT_NAME, ANON_ID } from './insights.js';
 import { Backups, premium } from './backups.js';
+import { Offsite } from './offsite.js';
+import { mailer } from './mail.js';
 import { Optimizer, costOf } from './optimizer.js';
 import { EXPERIMENTS } from './experiments.js';
 import { toIcs, noteTitle } from './calendar.js';
@@ -147,11 +149,24 @@ export function createApp({ dataDir, organizer: makeOrganizer, oauth, mail, bill
   });
   assistants.suggestions = suggestions;
   const backups = new Backups({ store, dataDir, imagesDir });
+  // A nightly copy of the whole database outside Fly.io (Cloudflare R2), when its keys are set.
+  const adminMail = mail || mailer();
+  const offsite = new Offsite({
+    store, dataDir,
+    notify: async (text) => {
+      const first = store.getUser(store.firstUserId())?.email;
+      const admins = (process.env.ADMIN_EMAILS || '').split(',').map((e) => e.trim()).filter(Boolean);
+      for (const to of new Set([first, ...admins].filter(Boolean))) await adminMail.send({ to, subject: 'SortMemo: the nightly backup to R2 failed', text });
+    },
+  });
   if (process.env.OPTIMIZER !== 'off') {
     optimizer.start();
     // Daily backups for premium accounts: checked every hour, made once a day.
     setTimeout(() => backups.runDaily(), 30e3).unref();
     setInterval(() => backups.runDaily(), 3600e3).unref();
+    // The offsite copy: checked every hour, made once a day (and a minute after each start).
+    setTimeout(() => offsite.runNightly(), 60e3).unref();
+    setInterval(() => offsite.runNightly(), 3600e3).unref();
     calendars.start();
     reminders.start();
     suggestions.start();
