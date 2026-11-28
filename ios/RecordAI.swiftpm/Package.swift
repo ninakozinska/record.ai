@@ -10,8 +10,11 @@ import AppleProductTypes
 
 let package = Package(
     name: "SortMemo",
+    // iOS 26 or newer. Apple only accepts uploads whose program file says it was
+    // built for iOS 26 or later, and for a Swift package like this one Xcode
+    // writes this minimum version there. With 17.0 the upload was refused.
     platforms: [
-        .iOS("17.0")
+        .iOS("26.0")
     ],
     products: [
         .iOSApplication(

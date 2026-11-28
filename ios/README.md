@@ -8,7 +8,7 @@ A native iPhone app (SwiftUI) for your SortMemo notes. It connects to the same s
 - **Works offline:** notes and photos are saved on the iPhone and sync when your server is reachable. Changes from other devices appear live.
 - **Account:** log in or sign up, change your password, log out (this removes the notes from the iPhone; they stay on the server). The login token is kept in the iPhone's Keychain.
 
-Requires iOS 17 or newer.
+Requires iOS 26 or newer (iPhone 11 and later). Older iPhones can use the web app.
 
 ## Put it on your iPhone (free)
 

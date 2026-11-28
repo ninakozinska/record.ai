@@ -60,7 +60,8 @@ jobs:
 
   ios:
     # Compiles the iPhone app for the simulator (no signing needed).
-    runs-on: macos-15
+    # macOS 26 has an Xcode with the iOS 26 SDK, which the app now requires.
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
       - name: Build the iPhone app

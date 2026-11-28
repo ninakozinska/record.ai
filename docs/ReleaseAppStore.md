@@ -216,6 +216,14 @@ types.) If it is missing, or if App Store Connect later emails a warning
 move the iPhone app to a regular Xcode project, which places the file
 correctly; then archive and upload again.
 
+**If the upload says "SDK version issue … built with the iOS 17.0 SDK"** even
+though Xcode is up to date: for a Swift package like this app, Xcode writes the
+minimum iOS version (`platforms` in Package.swift) where Apple reads the SDK
+version. The app therefore requires iOS 26 or newer, which Apple accepts. When
+Apple raises the requirement again (iOS 27 from April 2027), raise `.iOS("26.0")`
+to match. To check an archive: `xcrun vtool -show-build` on the app's program
+file inside the .xcarchive; the `sdk` line must be 26.0 or higher.
+
 For every later upload, a helper raises the build number by 1 in
 ios/RecordAI.swiftpm/Package.swift (`bundleVersion: "2"`, then `"3"`…), and the
 version (`displayVersion`) for each new release, such as `"1.0.1"`.
